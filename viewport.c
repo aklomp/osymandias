@@ -236,7 +236,7 @@ viewport_draw_tiles (void)
 	for (int x = tile_left; x <= tile_right; x++) {
 		for (int y = tile_top; y <= tile_bottom; y++) {
 			GLuint *texture = &textures[tile_right - x][tile_bottom - y];
-			if (!load_texture(bitmap_get(zoom, x, y), texture)) {
+			if (!load_texture(bitmap_request(zoom, x, y), texture)) {
 				continue;
 			}
 			glQuadTextured(x * 256, y * 256);
