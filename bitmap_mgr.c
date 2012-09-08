@@ -52,6 +52,10 @@ static struct zoomlevel *zoomlvl[ZOOM_MAX + 1];
 
 static unsigned int tiles_cached = 0;
 
+static struct xlist *last_closest_x = NULL;
+static struct ytile *last_closest_y = NULL;
+static unsigned int last_zoom = 0;
+
 static char *
 viking_filename (unsigned int zoom, int tile_x, int tile_y)
 {
@@ -79,16 +83,92 @@ viking_filename (unsigned int zoom, int tile_x, int tile_y)
 static void *
 bitmap_find_cached (const unsigned int zoom, const unsigned int xn, const unsigned int yn, struct xlist **x, struct ytile **y)
 {
+	// These are the naieve starting values for the x and y starting
+	// positions. Start searching for the x col from the start of the list,
+	// and the y col from whatever we find for the x col.
+	struct xlist *start_x = zoomlvl[zoom]->x;
+	struct ytile *start_y = NULL;
+
 	// Walk the x and y lists, find the closest matching element. Ideally
 	// the match is perfect, and we've found the cached tile. Otherwise the
 	// match is the last smallest element (the one which our element should
 	// come after), or NULL if the match was at the start of the list, or
 	// the list is empty. This then becomes the new insertion point for a
 	// procured xlist or ytile.
-	if ((*x = find_closest_smaller_x(zoomlvl[zoom]->x, xn)) == NULL || (*x)->n != xn) {
-		return NULL;
+
+	// Go to work with the cached (static) values of last_zoom,
+	// last_closest_x, and last_closest_y. The thinking is that this
+	// function is called in a loop with sequential x and y coordinates.
+	// Why not speed things up by searching from the last tile instead of
+	// searching from the start of the linked list? Ideally we'd find the
+	// next tile straight away.
+
+	if (zoom != last_zoom) {
+		// Don't use any cached values:
+		last_zoom = zoom;
 	}
-	if ((*y = find_closest_smaller_y((*x)->y, yn)) == NULL || (*y)->n != yn) {
+	else if (last_closest_x != NULL) {
+		// If the last xn was the same as the current xn, then we're on
+		// the right col and can set search_y to something other than
+		// NULL. We use the fact that search_y is not NULL later on to
+		// skip the search for the x col entirely.
+		if (last_closest_x->n == xn) {
+			start_x = last_closest_x;
+			if (last_closest_y != NULL) {
+				if (last_closest_y->n <= yn) {
+					// Start searching from this node:
+					start_y = last_closest_y;
+				}
+				else if (last_closest_y->n < yn + 20) {
+					// Last tile was close to this one, but has a slightly larger index.
+					// Backtrack a bit, see if we get a hit or a smaller sibling:
+					int i;
+					struct ytile *tmp = last_closest_y;
+					for (i = 0; i < 20; i++) {
+						if (tmp->n <= yn) {
+							start_y = tmp;
+							break;
+						}
+						if ((tmp = list_prev(tmp)) == NULL) {
+							break;
+						}
+					}
+				}
+			}
+		}
+		// If last_closest_x->n is smaller than xn, we can start searching from
+		// there instead of from the start of the list.
+		else if (last_closest_x->n < xn) {
+			start_x = last_closest_x;
+		}
+		else if (last_closest_x->n < xn + 20) {
+			// Run over the list backwards for max 20 hops, see if we can find a starting point:
+			int i;
+			struct xlist *tmp = last_closest_x;
+			for (i = 0; i < 20; i++) {
+				if (tmp->n <= xn) {
+					start_x = tmp;
+					break;
+				}
+				if ((tmp = list_prev(tmp)) == NULL) {
+					break;
+				}
+			}
+		}
+	}
+	// If start_y is not NULL, we know we're already on the right x row and can skip the search;
+	// else we start searching from start_x, which may or may not be close to the target:
+	if (start_y == NULL) {
+		if ((*x = last_closest_x = find_closest_smaller_x(start_x, xn)) == NULL || (*x)->n != xn) {
+			return NULL;
+		}
+		start_y = (*x)->y;
+	}
+	else {
+		// Ensure the variable is always updated for the caller:
+		*x = last_closest_x;
+	}
+	if ((*y = last_closest_y = find_closest_smaller_y(start_y, yn)) == NULL || (*y)->n != yn) {
 		return NULL;
 	}
 	return (*y)->rawbits;
