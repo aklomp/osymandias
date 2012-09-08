@@ -180,6 +180,8 @@ bitmap_request (const unsigned int zoom, const unsigned int xn, const unsigned i
 	void *s;
 	struct xlist *xclosest = NULL;
 	struct ytile *yclosest = NULL;
+	struct xlist *xmatch;
+	struct ytile *ymatch;
 
 	// Do we already have the tile?
 	if ((s = bitmap_find_cached(zoom, xn, yn, &xclosest, &yclosest)) != NULL) {
@@ -188,17 +190,21 @@ bitmap_request (const unsigned int zoom, const unsigned int xn, const unsigned i
 	// Do we at least have the right x col?
 	if (xclosest == NULL || xclosest->n != xn) {
 		// We don't, try to create it in place:
-		if ((xclosest = create_xlist(zoom, xclosest, xn)) == NULL) {
+		if ((xmatch = create_xlist(zoom, xclosest, xn)) == NULL) {
 			return NULL;
 		}
 	}
+	else {
+		// Yes we do: exact match:
+		xmatch = xclosest;
+	}
 	// Here we know that have the proper x col (even if perhaps empty);
 	// but we weren't able to find the tile before, so we know it does not exist:
-	if ((yclosest = create_ytile(xclosest, yclosest, yn)) == NULL) {
+	if ((ymatch = create_ytile(xmatch, yclosest, yn)) == NULL) {
 		return NULL;
 	}
 	// Try to load the tile from file:
-	return yclosest->rawbits = rawbits_get(zoom, xn, yn);
+	return ymatch->rawbits = rawbits_get(zoom, xn, yn);
 }
 
 static void *
