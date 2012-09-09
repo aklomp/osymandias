@@ -204,7 +204,13 @@ bitmap_request (const unsigned int zoom, const unsigned int xn, const unsigned i
 		return NULL;
 	}
 	// Try to load the tile from file:
-	return ymatch->rawbits = rawbits_get(zoom, xn, yn);
+	if ((ymatch->rawbits = rawbits_get(zoom, xn, yn)) != NULL) {
+		return ymatch->rawbits;
+	}
+	// If the lookup failed, do not hang an empty tile in the list:
+	list_detach(xmatch->y, ymatch);
+	free(ymatch);
+	return NULL;
 }
 
 static void *
