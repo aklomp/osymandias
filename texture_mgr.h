@@ -11,5 +11,6 @@ struct texture {
 int texture_mgr_init (void);
 void texture_mgr_destroy (void);
 struct texture *texture_request (const unsigned int zoom, const unsigned int xn, const unsigned int yn);
+int texture_quick_check (const unsigned int zoom, const unsigned int xn, const unsigned int yn);
 
 #endif	/* TEXTURE_MGR_H */

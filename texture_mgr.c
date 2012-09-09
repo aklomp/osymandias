@@ -79,6 +79,13 @@ texture_request (const unsigned int zoom, const unsigned int xn, const unsigned 
 	return texture_find_zoomed(zoom, xn, yn);
 }
 
+int
+texture_quick_check (const unsigned int zoom, const unsigned int xn, const unsigned int yn)
+{
+	// TODO: this should be a real standalone routine:
+	return (texture_request(zoom, xn, yn) != NULL);
+}
+
 static struct texture *
 texture_find_zoomed (const unsigned int zoom, const unsigned int xn, const unsigned int yn)
 {

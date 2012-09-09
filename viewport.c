@@ -15,14 +15,16 @@ static unsigned int center_y;	// in world coordinates
 static unsigned int screen_wd;	// screen dimension
 static unsigned int screen_ht;	// screen dimension
 
+static int tile_top;
 static int tile_left;
 static int tile_right;
-static int tile_top;
 static int tile_bottom;
+static int tile_last;
 
 static void viewport_gl_setup (void);
 static void viewport_draw_bkgd (void);
 static void viewport_draw_cursor (void);
+static bool viewport_need_bkgd (void);
 static void viewport_draw_tiles (void);
 static void glQuadTextured (const float, const float);
 
@@ -43,13 +45,13 @@ recalc_tile_extents (void)
 	// Given center_x, center_y and world_size,
 	// get the tile extents shown on screen
 
-	int tile_last = world_size / 256 - 1;
 	int screen_left = center_x - screen_wd / 2;
 	int screen_right = center_x + screen_wd / 2;
 	int screen_top = center_y - screen_ht / 2;
 	int screen_bottom = center_y + screen_ht / 2;
 
 	// Calculate border tiles, keep 1 tile margin:
+	tile_last = world_size / 256 - 1;
 	tile_left = screen_left / 256 - 1;
 	tile_right = screen_right / 256 + 1;
 	tile_top = screen_top / 256 - 1;
@@ -163,7 +165,9 @@ void
 viewport_render (void)
 {
 	viewport_gl_setup();
-	viewport_draw_bkgd();
+	if (viewport_need_bkgd()) {
+		viewport_draw_bkgd();
+	}
 	viewport_draw_tiles();
 	viewport_draw_cursor();
 }
@@ -220,6 +224,26 @@ viewport_draw_bkgd (void)
 		glVertex2f(center_x - halfwd, center_y + halfht);
 	glEnd();
 	glUseProgram(0);
+}
+
+static bool
+viewport_need_bkgd (void)
+{
+	// Out-of-bounds situation?
+	if (tile_left <= 0 || tile_top <= 0 || tile_right >= tile_last || tile_bottom >= tile_last) {
+		return true;
+	}
+	// Run through all the textures, do a quick check for unavailable tiles:
+	for (int x = tile_left; x <= tile_right; x++) {
+		for (int y = tile_top; y <= tile_bottom; y++) {
+			if (texture_quick_check(zoom, x, y) == 0) {
+				// Don't immediately have this tile; probably need background:
+				return true;
+			}
+		}
+	}
+	// All the tiles were found in the quick check; don't need the background:
+	return false;
 }
 
 static void
