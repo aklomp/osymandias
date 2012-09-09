@@ -46,8 +46,9 @@ static struct ytile *find_closest_smaller_y (struct ytile *first, const unsigned
 static struct xlist *create_xlist (const unsigned int zoom, struct xlist *closest, const unsigned int xn);
 static struct ytile *create_ytile (struct xlist *x, struct ytile *closest, const unsigned int yn);
 
-static unsigned int destroy_x_list (struct xlist *first);
-static unsigned int destroy_y_list (struct ytile *first);
+static void destroy_x_list (struct xlist *first);
+static void destroy_y_list (struct ytile *first);
+static void destroy_ytile (struct ytile **tile);
 
 static void cache_purge (const unsigned int zoom, const unsigned int xn, const unsigned int yn);
 
@@ -216,7 +217,7 @@ bitmap_request (const unsigned int zoom, const unsigned int xn, const unsigned i
 	}
 	// If the lookup failed, do not hang an empty tile in the list:
 	list_detach(xmatch->y, ymatch);
-	free(ymatch);
+	destroy_ytile(&ymatch);
 	return NULL;
 }
 
@@ -349,37 +350,41 @@ create_ytile (struct xlist *x, struct ytile *closest, const unsigned int yn)
 	return tile;
 }
 
-static unsigned int
+static void
 destroy_x_list (struct xlist *first)
 {
 	struct xlist *x;
 	struct xlist *tx;
-	unsigned int nfreed = 0;
 
 	list_foreach_safe(first, x, tx) {
-		nfreed += destroy_y_list(x->y);
+		destroy_y_list(x->y);
 		free(x);
 	}
-	return nfreed;
 }
 
-static unsigned int
+static void
 destroy_y_list (struct ytile *first)
 {
 	struct ytile *y;
 	struct ytile *ty;
-	unsigned int nfreed = 0;
 
-	// nfreed only counts *rawbits* freed; the data structure
-	// itself is considered "free" in terms of memory:
 	list_foreach_safe(first, y, ty) {
-		if (y->rawbits != NULL) {
-			free(y->rawbits);
-			nfreed++;
-		}
-		free(y);
+		destroy_ytile(&ty);
 	}
-	return nfreed;
+}
+
+static void
+destroy_ytile (struct ytile **tile)
+{
+	if (tile == NULL || *tile == NULL) {
+		return;
+	}
+	if ((*tile)->rawbits != NULL) {
+		free((*tile)->rawbits);
+		tiles_cached--;
+	}
+	free(*tile);
+	*tile = NULL;
 }
 
 static void
@@ -391,7 +396,7 @@ cache_purge (const unsigned int zoom, const unsigned int xn, const unsigned int 
 	// First, they came for the far higher zoom levels:
 	if (zoom + 3 <= ZOOM_MAX) {
 		for (unsigned int i = ZOOM_MAX; i > zoom + 2; i--) {
-			tiles_cached -= destroy_x_list(zoomlvl[i]->x);
+			destroy_x_list(zoomlvl[i]->x);
 			zoomlvl[i]->x = NULL;
 			if (tiles_cached <= PURGE_TO) {
 				return;
@@ -401,7 +406,7 @@ cache_purge (const unsigned int zoom, const unsigned int xn, const unsigned int 
 	// Then, they came for the far lower zoom levels:
 	if (zoom > 3) {
 		for (unsigned int i = 0; i < zoom - 3; i++) {
-			tiles_cached -= destroy_x_list(zoomlvl[i]->x);
+			destroy_x_list(zoomlvl[i]->x);
 			zoomlvl[i]->x = NULL;
 			if (tiles_cached <= PURGE_TO) {
 				return;
@@ -410,7 +415,7 @@ cache_purge (const unsigned int zoom, const unsigned int xn, const unsigned int 
 	}
 	// Then, they came for the directly higher zoom levels:
 	for (unsigned int i = ZOOM_MAX; i > zoom; i--) {
-		tiles_cached -= destroy_x_list(zoomlvl[i]->x);
+		destroy_x_list(zoomlvl[i]->x);
 		zoomlvl[i]->x = NULL;
 		if (tiles_cached <= PURGE_TO) {
 			return;
@@ -418,7 +423,7 @@ cache_purge (const unsigned int zoom, const unsigned int xn, const unsigned int 
 	}
 	// Then, they came for the directly lower zoom levels:
 	for (unsigned int i = 0; i < zoom; i++) {
-		tiles_cached -= destroy_x_list(zoomlvl[i]->x);
+		destroy_x_list(zoomlvl[i]->x);
 		zoomlvl[i]->x = NULL;
 		if (tiles_cached <= PURGE_TO) {
 			return;
@@ -451,7 +456,7 @@ cache_purge (const unsigned int zoom, const unsigned int xn, const unsigned int 
 				// Delete the first column, xs
 				xt = list_next(xs);
 				list_detach(zoomlvl[zoom]->x, xs);
-				tiles_cached -= destroy_x_list(xs);
+				destroy_x_list(xs);
 				zoomlvl[zoom]->x = xs = xt;
 				if (tiles_cached <= PURGE_TO) {
 					return;
@@ -461,7 +466,7 @@ cache_purge (const unsigned int zoom, const unsigned int xn, const unsigned int 
 			// Else delete the last column, xe
 			xt = list_prev(xe);
 			list_detach(zoomlvl[zoom]->x, xe);
-			tiles_cached -= destroy_x_list(xe);
+			destroy_x_list(xe);
 			if (tiles_cached <= PURGE_TO) {
 				return;
 			}
@@ -490,11 +495,7 @@ cache_purge (const unsigned int zoom, const unsigned int xn, const unsigned int 
 				if (dist_from_s > dist_from_e) {
 					yt = list_next(ys);
 					list_detach(xt->y, ys);
-					if (ys->rawbits != NULL) {
-						free(ys->rawbits);
-						tiles_cached--;
-					}
-					free(ys);
+					destroy_ytile(&ys);
 					xt->y = ys = yt;
 					if (tiles_cached <= PURGE_TO) {
 						return;
@@ -503,11 +504,7 @@ cache_purge (const unsigned int zoom, const unsigned int xn, const unsigned int 
 				}
 				yt = list_prev(ye);
 				list_detach(xt->y, ye);
-				if (ye->rawbits != NULL) {
-					free(ye->rawbits);
-					tiles_cached--;
-				}
-				free(ye);
+				destroy_ytile(&ye);
 				if (tiles_cached <= PURGE_TO) {
 					return;
 				}
