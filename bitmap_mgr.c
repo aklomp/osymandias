@@ -46,8 +46,8 @@ static struct ytile *find_closest_smaller_y (struct ytile *first, const unsigned
 static struct xlist *create_xlist (const unsigned int zoom, struct xlist *closest, const unsigned int xn);
 static struct ytile *create_ytile (struct xlist *x, struct ytile *closest, const unsigned int yn);
 
-static void destroy_x_list (struct xlist *first);
-static void destroy_y_list (struct ytile *first);
+static void destroy_xlist (struct xlist **first);
+static void destroy_ylist (struct ytile **first);
 static void destroy_ytile (struct ytile **tile);
 
 static void cache_purge (const unsigned int zoom, const unsigned int xn, const unsigned int yn);
@@ -353,26 +353,34 @@ create_ytile (struct xlist *x, struct ytile *closest, const unsigned int yn)
 }
 
 static void
-destroy_x_list (struct xlist *first)
+destroy_xlist (struct xlist **first)
 {
 	struct xlist *x;
 	struct xlist *tx;
 
-	list_foreach_safe(first, x, tx) {
-		destroy_y_list(x->y);
+	if (first == NULL || *first == NULL) {
+		return;
+	}
+	list_foreach_safe(*first, x, tx) {
+		destroy_ylist(&x->y);
 		free(x);
 	}
+	*first = NULL;
 }
 
 static void
-destroy_y_list (struct ytile *first)
+destroy_ylist (struct ytile **first)
 {
 	struct ytile *y;
 	struct ytile *ty;
 
-	list_foreach_safe(first, y, ty) {
+	if (first == NULL || *first == NULL) {
+		return;
+	}
+	list_foreach_safe(*first, y, ty) {
 		destroy_ytile(&ty);
 	}
+	*first = NULL;
 }
 
 static void
@@ -398,8 +406,7 @@ cache_purge (const unsigned int zoom, const unsigned int xn, const unsigned int 
 	// First, they came for the far higher zoom levels:
 	if (zoom + 3 <= ZOOM_MAX) {
 		for (unsigned int i = ZOOM_MAX; i > zoom + 2; i--) {
-			destroy_x_list(zoomlvl[i]->x);
-			zoomlvl[i]->x = NULL;
+			destroy_xlist(&zoomlvl[i]->x);
 			if (tiles_cached <= PURGE_TO) {
 				return;
 			}
@@ -408,8 +415,7 @@ cache_purge (const unsigned int zoom, const unsigned int xn, const unsigned int 
 	// Then, they came for the far lower zoom levels:
 	if (zoom > 3) {
 		for (unsigned int i = 0; i < zoom - 3; i++) {
-			destroy_x_list(zoomlvl[i]->x);
-			zoomlvl[i]->x = NULL;
+			destroy_xlist(&zoomlvl[i]->x);
 			if (tiles_cached <= PURGE_TO) {
 				return;
 			}
@@ -417,16 +423,14 @@ cache_purge (const unsigned int zoom, const unsigned int xn, const unsigned int 
 	}
 	// Then, they came for the directly higher zoom levels:
 	for (unsigned int i = ZOOM_MAX; i > zoom; i--) {
-		destroy_x_list(zoomlvl[i]->x);
-		zoomlvl[i]->x = NULL;
+		destroy_xlist(&zoomlvl[i]->x);
 		if (tiles_cached <= PURGE_TO) {
 			return;
 		}
 	}
 	// Then, they came for the directly lower zoom levels:
 	for (unsigned int i = 0; i < zoom; i++) {
-		destroy_x_list(zoomlvl[i]->x);
-		zoomlvl[i]->x = NULL;
+		destroy_xlist(&zoomlvl[i]->x);
 		if (tiles_cached <= PURGE_TO) {
 			return;
 		}
@@ -468,7 +472,7 @@ cache_purge_x_rows (const unsigned int zoom, const unsigned int xn)
 			// Delete the first column, xs
 			xt = list_next(xs);
 			list_detach(zoomlvl[zoom]->x, xs);
-			destroy_x_list(xs);
+			destroy_xlist(&xs);
 			zoomlvl[zoom]->x = xs = xt;
 			if (tiles_cached <= PURGE_TO) {
 				return;
@@ -478,7 +482,7 @@ cache_purge_x_rows (const unsigned int zoom, const unsigned int xn)
 		// Else delete the last column, xe
 		xt = list_prev(xe);
 		list_detach(zoomlvl[zoom]->x, xe);
-		destroy_x_list(xe);
+		destroy_xlist(&xe);
 		if (tiles_cached <= PURGE_TO) {
 			return;
 		}
@@ -561,7 +565,7 @@ void
 bitmap_mgr_destroy (void)
 {
 	for (int i = 0; i <= ZOOM_MAX; i++) {
-		destroy_x_list(zoomlvl[i]->x);
+		destroy_xlist(&zoomlvl[i]->x);
 		free(zoomlvl[i]);
 	}
 }
