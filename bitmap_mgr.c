@@ -7,7 +7,8 @@
 #include "llist.h"
 
 #define ZOOM_MAX	18
-#define N_BITMAPS	1000	// Keep this many raw tiles in the cache
+#define MAX_BITMAPS	1000			// Keep at most this many bitmaps in the cache
+#define PURGE_TO	(MAX_BITMAPS * 3 / 4)	// Don't stop purging till this much left
 
 // Data structures.
 // Each zoom level has a linked list of "x" rows. An "x" row knows which row it
@@ -45,8 +46,10 @@ static struct ytile *find_closest_smaller_y (struct ytile *first, const unsigned
 static struct xlist *create_xlist (const unsigned int zoom, struct xlist *closest, const unsigned int xn);
 static struct ytile *create_ytile (struct xlist *x, struct ytile *closest, const unsigned int yn);
 
-static void destroy_x_list (struct xlist *first);
-static void destroy_y_list (struct ytile *first);
+static unsigned int destroy_x_list (struct xlist *first);
+static unsigned int destroy_y_list (struct ytile *first);
+
+static void cache_purge (const unsigned int zoom, const unsigned int xn, const unsigned int yn);
 
 static struct zoomlevel *zoomlvl[ZOOM_MAX + 1];
 
@@ -203,6 +206,10 @@ bitmap_request (const unsigned int zoom, const unsigned int xn, const unsigned i
 	if ((ymatch = create_ytile(xmatch, yclosest, yn)) == NULL) {
 		return NULL;
 	}
+	// Should we purge the cache first, before loading new images?
+	if (tiles_cached >= MAX_BITMAPS) {
+		cache_purge(zoom, xn, yn);
+	}
 	// Try to load the tile from file:
 	if ((ymatch->rawbits = rawbits_get(zoom, xn, yn)) != NULL) {
 		return ymatch->rawbits;
@@ -342,27 +349,80 @@ create_ytile (struct xlist *x, struct ytile *closest, const unsigned int yn)
 	return tile;
 }
 
-static void
+static unsigned int
 destroy_x_list (struct xlist *first)
 {
 	struct xlist *x;
 	struct xlist *tx;
+	unsigned int nfreed = 0;
 
 	list_foreach_safe(first, x, tx) {
-		destroy_y_list(x->y);
+		nfreed += destroy_y_list(x->y);
 		free(x);
 	}
+	return nfreed;
 }
 
-static void
+static unsigned int
 destroy_y_list (struct ytile *first)
 {
 	struct ytile *y;
 	struct ytile *ty;
+	unsigned int nfreed = 0;
 
+	// nfreed only counts *rawbits* freed; the data structure
+	// itself is considered "free" in terms of memory:
 	list_foreach_safe(first, y, ty) {
-		free(y->rawbits);
+		if (y->rawbits != NULL) {
+			free(y->rawbits);
+			nfreed++;
+		}
 		free(y);
+	}
+	return nfreed;
+}
+
+static void
+cache_purge (const unsigned int zoom, const unsigned int xn, const unsigned int yn)
+{
+	// Purge items from the cache till only #PURGE_TO tiles left.
+	// Use a heuristic method to remove "unimportant" tiles first.
+
+	// First, they came for the far higher zoom levels:
+	if (zoom + 3 <= ZOOM_MAX) {
+		for (unsigned int i = ZOOM_MAX; i > zoom + 2; i--) {
+			tiles_cached -= destroy_x_list(zoomlvl[i]->x);
+			zoomlvl[i]->x = NULL;
+			if (tiles_cached <= PURGE_TO) {
+				return;
+			}
+		}
+	}
+	// Then, they came for the far lower zoom levels:
+	if (zoom > 3) {
+		for (unsigned int i = 0; i < zoom - 3; i++) {
+			tiles_cached -= destroy_x_list(zoomlvl[i]->x);
+			zoomlvl[i]->x = NULL;
+			if (tiles_cached <= PURGE_TO) {
+				return;
+			}
+		}
+	}
+	// Then, they came for the directly higher zoom levels:
+	for (unsigned int i = ZOOM_MAX; i > zoom; i--) {
+		tiles_cached -= destroy_x_list(zoomlvl[i]->x);
+		zoomlvl[i]->x = NULL;
+		if (tiles_cached <= PURGE_TO) {
+			return;
+		}
+	}
+	// Then, they came for the directly lower zoom levels:
+	for (unsigned int i = 0; i < zoom; i++) {
+		tiles_cached -= destroy_x_list(zoomlvl[i]->x);
+		zoomlvl[i]->x = NULL;
+		if (tiles_cached <= PURGE_TO) {
+			return;
+		}
 	}
 }
 
