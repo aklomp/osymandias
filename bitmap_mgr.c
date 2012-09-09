@@ -51,6 +51,8 @@ static void destroy_y_list (struct ytile *first);
 static void destroy_ytile (struct ytile **tile);
 
 static void cache_purge (const unsigned int zoom, const unsigned int xn, const unsigned int yn);
+static void cache_purge_y_rows (const unsigned int zoom, const unsigned int yn);
+static void cache_purge_x_rows (const unsigned int zoom, const unsigned int xn);
 
 static struct zoomlevel *zoomlvl[ZOOM_MAX + 1];
 
@@ -430,86 +432,105 @@ cache_purge (const unsigned int zoom, const unsigned int xn, const unsigned int 
 		}
 	}
 	// Then, they got the start and end of the x columns, and deleted the furthest columns:
-	{
-		struct xlist *xs = zoomlvl[zoom]->x;	// Start col
-		struct xlist *xe;			// End col
-		struct xlist *xt;			// Temporary
+	cache_purge_x_rows(zoom, xn);
+	if (tiles_cached <= PURGE_TO) {
+		return;
+	}
+	// Then, finally, they went for the y columns:
+	cache_purge_y_rows(zoom, yn);
+}
 
-		// This destroys the cache lookup optimization:
-		last_closest_x = NULL;
-		last_closest_y = NULL;
-		last_zoom = 0;
+static void
+cache_purge_x_rows (const unsigned int zoom, const unsigned int xn)
+{
+	struct xlist *xs = zoomlvl[zoom]->x;	// Start col
+	struct xlist *xe;			// End col
+	struct xlist *xt;			// Temporary
 
-		// Set xe to the last column:
-		list_last(xs, xe);
+	// This destroys the cache lookup optimization:
+	last_closest_x = NULL;
+	last_closest_y = NULL;
+	last_zoom = 0;
 
-		// Delete the furthest column of the two:
-		while (tiles_cached > PURGE_TO && zoomlvl[zoom]->x != NULL) {
-			unsigned int dist_from_s = abs((int)xn - (int)xs->n);
-			unsigned int dist_from_e = abs((int)xe->n - (int)xn);
-			// But if either one of these are within 10 of the current xn, refuse;
-			// probably should go after the y values instead:
+	// Set xe to the last column:
+	list_last(xs, xe);
+
+	// Delete the furthest column of the two:
+	while (tiles_cached > PURGE_TO && xs != NULL && xe != NULL) {
+		unsigned int dist_from_s = abs((int)xn - (int)xs->n);
+		unsigned int dist_from_e = abs((int)xe->n - (int)xn);
+		// But if either one of these are within 10 of the current xn, refuse;
+		// probably should go after the y values instead:
+		if (dist_from_s < 10 && dist_from_e < 10) {
+			break;
+		}
+		if (dist_from_s > dist_from_e) {
+			// Delete the first column, xs
+			xt = list_next(xs);
+			list_detach(zoomlvl[zoom]->x, xs);
+			destroy_x_list(xs);
+			zoomlvl[zoom]->x = xs = xt;
+			if (tiles_cached <= PURGE_TO) {
+				return;
+			}
+			continue;
+		}
+		// Else delete the last column, xe
+		xt = list_prev(xe);
+		list_detach(zoomlvl[zoom]->x, xe);
+		destroy_x_list(xe);
+		if (tiles_cached <= PURGE_TO) {
+			return;
+		}
+		xe = xt;
+		// If xe was equal to xs, then it's entirely possible that xs
+		// is still non-NULL (stale value), but ye is already NULL.
+		// Hence the null check on xe in the loop header.
+	}
+}
+
+static void
+cache_purge_y_rows (const unsigned int zoom, const unsigned int yn)
+{
+	struct xlist *xt;
+
+	// This destroys the cache lookup optimization:
+	last_closest_x = NULL;
+	last_closest_y = NULL;
+	last_zoom = 0;
+
+	list_foreach(zoomlvl[zoom]->x, xt) {
+		struct ytile *ys = xt->y;
+		struct ytile *ye;
+		struct ytile *yt;
+
+		if (ys == NULL) {
+			continue;
+		}
+		list_last(ys, ye);
+		while (tiles_cached > PURGE_TO && ys != NULL && ye != NULL) {
+			unsigned int dist_from_s = abs((int)yn - (int)ys->n);
+			unsigned int dist_from_e = abs((int)ye->n - (int)yn);
 			if (dist_from_s < 10 && dist_from_e < 10) {
 				break;
 			}
 			if (dist_from_s > dist_from_e) {
-				// Delete the first column, xs
-				xt = list_next(xs);
-				list_detach(zoomlvl[zoom]->x, xs);
-				destroy_x_list(xs);
-				zoomlvl[zoom]->x = xs = xt;
+				yt = list_next(ys);
+				list_detach(xt->y, ys);
+				destroy_ytile(&ys);
+				xt->y = ys = yt;
 				if (tiles_cached <= PURGE_TO) {
 					return;
 				}
 				continue;
 			}
-			// Else delete the last column, xe
-			xt = list_prev(xe);
-			list_detach(zoomlvl[zoom]->x, xe);
-			destroy_x_list(xe);
+			yt = list_prev(ye);
+			list_detach(xt->y, ye);
+			destroy_ytile(&ye);
 			if (tiles_cached <= PURGE_TO) {
 				return;
 			}
-			xe = xt;
-		}
-	}
-	// Then, finally, they went for the y columns:
-	{
-		struct xlist *xt;
-		list_foreach(zoomlvl[zoom]->x, xt) {
-			struct ytile *ys = xt->y;
-			struct ytile *ye;
-			struct ytile *yt;
-
-			if (ys == NULL) {
-				continue;
-			}
-			list_last(ys, ye);
-
-			while (tiles_cached > PURGE_TO && ys != NULL) {
-				unsigned int dist_from_s = abs((int)yn - (int)ys->n);
-				unsigned int dist_from_e = abs((int)ye->n - (int)yn);
-				if (dist_from_s < 10 && dist_from_e < 10) {
-					break;
-				}
-				if (dist_from_s > dist_from_e) {
-					yt = list_next(ys);
-					list_detach(xt->y, ys);
-					destroy_ytile(&ys);
-					xt->y = ys = yt;
-					if (tiles_cached <= PURGE_TO) {
-						return;
-					}
-					continue;
-				}
-				yt = list_prev(ye);
-				list_detach(xt->y, ye);
-				destroy_ytile(&ye);
-				if (tiles_cached <= PURGE_TO) {
-					return;
-				}
-				ye = yt;
-			}
+			ye = yt;
 		}
 	}
 }
