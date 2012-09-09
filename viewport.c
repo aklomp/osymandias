@@ -225,17 +225,20 @@ viewport_draw_bkgd (void)
 static void
 viewport_draw_tiles (void)
 {
-	shader_use_tile((center_x - screen_wd / 2) & 0xFF, (center_y - screen_ht / 2) & 0xFF);
+	struct texture *texture;
+	unsigned int screen_offs_x = (center_x - screen_wd / 2) & 0xFF;
+	unsigned int screen_offs_y = (center_y - screen_ht / 2) & 0xFF;
+
 	glEnable(GL_TEXTURE_2D);
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	for (int x = tile_left; x <= tile_right; x++) {
 		for (int y = tile_top; y <= tile_bottom; y++) {
-			GLuint texture_id;
-			if ((texture_id = texture_request(zoom, x, y)) == 0) {
+			if ((texture = texture_request(zoom, x, y)) == NULL) {
 				continue;
 			}
-			glBindTexture(GL_TEXTURE_2D, texture_id);
+			shader_use_tile(screen_offs_x, screen_offs_y, texture->offset_x, texture->offset_y, texture->zoomfactor);
+			glBindTexture(GL_TEXTURE_2D, texture->id);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 			glQuadTextured(x * 256, y * 256);

@@ -114,14 +114,24 @@ shader_use_cursor (const float cur_halfwd, const float cur_halfht)
 }
 
 void
-shader_use_tile (const int cur_offs_x, const int cur_offs_y)
+shader_use_tile (const int cur_offs_x, const int cur_offs_y, const int texture_offs_x, const int texture_offs_y, const int zoomfactor)
 {
-	static int offs_x;
-	static int offs_y;
+	static int offs_x = 0;
+	static int offs_y = 0;
+	static int s_texture_offs_x = 0;
+	static int s_texture_offs_y = 0;
+	static float s_zoomfactor = 0.0;
 	static GLuint offs_x_loc = 0;
 	static GLuint offs_y_loc = 0;
+	static GLuint texture_offs_x_loc = 0;
+	static GLuint texture_offs_y_loc = 0;
+	static GLuint zoomfactor_loc = 0;
 
 	glUseProgram(progs[SHADER_TILE]);
 	rebind_int(&offs_x, cur_offs_x, &offs_x_loc, "offs_x", SHADER_TILE);
 	rebind_int(&offs_y, cur_offs_y, &offs_y_loc, "offs_y", SHADER_TILE);
+	rebind_int(&s_texture_offs_x, texture_offs_x, &texture_offs_x_loc, "texture_offs_x", SHADER_TILE);
+	rebind_int(&s_texture_offs_y, texture_offs_y, &texture_offs_y_loc, "texture_offs_y", SHADER_TILE);
+	/* 1:1 is 256.0, 2:1 is 512.0, etc */
+	rebind_float(&s_zoomfactor, (float)(1 << (7 + zoomfactor)), &zoomfactor_loc, "zoomfactor", SHADER_TILE);
 }
