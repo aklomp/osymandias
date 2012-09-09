@@ -6,6 +6,7 @@
 
 #include "mouse.h"
 #include "bitmap_mgr.h"
+#include "texture_mgr.h"
 #include "viewport.h"
 
 static gboolean
@@ -87,9 +88,11 @@ main (int argc, char **argv)
 	viewport_init();
 
 	bitmap_mgr_init();
+	texture_mgr_init();
 
 	gtk_main();
 
+	texture_mgr_destroy();
 	bitmap_mgr_destroy();
 	viewport_destroy();
 

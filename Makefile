@@ -18,6 +18,7 @@ OBJS_GTK = \
 
 OBJS_GTKGL = \
   shaders.o \
+  texture_mgr.o \
 
 OBJS_GTK_GTKGL = \
   main.o \

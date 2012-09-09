@@ -4,9 +4,8 @@
 
 #include <GL/gl.h>
 
-#include "png.h"
 #include "shaders.h"
-#include "bitmap_mgr.h"
+#include "texture_mgr.h"
 #include "viewport.h"
 
 static unsigned int world_size = 0;	// current world size in pixels
@@ -26,7 +25,6 @@ static void viewport_draw_bkgd (void);
 static void viewport_draw_cursor (void);
 static void viewport_draw_tiles (void);
 static void glQuadTextured (const float, const float);
-static bool load_texture (const void *const rawbits, GLuint *const texture);
 
 static unsigned int
 total_canvas_size (const int zoom)
@@ -227,20 +225,20 @@ viewport_draw_bkgd (void)
 static void
 viewport_draw_tiles (void)
 {
-	GLuint textures[tile_right - tile_left + 1][tile_bottom - tile_top + 1];
-
 	shader_use_tile((center_x - screen_wd / 2) & 0xFF, (center_y - screen_ht / 2) & 0xFF);
 	glEnable(GL_TEXTURE_2D);
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	for (int x = tile_left; x <= tile_right; x++) {
 		for (int y = tile_top; y <= tile_bottom; y++) {
-			GLuint *texture = &textures[tile_right - x][tile_bottom - y];
-			if (!load_texture(bitmap_request(zoom, x, y), texture)) {
+			GLuint texture_id;
+			if ((texture_id = texture_request(zoom, x, y)) == 0) {
 				continue;
 			}
+			glBindTexture(GL_TEXTURE_2D, texture_id);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 			glQuadTextured(x * 256, y * 256);
-			glDeleteTextures(1, texture);
 		}
 	}
 	glDisable(GL_BLEND);
@@ -265,20 +263,4 @@ glQuadTextured (const float x1, const float y1)
 		glTexCoord2f(1.0f, 1.0f); glVertex2f(rx2, ry2);
 		glTexCoord2f(0.0f, 1.0f); glVertex2f(rx1, ry2);
 	glEnd();
-}
-
-static bool
-load_texture (const void *const rawbits, GLuint *const texture)
-{
-	if (rawbits == NULL) {
-		*texture = 0;
-		return false;
-	}
-	// Register the texture:
-	glGenTextures(1, texture);
-	glBindTexture(GL_TEXTURE_2D, *texture);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 256, 256, 0, GL_RGB, GL_UNSIGNED_BYTE, rawbits);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	return true;
 }
