@@ -16,7 +16,7 @@ struct list {
 #define list_init(x)		((x)->list.prev = (x)->list.next = NULL)
 #define list_prev(x)		((__typeof__(x))(x)->list.prev)
 #define list_next(x)		((__typeof__(x))(x)->list.next)
-#define list_last(f,p)		for ((p) = (f); list_next(p); (p) = list_next(p)) { ; }
+#define list_last(f,p)		for ((p) = (f); (p) && list_next(p); (p) = list_next(p)) { ; }
 #define list_foreach(f,x)	for ((x) = (f); (x); (x) = list_next(x))
 
 // f is pointer to starting list element;
@@ -42,14 +42,14 @@ struct list {
 	(p)->list.next = (x);					\
 	if (list_next(x)) list_next(x)->list.prev = (x);
 
-// f is pointer to first list element;
+// f is pointer to pointer to first list element;
 // x is pointer to the node to detach:
 #define list_detach(f,x)					\
 	if ((x)->list.prev != NULL) {				\
 		list_prev(x)->list.next = list_next(x);		\
 	}							\
 	else {							\
-		(f) = list_next(x);				\
+		*(f) = list_next(x);				\
 	}							\
 	if ((x)->list.next != NULL) {				\
 		list_next(x)->list.prev = list_prev(x);		\

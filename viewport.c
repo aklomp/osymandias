@@ -233,17 +233,8 @@ viewport_need_bkgd (void)
 	if (tile_left <= 0 || tile_top <= 0 || tile_right >= tile_last || tile_bottom >= tile_last) {
 		return true;
 	}
-	// Run through all the textures, do a quick check for unavailable tiles:
-	for (int x = tile_left; x <= tile_right; x++) {
-		for (int y = tile_top; y <= tile_bottom; y++) {
-			if (texture_quick_check(zoom, x, y) == 0) {
-				// Don't immediately have this tile; probably need background:
-				return true;
-			}
-		}
-	}
-	// All the tiles were found in the quick check; don't need the background:
-	return false;
+	// If we are not sure that the area is covered, better draw the background:
+	return !texture_area_is_covered(zoom, tile_left, tile_top, tile_right, tile_bottom);
 }
 
 static void

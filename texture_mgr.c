@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <GL/gl.h>
 
+#include "xylist.h"
 #include "bitmap_mgr.h"
 #include "texture_mgr.h"
 
@@ -9,109 +10,107 @@
 
 struct texdata {
 	GLuint id;
-	unsigned int zoom;
-	unsigned int xn;
-	unsigned int yn;
 };
 
-static struct texture *texture_find_zoomed (const unsigned int zoom, const unsigned int xn, const unsigned int yn);
+static void *texture_procure (const unsigned int zoom, const unsigned int xn, const unsigned int yn, const unsigned int search_depth);
+static void texture_destroy (void *data);
 
-static struct texdata *textures[100];
+struct xylist *textures = NULL;
 static struct texture output;		// Reuse this structure shamelessly
-static int nextfree = 0;
 
 int
 texture_mgr_init (void)
 {
-	// FIXME for prototyping only:
-	for (unsigned int i = 0; i < N_ELEM(textures); i++) {
-		textures[i] = malloc(sizeof(struct texture));
-		textures[i]->id = 0;
-	}
-	return 1;
+	return ((textures = xylist_create(0, 18, 100, &texture_procure, &texture_destroy)) == NULL) ? 0 : 1;
 }
 
 void
 texture_mgr_destroy (void)
 {
-	for (unsigned int i = 0; i < N_ELEM(textures); i++) {
-		if (textures[i]->id > 0) {
-			glDeleteTextures(1, &textures[i]->id);
-		}
-		free(textures[i]);
-	}
+	xylist_destroy(&textures);
 }
 
 struct texture *
 texture_request (const unsigned int zoom, const unsigned int xn, const unsigned int yn)
 {
-	void *rawbits;
+	void *data;
 
 	// Is the texture already loaded?
-	for (int i = 0; i < nextfree; i++) {
-		if (textures[i]->id != 0 && textures[i]->zoom == zoom && textures[i]->xn == xn && textures[i]->yn == yn) {
-			output.id = textures[i]->id;
-			output.offset_x = 0;
-			output.offset_y = 0;
-			output.zoomfactor = 1;
-			return &output;
-		}
-	}
-	// Out of space?
-	if (nextfree == N_ELEM(textures)) {
-		return texture_find_zoomed(zoom, xn, yn);
-	}
-	// Can we find rawbits to generate the texture?
-	if ((rawbits = bitmap_request(zoom, xn, yn)) != NULL) {
-		glGenTextures(1, &textures[nextfree]->id);
-		glBindTexture(GL_TEXTURE_2D, textures[nextfree]->id);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 256, 256, 0, GL_RGB, GL_UNSIGNED_BYTE, rawbits);
-		textures[nextfree]->zoom = zoom;
-		textures[nextfree]->xn = xn;
-		textures[nextfree]->yn = yn;
-		nextfree++;
-		output.id = textures[nextfree - 1]->id;
+	if ((data = xylist_request(textures, zoom, xn, yn, 9)) != NULL) {
+		output.id = ((struct texdata *)data)->id;
 		output.offset_x = 0;
 		output.offset_y = 0;
 		output.zoomfactor = 1;
 		return &output;
 	}
-	return texture_find_zoomed(zoom, xn, yn);
+	// Otherwise, can we find the texture at lower zoomlevels?
+	for (int z = (int)zoom - 1; z >= 0; z--)
+	{
+		unsigned int zoomdiff = (zoom - z);
+		unsigned int zoomed_xn = xn >> (zoomdiff);
+		unsigned int zoomed_yn = yn >> (zoomdiff);
+		unsigned int blocksz;
+		unsigned int xblock;
+		unsigned int yblock;
+
+		// Request the tile from the xylist with a search_depth of 1,
+		// so that we will first try the texture cache, then try to procure
+		// from the bitmap cache, and then give up:
+		if ((data = xylist_request(textures, (unsigned int)z, zoomed_xn, zoomed_yn, 1)) == NULL) {
+			continue;
+		}
+		// At this zoom level, cut a block of this pixel size out of parent:
+		blocksz = (256 >> zoomdiff);
+		// This is the nth block out of parent, counting from top left:
+		xblock = (xn - (zoomed_xn << zoomdiff));
+		yblock = (yn - (zoomed_yn << zoomdiff));
+
+		// Reverse the yblock index, texture coordinates run from bottom left:
+		yblock = (1 << zoomdiff) - 1 - yblock;
+
+		output.id = ((struct texdata *)data)->id;
+		output.offset_x = blocksz * xblock;
+		output.offset_y = blocksz * yblock;
+		output.zoomfactor = zoomdiff + 1;
+		return &output;
+	}
+	return NULL;
+}
+
+static void *
+texture_procure (const unsigned int zoom, const unsigned int xn, const unsigned int yn, const unsigned int search_depth)
+{
+	struct texdata *data;
+	void *rawbits;
+
+	// This function is called by the xylist code when it wants to fill a tile slot.
+	// The return pointer is stored for us and given back when we search for a tile.
+	// We create a texture id object by asking the bitmap manager for a bitmap.
+
+	if ((data = malloc(sizeof(*data))) == NULL) {
+		return NULL;
+	}
+	// Can we find rawbits to generate the texture?
+	if ((rawbits = bitmap_request(zoom, xn, yn, search_depth)) == NULL) {
+		free(data);
+		return NULL;
+	}
+	glGenTextures(1, &data->id);
+	glBindTexture(GL_TEXTURE_2D, data->id);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 256, 256, 0, GL_RGB, GL_UNSIGNED_BYTE, rawbits);
+	return data;
+}
+
+static void
+texture_destroy (void *data)
+{
+	// The xylist code calls this when it wants to delete a tile:
+	glDeleteTextures(1, &((struct texdata *)data)->id);
+	free(data);
 }
 
 int
-texture_quick_check (const unsigned int zoom, const unsigned int xn, const unsigned int yn)
+texture_area_is_covered (const unsigned int zoom, const unsigned int tile_xmin, const unsigned int tile_ymin, const unsigned int tile_xmax, const unsigned int tile_ymax)
 {
-	// TODO: this should be a real standalone routine:
-	return (texture_request(zoom, xn, yn) != NULL);
-}
-
-static struct texture *
-texture_find_zoomed (const unsigned int zoom, const unsigned int xn, const unsigned int yn)
-{
-	// Can we reuse a texture from a lower zoom level?
-	for (int i = 0; i < nextfree; i++) {
-		unsigned int zoomdiff;
-		if (textures[i]->id == 0 || textures[i]->zoom >= zoom) {
-			continue;
-		}
-		zoomdiff = zoom - textures[i]->zoom;
-		if (textures[i]->xn == (xn >> zoomdiff) && textures[i]->yn == (yn >> zoomdiff)) {
-			// At this zoom level, cut a block of this pixel size out of parent:
-			unsigned int blocksz = (256 >> zoomdiff);
-			// This is the nth block out of parent, counting from top left:
-			unsigned int xblock = (xn - (textures[i]->xn << zoomdiff));
-			unsigned int yblock = (yn - (textures[i]->yn << zoomdiff));
-
-			// Reverse the yblock index, texture coordinates run from bottom left:
-			yblock = (1 << zoomdiff) - 1 - yblock;
-
-			output.id = textures[i]->id;
-			output.offset_x = blocksz * xblock;
-			output.offset_y = blocksz * yblock;
-			output.zoomfactor = zoomdiff + 1;
-			return &output;
-		}
-	}
-	return NULL;
+	return xylist_area_is_covered(textures, zoom, tile_xmin, tile_ymin, tile_xmax, tile_ymax);
 }

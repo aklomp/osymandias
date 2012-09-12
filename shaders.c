@@ -133,5 +133,5 @@ shader_use_tile (const int cur_offs_x, const int cur_offs_y, const int texture_o
 	rebind_int(&s_texture_offs_x, texture_offs_x, &texture_offs_x_loc, "texture_offs_x", SHADER_TILE);
 	rebind_int(&s_texture_offs_y, texture_offs_y, &texture_offs_y_loc, "texture_offs_y", SHADER_TILE);
 	/* 1:1 is 256.0, 2:1 is 512.0, etc */
-	rebind_float(&s_zoomfactor, (float)(1 << (7 + zoomfactor)), &zoomfactor_loc, "zoomfactor", SHADER_TILE);
+	rebind_float(&s_zoomfactor, (float)(1U << (7 + zoomfactor)), &zoomfactor_loc, "zoomfactor", SHADER_TILE);
 }

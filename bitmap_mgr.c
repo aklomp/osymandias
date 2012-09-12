@@ -4,7 +4,7 @@
 #include <stdio.h>
 
 #include "pngloader.h"
-#include "llist.h"
+#include "xylist.h"
 
 #define ZOOM_MAX	18
 #define MAX_BITMAPS	1000			// Keep at most this many bitmaps in the cache
@@ -22,45 +22,7 @@
 // Of course, if you get a cache miss somewhere, you insert an "x" row or an
 // "y" tile after the closest "smaller" sibling, and so on.
 
-struct ytile {
-	unsigned int n;
-	struct list list;
-	void *rawbits;
-};
-
-struct xlist {
-	unsigned int n;
-	struct list list;
-	struct ytile *y;
-};
-
-struct zoomlevel {
-	struct xlist *x;
-};
-
-static void *rawbits_get (const unsigned int zoom, const unsigned int xn, const unsigned int yn);
-
-static struct xlist *find_closest_smaller_x (struct xlist *first, const unsigned int xn);
-static struct ytile *find_closest_smaller_y (struct ytile *first, const unsigned int yn);
-
-static struct xlist *create_xlist (const unsigned int zoom, struct xlist *closest, const unsigned int xn);
-static struct ytile *create_ytile (struct xlist *x, struct ytile *closest, const unsigned int yn);
-
-static void destroy_xlist (struct xlist **first);
-static void destroy_ylist (struct ytile **first);
-static void destroy_ytile (struct ytile **tile);
-
-static void cache_purge (const unsigned int zoom, const unsigned int xn, const unsigned int yn);
-static void cache_purge_y_rows (const unsigned int zoom, const unsigned int yn);
-static void cache_purge_x_rows (const unsigned int zoom, const unsigned int xn);
-
-static struct zoomlevel *zoomlvl[ZOOM_MAX + 1];
-
-static unsigned int tiles_cached = 0;
-
-static struct xlist *last_closest_x = NULL;
-static struct ytile *last_closest_y = NULL;
-static unsigned int last_zoom = 0;
+static struct xylist *bitmaps = NULL;
 
 static char *
 viking_filename (unsigned int zoom, int tile_x, int tile_y)
@@ -86,150 +48,21 @@ viking_filename (unsigned int zoom, int tile_x, int tile_y)
 	return buf;
 }
 
-static void *
-bitmap_find_cached (const unsigned int zoom, const unsigned int xn, const unsigned int yn, struct xlist **x, struct ytile **y)
-{
-	// These are the naieve starting values for the x and y starting
-	// positions. Start searching for the x col from the start of the list,
-	// and the y col from whatever we find for the x col.
-	struct xlist *start_x = zoomlvl[zoom]->x;
-	struct ytile *start_y = NULL;
-
-	// Walk the x and y lists, find the closest matching element. Ideally
-	// the match is perfect, and we've found the cached tile. Otherwise the
-	// match is the last smallest element (the one which our element should
-	// come after), or NULL if the match was at the start of the list, or
-	// the list is empty. This then becomes the new insertion point for a
-	// procured xlist or ytile.
-
-	// Go to work with the cached (static) values of last_zoom,
-	// last_closest_x, and last_closest_y. The thinking is that this
-	// function is called in a loop with sequential x and y coordinates.
-	// Why not speed things up by searching from the last tile instead of
-	// searching from the start of the linked list? Ideally we'd find the
-	// next tile straight away.
-
-	if (zoom != last_zoom) {
-		// Don't use any cached values:
-		last_zoom = zoom;
-	}
-	else if (last_closest_x != NULL) {
-		// If the last xn was the same as the current xn, then we're on
-		// the right col and can set search_y to something other than
-		// NULL. We use the fact that search_y is not NULL later on to
-		// skip the search for the x col entirely.
-		if (last_closest_x->n == xn) {
-			start_x = last_closest_x;
-			if (last_closest_y != NULL) {
-				if (last_closest_y->n <= yn) {
-					// Start searching from this node:
-					start_y = last_closest_y;
-				}
-				else if (last_closest_y->n < yn + 20) {
-					// Last tile was close to this one, but has a slightly larger index.
-					// Backtrack a bit, see if we get a hit or a smaller sibling:
-					int i;
-					struct ytile *tmp = last_closest_y;
-					for (i = 0; i < 20; i++) {
-						if (tmp->n <= yn) {
-							start_y = tmp;
-							break;
-						}
-						if ((tmp = list_prev(tmp)) == NULL) {
-							break;
-						}
-					}
-				}
-			}
-		}
-		// If last_closest_x->n is smaller than xn, we can start searching from
-		// there instead of from the start of the list.
-		else if (last_closest_x->n < xn) {
-			start_x = last_closest_x;
-		}
-		else if (last_closest_x->n < xn + 20) {
-			// Run over the list backwards for max 20 hops, see if we can find a starting point:
-			int i;
-			struct xlist *tmp = last_closest_x;
-			for (i = 0; i < 20; i++) {
-				if (tmp->n <= xn) {
-					start_x = tmp;
-					break;
-				}
-				if ((tmp = list_prev(tmp)) == NULL) {
-					break;
-				}
-			}
-		}
-	}
-	// If start_y is not NULL, we know we're already on the right x row and can skip the search;
-	// else we start searching from start_x, which may or may not be close to the target:
-	if (start_y == NULL) {
-		if ((*x = last_closest_x = find_closest_smaller_x(start_x, xn)) == NULL || (*x)->n != xn) {
-			return NULL;
-		}
-		start_y = (*x)->y;
-	}
-	else {
-		// Ensure the variable is always updated for the caller:
-		*x = last_closest_x;
-	}
-	if ((*y = last_closest_y = find_closest_smaller_y(start_y, yn)) == NULL || (*y)->n != yn) {
-		return NULL;
-	}
-	return (*y)->rawbits;
-}
-
 void *
-bitmap_request (const unsigned int zoom, const unsigned int xn, const unsigned int yn)
+bitmap_request (const unsigned int zoom, const unsigned int xn, const unsigned int yn, const unsigned int search_depth)
 {
-	void *s;
-	struct xlist *xclosest = NULL;
-	struct ytile *yclosest = NULL;
-	struct xlist *xmatch;
-	struct ytile *ymatch;
-
-	// Do we already have the tile?
-	if ((s = bitmap_find_cached(zoom, xn, yn, &xclosest, &yclosest)) != NULL) {
-		return s;
-	}
-	// Do we at least have the right x col?
-	if (xclosest == NULL || xclosest->n != xn) {
-		// We don't, try to create it in place:
-		if ((xmatch = create_xlist(zoom, xclosest, xn)) == NULL) {
-			return NULL;
-		}
-	}
-	else {
-		// Yes we do: exact match:
-		xmatch = xclosest;
-	}
-	// Here we know that have the proper x col (even if perhaps empty);
-	// but we weren't able to find the tile before, so we know it does not exist:
-	if ((ymatch = create_ytile(xmatch, yclosest, yn)) == NULL) {
-		return NULL;
-	}
-	// Should we purge the cache first, before loading new images?
-	if (tiles_cached >= MAX_BITMAPS) {
-		cache_purge(zoom, xn, yn);
-	}
-	// Try to load the tile from file:
-	if ((ymatch->rawbits = rawbits_get(zoom, xn, yn)) != NULL) {
-		return ymatch->rawbits;
-	}
-	// If the lookup failed, do not hang an empty tile in the list:
-	list_detach(xmatch->y, ymatch);
-	destroy_ytile(&ymatch);
-	return NULL;
+	return xylist_request(bitmaps, zoom, xn, yn, search_depth);
 }
 
 static void *
-rawbits_get (const unsigned int zoom, const unsigned int xn, const unsigned int yn)
+rawbits_procure (const unsigned int zoom, const unsigned int xn, const unsigned int yn, const unsigned int search_depth)
 {
 	char *filename;
 	void *rawbits;
 	unsigned int width;
 	unsigned int height;
+
+	(void)search_depth;
 
 	if ((filename = viking_filename(zoom, xn, yn)) == NULL) {
 		return NULL;
@@ -243,329 +76,23 @@ rawbits_get (const unsigned int zoom, const unsigned int xn, const unsigned int 
 		free(rawbits);
 		return NULL;
 	}
-	if (rawbits != NULL) {
-		tiles_cached++;
-	}
 	return rawbits;
 }
 
-static struct xlist *
-find_closest_smaller_x (struct xlist *first, const unsigned int xn)
-{
-	struct xlist *x;
-
-	list_foreach(first, x)
-	{
-		if (x->n < xn) {
-			// Go on to next element, except if this was the last:
-			if (list_next(x) == NULL) {
-				break;
-			}
-			continue;
-		}
-		if (x->n == xn) return x;
-		// This will be NULL if no previous member, and the
-		// proper previous member if available:
-		return list_prev(x);
-	}
-	// If we're here, x is either NULL or has an x->n smaller than xn;
-	// in either case it's what we want:
-	return x;
-}
-
-static struct ytile *
-find_closest_smaller_y (struct ytile *first, const unsigned int yn)
-{
-	struct ytile *y;
-
-	list_foreach(first, y)
-	{
-		if (y->n < yn) {
-			if (list_next(y) == NULL) {
-				break;
-			}
-			continue;
-		}
-		if (y->n == yn) return y;
-		return list_prev(y);
-	}
-	return y;
-}
-
-static struct xlist *
-create_xlist (const unsigned int zoom, struct xlist *closest, const unsigned int xn)
-{
-	struct xlist *list;
-
-	if ((list = malloc(sizeof(*list))) == NULL) {
-		return NULL;
-	}
-	list->n = xn;
-	list->y = NULL;
-	list_init(list);
-
-	// No previous sibling?
-	if (closest == NULL) {
-		// No other elements in this list? This becomes the first:
-		if (zoomlvl[zoom]->x == NULL) {
-			zoomlvl[zoom]->x = list;
-		}
-		else {
-			// Place before other elements in list, move head:
-			list_insert_before(zoomlvl[zoom]->x, list);
-			zoomlvl[zoom]->x = list;
-		}
-	}
-	else {
-		list_insert_after(closest, list);
-	}
-	return list;
-}
-
-static struct ytile *
-create_ytile (struct xlist *x, struct ytile *closest, const unsigned int yn)
-{
-	struct ytile *tile;
-
-	if ((tile = malloc(sizeof(*tile))) == NULL) {
-		return NULL;
-	}
-	tile->n = yn;
-	tile->rawbits = NULL;
-	list_init(tile);
-
-	// No previous sibling?
-	if (closest == NULL) {
-		// No other elements in this list? This becomes the first:
-		if (x->y == NULL) {
-			x->y = tile;
-		}
-		else {
-			// Place before other elements in list, move head:
-			list_insert_before(x->y, tile);
-			x->y = tile;
-		}
-	}
-	else {
-		list_insert_after(closest, tile);
-	}
-	return tile;
-}
-
 static void
-destroy_xlist (struct xlist **first)
+rawbits_destroy (void *data)
 {
-	struct xlist *x;
-	struct xlist *tx;
-
-	if (first == NULL || *first == NULL) {
-		return;
-	}
-	list_foreach_safe(*first, x, tx) {
-		destroy_ylist(&x->y);
-		free(x);
-	}
-	*first = NULL;
-}
-
-static void
-destroy_ylist (struct ytile **first)
-{
-	struct ytile *y;
-	struct ytile *ty;
-
-	if (first == NULL || *first == NULL) {
-		return;
-	}
-	list_foreach_safe(*first, y, ty) {
-		destroy_ytile(&ty);
-	}
-	*first = NULL;
-}
-
-static void
-destroy_ytile (struct ytile **tile)
-{
-	if (tile == NULL || *tile == NULL) {
-		return;
-	}
-	if ((*tile)->rawbits != NULL) {
-		free((*tile)->rawbits);
-		tiles_cached--;
-	}
-	free(*tile);
-	*tile = NULL;
-}
-
-static void
-cache_purge (const unsigned int zoom, const unsigned int xn, const unsigned int yn)
-{
-	// Purge items from the cache till only #PURGE_TO tiles left.
-	// Use a heuristic method to remove "unimportant" tiles first.
-
-	// First, they came for the far higher zoom levels:
-	if (zoom + 3 <= ZOOM_MAX) {
-		for (unsigned int i = ZOOM_MAX; i > zoom + 2; i--) {
-			destroy_xlist(&zoomlvl[i]->x);
-			if (tiles_cached <= PURGE_TO) {
-				return;
-			}
-		}
-	}
-	// Then, they came for the far lower zoom levels:
-	if (zoom > 3) {
-		for (unsigned int i = 0; i < zoom - 3; i++) {
-			destroy_xlist(&zoomlvl[i]->x);
-			if (tiles_cached <= PURGE_TO) {
-				return;
-			}
-		}
-	}
-	// Then, they came for the directly higher zoom levels:
-	for (unsigned int i = ZOOM_MAX; i > zoom; i--) {
-		destroy_xlist(&zoomlvl[i]->x);
-		if (tiles_cached <= PURGE_TO) {
-			return;
-		}
-	}
-	// Then, they came for the directly lower zoom levels:
-	for (unsigned int i = 0; i < zoom; i++) {
-		destroy_xlist(&zoomlvl[i]->x);
-		if (tiles_cached <= PURGE_TO) {
-			return;
-		}
-	}
-	// Then, they got the start and end of the x columns, and deleted the furthest columns:
-	cache_purge_x_rows(zoom, xn);
-	if (tiles_cached <= PURGE_TO) {
-		return;
-	}
-	// Then, finally, they went for the y columns:
-	cache_purge_y_rows(zoom, yn);
-}
-
-static void
-cache_purge_x_rows (const unsigned int zoom, const unsigned int xn)
-{
-	struct xlist *xs = zoomlvl[zoom]->x;	// Start col
-	struct xlist *xe;			// End col
-	struct xlist *xt;			// Temporary
-
-	// This destroys the cache lookup optimization:
-	last_closest_x = NULL;
-	last_closest_y = NULL;
-	last_zoom = 0;
-
-	// Set xe to the last column:
-	list_last(xs, xe);
-
-	// Delete the furthest column of the two:
-	while (tiles_cached > PURGE_TO && xs != NULL && xe != NULL) {
-		unsigned int dist_from_s = abs((int)xn - (int)xs->n);
-		unsigned int dist_from_e = abs((int)xe->n - (int)xn);
-		// But if either one of these are within 10 of the current xn, refuse;
-		// probably should go after the y values instead:
-		if (dist_from_s < 10 && dist_from_e < 10) {
-			break;
-		}
-		if (dist_from_s > dist_from_e) {
-			// Delete the first column, xs
-			xt = list_next(xs);
-			list_detach(zoomlvl[zoom]->x, xs);
-			destroy_xlist(&xs);
-			zoomlvl[zoom]->x = xs = xt;
-			if (tiles_cached <= PURGE_TO) {
-				return;
-			}
-			continue;
-		}
-		// Else delete the last column, xe
-		xt = list_prev(xe);
-		list_detach(zoomlvl[zoom]->x, xe);
-		destroy_xlist(&xe);
-		if (tiles_cached <= PURGE_TO) {
-			return;
-		}
-		xe = xt;
-		// If xe was equal to xs, then it's entirely possible that xs
-		// is still non-NULL (stale value), but ye is already NULL.
-		// Hence the null check on xe in the loop header.
-	}
-}
-
-static void
-cache_purge_y_rows (const unsigned int zoom, const unsigned int yn)
-{
-	struct xlist *xt;
-
-	// This destroys the cache lookup optimization:
-	last_closest_x = NULL;
-	last_closest_y = NULL;
-	last_zoom = 0;
-
-	list_foreach(zoomlvl[zoom]->x, xt) {
-		struct ytile *ys = xt->y;
-		struct ytile *ye;
-		struct ytile *yt;
-
-		if (ys == NULL) {
-			continue;
-		}
-		list_last(ys, ye);
-		while (tiles_cached > PURGE_TO && ys != NULL && ye != NULL) {
-			unsigned int dist_from_s = abs((int)yn - (int)ys->n);
-			unsigned int dist_from_e = abs((int)ye->n - (int)yn);
-			if (dist_from_s < 10 && dist_from_e < 10) {
-				break;
-			}
-			if (dist_from_s > dist_from_e) {
-				yt = list_next(ys);
-				list_detach(xt->y, ys);
-				destroy_ytile(&ys);
-				xt->y = ys = yt;
-				if (tiles_cached <= PURGE_TO) {
-					return;
-				}
-				continue;
-			}
-			yt = list_prev(ye);
-			list_detach(xt->y, ye);
-			destroy_ytile(&ye);
-			if (tiles_cached <= PURGE_TO) {
-				return;
-			}
-			ye = yt;
-		}
-	}
+	free(data);
 }
 
 bool
 bitmap_mgr_init (void)
 {
-	bool ret = false;
-
-	for (int i = 0; i <= ZOOM_MAX; i++) zoomlvl[i] = NULL;
-
-	// Allocate the zoom levels:
-	for (int i = 0; i <= ZOOM_MAX; i++) {
-		if ((zoomlvl[i] = malloc(sizeof(struct zoomlevel))) == NULL) {
-			while (--i >= 0) {
-				free(zoomlvl[i]);
-			}
-			goto err_0;
-		}
-		zoomlvl[i]->x = NULL;
-	}
-	ret = true;
-
-err_0:	return ret;
+	return ((bitmaps = xylist_create(0, ZOOM_MAX, MAX_BITMAPS, &rawbits_procure, &rawbits_destroy)) == NULL) ? 0 : 1;
 }
 
 void
 bitmap_mgr_destroy (void)
 {
-	for (int i = 0; i <= ZOOM_MAX; i++) {
-		destroy_xlist(&zoomlvl[i]->x);
-		free(zoomlvl[i]);
-	}
+	xylist_destroy(&bitmaps);
 }
