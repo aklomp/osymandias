@@ -42,17 +42,21 @@ struct list {
 	(p)->list.next = (x);					\
 	if (list_next(x)) list_next(x)->list.prev = (x);
 
-// f is pointer to pointer to first list element;
+// s is pointer to pointer to first list element;
+// e is pointer to pointer to last list element.
 // x is pointer to the node to detach:
-#define list_detach(f,x)					\
+#define list_detach(s,e,x)					\
 	if ((x)->list.prev != NULL) {				\
 		list_prev(x)->list.next = list_next(x);		\
 	}							\
 	else {							\
-		*(f) = list_next(x);				\
+		(s) = list_next(x);				\
 	}							\
 	if ((x)->list.next != NULL) {				\
 		list_next(x)->list.prev = list_prev(x);		\
+	}							\
+	else {							\
+		(e) = list_prev(x);				\
 	}							\
 	(x)->list.prev = (x)->list.next = NULL;
 

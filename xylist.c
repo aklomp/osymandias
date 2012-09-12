@@ -4,31 +4,36 @@
 #include "llist.h"
 #include "xylist.h"
 
-// An xylist is a kind of linked list that looks like this:
+// An xylist is a kind of doubly linked list that looks like this:
 //
-// zoomlevel ->  x -> x -> x -> x -> x -> x -> x -> x
-//               |    |    |    |    |    |    |    |
-//               y    y    y    y    y    y    y    y
-//               |    |    |         |    |    |
-//               y    y    y         y    y    y
-//                    |    |              |
-//                    y    y              y
+//                           |ys
+// zoomlevel -> xs > x = x = x = x = x = x = x = x < xe
+//                   |   |   |   |   |   |   |   |
+//                   y   y   y   y   y   y   y   y
+//                   |   |   |       |   |   |
+//                   y   y   y       y   y   y
+//                       |   |               |
+//                       y   y               y
+//                           |ye
 //
 // To find a tile at (xn,yn), first traverse the x linked list, and when you
 // find the element with x->n == xn, traverse its y linked list until you find
-// the element with y->n == yn. The "tile" itself is a void pointer to an opaque
-// data structure (private to caller).
+// the element with y->n == yn. The "tile" itself is a void pointer to an
+// opaque data structure (private to caller). The list has two ends: xs/ys,
+// which is the head of the list, and xe/ye, which is the tail. So we can start
+// looking from the most promising end.
 //
 // This xylist data structure lets us insert new tiles quickly at a given
 // coordinate. It also lets us remove "unused" tiles quickly by purging zoom
 // levels, x rows and y elements that are out of view.
 //
-// When creating an xylist, the caller supplies a pointer to a callback function
-// that can procure a data pointer for (zoom, xn, yn). When a tile is requested,
-// and it cannot be found in the list, the callback is called to procure the
-// tile data. When the cache cleanup runs, the destructor callback is called to
-// flush the data. This allows the xylist to be "generic", it deals with storing
-// opaque pointers at a (zoom,x,y) coordinate. In a sense it's a kind of database.
+// When creating an xylist, the caller supplies a pointer to a callback
+// function that can procure a data pointer for (zoom, xn, yn). When a tile is
+// requested, and it cannot be found in the list, the callback is called to
+// procure the tile data. When the cache cleanup runs, the destructor callback
+// is called to flush the data. This allows the xylist to be "generic", it
+// deals with storing opaque pointers at a (zoom,x,y) coordinate. In a sense
+// it's a kind of database.
 //
 // When we want a set of tiles to cover the screen, we start at the first y at
 // first x, and end at the last y at the last x. By saving the x and y pointers
@@ -37,20 +42,22 @@
 // almost as fast as a sequential lookup.
 
 struct ytile {
-	unsigned int n;
-	void *data;
+	void *data;		// opaque data pointer
+	unsigned int n;		// row number
 	struct list list;
 };
 
 struct xlist {
-	unsigned int n;
-	struct ytile *y;
+	unsigned int n;		// col number
+	struct ytile *ys;	// y list start
+	struct ytile *ye;	// y list end
 	struct list list;
 };
 
 struct zoomlevel {
-	struct xlist *x;
-	unsigned int n;
+	unsigned int n;		// zoom level number
+	struct xlist *xs;	// x list start
+	struct xlist *xe;	// x list end
 	unsigned int ntiles;
 	struct xlist *saved_x;
 	struct ytile *saved_y;
@@ -91,14 +98,17 @@ ytile_destroy (struct xylist *l, struct zoomlevel *z, struct ytile **y, const un
 static void
 xlist_destroy (struct xylist *l, struct zoomlevel *z, struct xlist **x)
 {
-	struct ytile *y = (*x)->y;
+	struct ytile *y = (*x)->ys;
 
 	// Node must be detached by caller:
 	while (y) {
 		struct ytile *yt = list_next(y);
-		list_detach(&(*x)->y, y);
+		list_detach((*x)->ys, (*x)->ye, y);
 		ytile_destroy(l, z, &y, (*x)->n);
 		y = yt;
+	}
+	if (z->xe == *x) {
+		z->xe = list_prev(*x);
 	}
 	free(*x);
 	*x = NULL;
@@ -109,17 +119,18 @@ cache_purge_zoomlevel (struct xylist *l, struct zoomlevel *z)
 {
 	struct xlist *x;
 
-	if (z == NULL || z->ntiles == 0) {
+	if (z->ntiles == 0) {
 		return;
 	}
-	x = z->x;
+	x = z->xs;
 	while (x) {
 		struct xlist *xt = list_next(x);
-		list_detach(&z->x, x);
+		list_detach(z->xs, z->xe, x);
 		xlist_destroy(l, z, &x);
 		x = xt;
 	}
-	z->x = NULL;
+	z->xs = NULL;
+	z->xe = NULL;
 	z->ntiles = 0;
 	z->saved_x = NULL;
 	z->saved_y = NULL;
@@ -133,7 +144,8 @@ zoomlevel_create (const unsigned int level)
 	if ((z = malloc(sizeof(*z))) == NULL) {
 		return NULL;
 	}
-	z->x = NULL;
+	z->xs = NULL;
+	z->xe = NULL;
 	z->n = level;
 	z->ntiles = 0;
 	z->saved_x = NULL;
@@ -278,7 +290,7 @@ tile_find_cached (struct zoomlevel *z, const unsigned int xn, const unsigned int
 
 	// If no last starting position, start at head:
 	if (start_x == NULL) {
-		start_x = z->x;
+		start_x = z->xs;
 		goto search;
 	}
 	// Smaller than desired index? Viable starting point:
@@ -327,7 +339,7 @@ tile_find_cached (struct zoomlevel *z, const unsigned int xn, const unsigned int
 		// FALLTHROUGH
 	}
 	// Must be much larger; give up and start at head:
-	start_x = z->x;
+	start_x = z->xs;
 
 search:	// If not already on right x col, we must find it first:
 	if (start_y == NULL || start_x->n != xn) {
@@ -335,7 +347,7 @@ search:	// If not already on right x col, we must find it first:
 		if (*xclosest == NULL || (*xclosest)->n != xn) {
 			return NULL;
 		}
-		start_y = (*xclosest)->y;
+		start_y = (*xclosest)->ys;
 	}
 	else {
 		// Ensure the variable is always updated for the caller:
@@ -387,18 +399,26 @@ xlist_insert (struct zoomlevel *z, struct xlist *after, const unsigned int xn)
 		return NULL;
 	}
 	x->n = xn;
-	x->y = NULL;
+	x->ys = NULL;
+	x->ye = NULL;
 	list_init(x);
 
 	// No previous sibling?
 	if (after == NULL) {
 		// If other elements in list, put this in front:
-		if (z->x != NULL) {
-			list_insert_before(z->x, x);
+		if (z->xs != NULL) {
+			list_insert_before(z->xs, x);
 		}
-		z->x = x;
+		// Otherwise this is the first element:
+		else {
+			z->xe = x;
+		}
+		z->xs= x;
 	}
 	else {
+		if (z->xe == after) {
+			z->xe = x;
+		}
 		list_insert_after(after, x);
 	}
 	return x;
@@ -421,12 +441,18 @@ ytile_insert (struct xylist *l, struct zoomlevel *z, struct xlist *x, struct yti
 	// No previous sibling?
 	if (after == NULL) {
 		// If other elements in list, put this in front:
-		if (x->y != NULL) {
-			list_insert_before(x->y, y);
+		if (x->ys != NULL) {
+			list_insert_before(x->ys, y);
 		}
-		x->y = y;
+		else {
+			x->ye = y;
+		}
+		x->ys = y;
 	}	
 	else {
+		if (x->ye == after) {
+			x->ye = y;
+		}
 		list_insert_after(after, y);
 	}
 	return y;
@@ -435,12 +461,10 @@ ytile_insert (struct xylist *l, struct zoomlevel *z, struct xlist *x, struct yti
 static void
 cache_purge_x_cols (struct xylist *l, struct zoomlevel *z, const unsigned int xn)
 {
-	struct xlist *xs = z->x;
-	struct xlist *xe;
+	struct xlist *xs = z->xs;	// start of x list
+	struct xlist *xe = z->xe;	// end of x list
 
-	list_last(xs, xe);
-
-	while (z->x)
+	while (z->xs)
 	{
 		// Keep a pointer for the start and end of the list;
 		// we will destroy the node that is the furthest from us:
@@ -454,7 +478,7 @@ cache_purge_x_cols (struct xylist *l, struct zoomlevel *z, const unsigned int xn
 		// If distance to start is largest, delete that one:
 		if (sdist >= edist) {
 			struct xlist *xt = list_next(xs);
-			list_detach(&z->x, xs);
+			list_detach(z->xs, z->xe, xs);
 			xlist_destroy(l, z, &xs);
 			if ((xs = xt) == NULL) {
 				break;
@@ -463,13 +487,13 @@ cache_purge_x_cols (struct xylist *l, struct zoomlevel *z, const unsigned int xn
 		// Else delete the end tile:
 		else {
 			struct xlist *xt = list_prev(xe);
-			list_detach(&z->x, xe);
+			list_detach(z->xs, z->xe, xe);
 			xlist_destroy(l, z, &xe);
 			if ((xe = xt) == NULL) {
 				break;
 			}
 		}
-		if (z->x == NULL) {
+		if (z->xs == NULL) {
 			break;
 		}
 		if (l->ntiles <= l->purge_to) {
@@ -481,7 +505,7 @@ cache_purge_x_cols (struct xylist *l, struct zoomlevel *z, const unsigned int xn
 static void
 cache_purge_y_rows (struct xylist *l, struct zoomlevel *z, const unsigned int yn)
 {
-	struct xlist *x = z->x;
+	struct xlist *x = z->xs;
 
 	// See cache_purge_x_cols for explanation.
 	// Basically we delete the y tiles which are furthest from current.
@@ -489,12 +513,10 @@ cache_purge_y_rows (struct xylist *l, struct zoomlevel *z, const unsigned int yn
 	while (x)
 	{
 		struct xlist *xt = list_next(x);
-		struct ytile *ys = x->y;
-		struct ytile *ye;
+		struct ytile *ys = x->ys;
+		struct ytile *ye = x->ye;
 
-		list_last(ys, ye);
-
-		while (x->y)
+		while (x->ys)
 		{
 			unsigned int sdist = yn - ys->n;
 			unsigned int edist = ye->n - yn;
@@ -504,7 +526,7 @@ cache_purge_y_rows (struct xylist *l, struct zoomlevel *z, const unsigned int yn
 			}
 			if (sdist >= edist) {
 				struct ytile *yt = list_next(ys);
-				list_detach(&x->y, ys);
+				list_detach(x->ys, x->ye, ys);
 				ytile_destroy(l, z, &ys, x->n);
 				if ((ys = yt) == NULL) {
 					break;
@@ -512,7 +534,7 @@ cache_purge_y_rows (struct xylist *l, struct zoomlevel *z, const unsigned int yn
 			}
 			else {
 				struct ytile *yt = list_prev(ye);
-				list_detach(&x->y, ye);
+				list_detach(x->ys, x->ye, ye);
 				ytile_destroy(l, z, &ye, x->n);
 				if ((ye = yt) == NULL) {
 					break;
@@ -522,8 +544,8 @@ cache_purge_y_rows (struct xylist *l, struct zoomlevel *z, const unsigned int yn
 				break;
 			}
 		}
-		if (x->y == NULL) {
-			list_detach(&z->x, x);
+		if (x->ys == NULL) {
+			list_detach(z->xs, z->xe, x);
 			xlist_destroy(l, z, &x);
 			break;
 		}
