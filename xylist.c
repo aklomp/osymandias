@@ -218,7 +218,8 @@ xylist_destroy (struct xylist **l)
 static struct xlist *
 find_closest_smaller_x (struct xlist *startfrom, const unsigned int xn)
 {
-	struct xlist *x;
+	struct xlist *x = startfrom;
+	struct xlist *xt;
 
 	// Starting at startfrom (which can be NULL), find the xlist with the
 	// closest smaller index number compared to xn. A "distance" of zero
@@ -226,13 +227,14 @@ find_closest_smaller_x (struct xlist *startfrom, const unsigned int xn)
 	// element, or the element after which to insert a new xlist.
 	// A return value of NULL means "insert at start".
 
-	list_foreach(startfrom, x) {
+	while (x) {
 		// If index is smaller than the one we want, continue;
 		// except when this is the last list element:
 		if (x->n < xn) {
-			if (list_next(x) == NULL) {
+			if ((xt = list_next(x)) == NULL) {
 				return x;
 			}
+			x = xt;
 			continue;
 		}
 		// If exact match, we're done:
@@ -250,14 +252,16 @@ find_closest_smaller_x (struct xlist *startfrom, const unsigned int xn)
 static struct ytile *
 find_closest_smaller_y (struct ytile *startfrom, const unsigned int yn)
 {
-	struct ytile *y;
+	struct ytile *y = startfrom;
+	struct ytile *yt;
 
 	// For explanation, see equivalent function for xlists above.
-	list_foreach(startfrom, y) {
+	while (y) {
 		if (y->n < yn) {
-			if (list_next(y) == NULL) {
+			if ((yt = list_next(y)) == NULL) {
 				return y;
 			}
+			y = yt;
 			continue;
 		}
 		else if (y->n == yn) {
@@ -265,7 +269,7 @@ find_closest_smaller_y (struct ytile *startfrom, const unsigned int yn)
 		}
 		else return list_prev(y);
 	}
-	return y;
+	return NULL;
 }
 
 static struct xlist *
