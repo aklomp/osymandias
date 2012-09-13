@@ -268,10 +268,43 @@ find_closest_smaller_y (struct ytile *startfrom, const unsigned int yn)
 	return y;
 }
 
+static struct xlist *
+find_closest_smaller_x_reverse (struct xlist *startfrom, const unsigned int xn)
+{
+	// Like find_closest_smaller_x(), but starts at end and works to front.
+	struct xlist *x = startfrom;
+
+	while (x) {
+		if (x->n > xn) {
+			x = list_prev(x);
+			continue;
+		}
+		return x;
+	}
+	return NULL;
+}
+
+static struct ytile *
+find_closest_smaller_y_reverse (struct ytile *startfrom, const unsigned int yn)
+{
+	struct ytile *y = startfrom;
+
+	while (y) {
+		if (y->n > yn) {
+			y = list_prev(y);
+			continue;
+		}
+		return y;
+	}
+	return NULL;
+}
+
 static void *
 tile_find_cached (struct zoomlevel *z, const unsigned int xn, const unsigned int yn, struct xlist **xclosest, struct ytile **yclosest)
 {
 	unsigned int i;
+	unsigned int reverse_x = 0;
+	unsigned int reverse_y = 0;
 	struct xlist *start_x = z->saved_x;
 	struct ytile *start_y = NULL;
 
@@ -288,10 +321,8 @@ tile_find_cached (struct zoomlevel *z, const unsigned int xn, const unsigned int
 	// last tile instead of searching from the start of the linked list?
 	// Ideally we'd find the next tile straight away.
 
-	// If no last starting position, start at head:
 	if (start_x == NULL) {
-		start_x = z->xs;
-		goto search;
+		goto set_x;
 	}
 	// Smaller than desired index? Viable starting point:
 	if (start_x->n < xn) {
@@ -338,22 +369,59 @@ tile_find_cached (struct zoomlevel *z, const unsigned int xn, const unsigned int
 		}
 		// FALLTHROUGH
 	}
-	// Must be much larger; give up and start at head:
-	start_x = z->xs;
+	// Must be much larger; give up and start at most likely candidate:
+
+set_x:	// If no last starting position, and distance from head
+	// looks smaller, start at head:
+	if (z->xs == NULL) {
+		*yclosest = NULL;
+		*xclosest = NULL;
+		return NULL;
+	}
+	if (xn - z->xs->n <= z->xe->n - xn) {
+		start_x = z->xs;
+	}
+	// Else start at end and go in reverse:
+	else {
+		start_x = z->xe;
+		reverse_x = 1;
+	}
 
 search:	// If not already on right x col, we must find it first:
 	if (start_y == NULL || start_x->n != xn) {
-		*xclosest = find_closest_smaller_x(start_x, xn);
-		if (*xclosest == NULL || (*xclosest)->n != xn) {
+		struct xlist *xt;
+		if (reverse_x) {
+			xt = find_closest_smaller_x_reverse(start_x, xn);
+		}
+		else {
+			xt = find_closest_smaller_x(start_x, xn);
+		}
+		if (xt == NULL || xt->n != xn || xt->ys == NULL) {
+			*xclosest = xt;
+			*yclosest = NULL;
 			return NULL;
 		}
-		start_y = (*xclosest)->ys;
+		// For starting position of y, use list head or list tail,
+		// whichever is closer:
+		if (yn - xt->ys->n <= xt->ye->n - yn) {
+			start_y = xt->ys;
+		}
+		else {
+			start_y = xt->ye;
+			reverse_y = 1;
+		}
+		*xclosest = xt;
 	}
 	else {
 		// Ensure the variable is always updated for the caller:
 		*xclosest = start_x;
 	}
-	*yclosest = find_closest_smaller_y(start_y, yn);
+	if (reverse_y) {
+		*yclosest = find_closest_smaller_y_reverse(start_y, yn);
+	}
+	else {
+		*yclosest = find_closest_smaller_y(start_y, yn);
+	}
 	if (*yclosest == NULL || (*yclosest)->n < yn) {
 		return NULL;
 	}
