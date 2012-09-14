@@ -674,6 +674,48 @@ cache_purge (struct xylist *l, struct zoomlevel *zoom, const unsigned int xn, co
 	// And then there was nothing more to come for...
 }
 
+bool
+xylist_insert_tile (struct xylist *l, const unsigned int zoom, const unsigned int xn, const unsigned int yn, void *const data)
+{
+	void *current;
+	struct xlist *xclosest = NULL;
+	struct ytile *yclosest = NULL;
+	struct xlist *xmatch;
+	struct ytile *ymatch;
+	struct zoomlevel *z = l->zoom[zoom];
+
+	// Lets the list owner insert a tile into the list at any time.
+	// This can be used by nonblocking tile fetchers. The owner asks the xylist for a tile,
+	// the xylist calls the procure function, the procure function immediately returns NULL
+	// and shoots off a thread that gets the tile asynchronously in the background.
+	// That thread then uses this function to add the tile to the list when it's done.
+	// A true return value means "tile successfully inserted", false is "insert failed".
+
+	if (data == NULL || zoom < l->zoom_min || zoom > l->zoom_max) {
+		return false;
+	}
+	// Find the closest tile; if exact match, delete existing data:
+	if ((current = tile_find_cached(z, xn, yn, &xclosest, &yclosest)) != NULL) {
+		l->tile_destroy(current);
+		yclosest->data = data;
+		return true;
+	}
+	// Otherwise, create a new tile at requested position. First create x col if we have to:
+	if (xclosest == NULL || xclosest->n != xn) {
+		if ((xmatch = xlist_insert(z, xclosest, xn)) == NULL) {
+			return false;
+		}
+	}
+	else {
+		xmatch = xclosest;
+	}
+	// We're on the right x col, now create the y tile:
+	if ((ymatch = ytile_insert(l, z, xmatch, yclosest, yn, data)) == NULL) {
+		return false;
+	}
+	return true;
+}
+
 void *
 xylist_request (struct xylist *l, const unsigned int zoom, const unsigned int xn, const unsigned int yn, unsigned int search_depth)
 {
