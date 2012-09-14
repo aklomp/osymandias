@@ -70,7 +70,7 @@ struct xylist {
 	unsigned int purge_to;
 	unsigned int ntiles;
 	struct zoomlevel **zoom;
-	void *(*tile_procure)(unsigned int zoom, unsigned int xn, unsigned int yn, unsigned int search_depth);
+	void *(*tile_procure)(struct xylist_req *req);
 	void  (*tile_destroy)(void *data);
 };
 
@@ -165,7 +165,7 @@ zoomlevel_destroy (struct xylist *l, struct zoomlevel **z)
 
 struct xylist *
 xylist_create (const unsigned int zoom_min, const unsigned int zoom_max, const unsigned int tiles_max,
-		void *(*callback_procure)(unsigned int zoom, unsigned int xn, unsigned int yn, const unsigned int search_depth),
+		void *(*callback_procure)(struct xylist_req *req),
 		void  (*callback_destroy)(void *data))
 {
 	struct xylist *l;
@@ -436,10 +436,10 @@ search:	// If not already on right x col, we must find it first:
 }
 
 bool
-xylist_area_is_covered (struct xylist *l, const unsigned int zoom, const unsigned int tile_xmin, const unsigned int tile_ymin, const unsigned int tile_xmax, const unsigned int tile_ymax)
+xylist_area_is_covered (struct xylist *l, const struct xylist_req *const req)
 {
 	bool ret = false;
-	struct zoomlevel *z = l->zoom[zoom];
+	struct zoomlevel *z = l->zoom[req->zoom];
 	struct xlist *saved_x = z->saved_x;
 	struct ytile *saved_y = z->saved_y;
 	struct xlist *xclosest = NULL;
@@ -448,8 +448,8 @@ xylist_area_is_covered (struct xylist *l, const unsigned int zoom, const unsigne
 	// Return true if we can guarantee coverage of the area given by the tile
 	// coordinates, and false if we're not positive. Store the cached pointers
 	// and restore them at the end, ready for the next walk over the area.
-	for (unsigned int xn = tile_xmin; xn <= tile_xmax; xn++) {
-		for (unsigned int yn = tile_ymin; yn <= tile_ymax; yn++) {
+	for (unsigned int xn = req->xmin; xn <= req->xmax; xn++) {
+		for (unsigned int yn = req->ymin; yn <= req->ymax; yn++) {
 			if (tile_find_cached(z, xn, yn, &xclosest, &yclosest) == NULL) {
 				goto out;
 			}
@@ -531,20 +531,22 @@ ytile_insert (struct xylist *l, struct zoomlevel *z, struct xlist *x, struct yti
 }
 
 static void
-cache_purge_x_cols (struct xylist *l, struct zoomlevel *z, const unsigned int xn)
+cache_purge_x_cols (struct xylist *l, struct zoomlevel *z, const unsigned int xmin, const unsigned int xmax)
 {
 	struct xlist *xs = z->xs;	// start of x list
 	struct xlist *xe = z->xe;	// end of x list
+
+	// xmin and xmax denote the extents of the viewport that we want to preserve.
 
 	while (z->xs)
 	{
 		// Keep a pointer for the start and end of the list;
 		// we will destroy the node that is the furthest from us:
-		unsigned int sdist = xn - xs->n;
-		unsigned int edist = xe->n - xn;
+		unsigned int sdist = xmin - xs->n;
+		unsigned int edist = xe->n - xmax;
 
 		// Both start and end cols too close to target?
-		if (sdist + 5 > xs->n || xe->n + 5 < edist) {
+		if (sdist == 0 && edist == 0) {
 			break;
 		}
 		// If distance to start is largest, delete that one:
@@ -575,7 +577,7 @@ cache_purge_x_cols (struct xylist *l, struct zoomlevel *z, const unsigned int xn
 }
 
 static void
-cache_purge_y_rows (struct xylist *l, struct zoomlevel *z, const unsigned int yn)
+cache_purge_y_rows (struct xylist *l, struct zoomlevel *z, const unsigned int ymin, const unsigned int ymax)
 {
 	struct xlist *x = z->xs;
 
@@ -590,10 +592,10 @@ cache_purge_y_rows (struct xylist *l, struct zoomlevel *z, const unsigned int yn
 
 		while (x->ys)
 		{
-			unsigned int sdist = yn - ys->n;
-			unsigned int edist = ye->n - yn;
+			unsigned int sdist = ymin - ys->n;
+			unsigned int edist = ye->n - ymax;
 
-			if (sdist + 5 > ys->n || ye->n + 5 < edist) {
+			if (sdist == 0 && edist == 0) {
 				break;
 			}
 			if (sdist >= edist) {
@@ -626,7 +628,7 @@ cache_purge_y_rows (struct xylist *l, struct zoomlevel *z, const unsigned int yn
 }
 
 static void
-cache_purge (struct xylist *l, struct zoomlevel *zoom, const unsigned int xn, const unsigned int yn)
+cache_purge (struct xylist *l, struct xylist_req *req)
 {
 	unsigned int z;
 
@@ -634,15 +636,15 @@ cache_purge (struct xylist *l, struct zoomlevel *zoom, const unsigned int xn, co
 	// Use a heuristic method to remove "unimportant" tiles first.
 
 	// First, they came for the far higher zoom levels:
-	for (z = l->zoom_max; z > zoom->n + 2; z--) {
+	for (z = l->zoom_max; z > req->zoom + 2; z--) {
 		cache_purge_zoomlevel(l, l->zoom[z]);
 		if (l->ntiles <= l->purge_to) {
 			return;
 		}
 	}
 	// Then, they came for the far lower zoom levels:
-	if (zoom->n > l->zoom_min + 2) {
-		for (z = l->zoom_min; z < zoom->n - 2; z++) {
+	if (req->zoom > l->zoom_min + 2) {
+		for (z = l->zoom_min; z < req->zoom - 2; z++) {
 			cache_purge_zoomlevel(l, l->zoom[z]);
 			if (l->ntiles <= l->purge_to) {
 				return;
@@ -650,26 +652,52 @@ cache_purge (struct xylist *l, struct zoomlevel *zoom, const unsigned int xn, co
 		}
 	}
 	// Then, they came for the directly higher zoom levels:
-	for (z = l->zoom_max; z > zoom->n; z--) {
+	for (z = l->zoom_max; z > req->zoom; z--) {
 		cache_purge_zoomlevel(l, l->zoom[z]);
 		if (l->ntiles <= l->purge_to) {
 			return;
 		}
 	}
-	// Then, they came for the directly lower zoom levels:
-	for (z = l->zoom_min; z < zoom->n; z++) {
-		cache_purge_zoomlevel(l, l->zoom[z]);
+	// Then, they came for the directly lower zoom levels,
+	// but they left the viewport area alone for now:
+	for (z = l->zoom_min; z < req->zoom; z++) {
+		unsigned int zoomdiff = req->zoom - z;
+
+		cache_purge_x_cols(l, l->zoom[z], req->xmin >> zoomdiff, req->xmax >> zoomdiff);
+		if (l->ntiles <= l->purge_to) {
+			return;
+		}
+		cache_purge_y_rows(l, l->zoom[z], req->ymin >> zoomdiff, req->ymax >> zoomdiff);
 		if (l->ntiles <= l->purge_to) {
 			return;
 		}
 	}
-	// Then, they got the start and end of the x columns, and deleted the furthest columns:
-	cache_purge_x_cols(l, zoom, xn);
+	// Then, they got the start and end of the x columns,
+	// and deleted the furthest columns:
+	cache_purge_x_cols(l, l->zoom[req->zoom], req->xmin, req->xmax);
 	if (l->ntiles <= l->purge_to) {
 		return;
 	}
-	// Then, finally, they went for the y columns:
-	cache_purge_y_rows(l, zoom, yn);
+	// Then they went for the y columns:
+	cache_purge_y_rows(l, l->zoom[req->zoom], req->ymin, req->ymax);
+	if (l->ntiles <= l->purge_to) {
+		return;
+	}
+	// Then they took out the lower zoomlevels entirely:
+	for (z = l->zoom_min; z < req->zoom; z++) {
+		cache_purge_zoomlevel(l, l->zoom[z]);
+	}
+	// Then they purged all but the center tile in the current level:
+	cache_purge_x_cols(l, l->zoom[req->zoom], (req->xmax - req->xmin) / 2, (req->xmax - req->xmin) / 2);
+	if (l->ntiles <= l->purge_to) {
+		return;
+	}
+	cache_purge_y_rows(l, l->zoom[req->zoom], (req->ymax - req->ymin) / 2, (req->ymax - req->ymin) / 2);
+	if (l->ntiles <= l->purge_to) {
+		return;
+	}
+	// Then, finally, they got the center tile too:
+	cache_purge_zoomlevel(l, l->zoom[req->zoom]);
 
 	// And then there was nothing more to come for...
 }
@@ -717,7 +745,7 @@ xylist_insert_tile (struct xylist *l, const unsigned int zoom, const unsigned in
 }
 
 void *
-xylist_request (struct xylist *l, const unsigned int zoom, const unsigned int xn, const unsigned int yn, unsigned int search_depth)
+xylist_request (struct xylist *l, struct xylist_req *req)
 {
 	void *data;
 	struct xlist *xclosest = NULL;
@@ -728,21 +756,21 @@ xylist_request (struct xylist *l, const unsigned int zoom, const unsigned int xn
 
 	// Is the request invalid or out of bounds?
 	// TODO: for efficiency, perhaps remove this check:
-	if (l == NULL || zoom < l->zoom_min || zoom > l->zoom_max) {
+	if (l == NULL || req->zoom < l->zoom_min || req->zoom > l->zoom_max) {
 		return NULL;
 	}
-	z = l->zoom[zoom];
+	z = l->zoom[req->zoom];
 	// Can we find the tile in the cache?
-start:	if ((data = tile_find_cached(z, xn, yn, &xclosest, &yclosest)) != NULL) {
+start:	if ((data = tile_find_cached(z, req->xn, req->yn, &xclosest, &yclosest)) != NULL) {
 		return data;
 	}
-	if (search_depth == 0) {
+	if (req->search_depth == 0) {
 		return NULL;
 	}
 	// Can't fetch the tile from the cache; try to make a new tile.
 	// Purge items from the cache if it's getting too full:
 	if (l->ntiles >= l->tiles_max) {
-		cache_purge(l, z, xn, yn);
+		cache_purge(l, req);
 		if (l->ntiles >= l->purge_to) {
 			return NULL;
 		}
@@ -752,14 +780,15 @@ start:	if ((data = tile_find_cached(z, xn, yn, &xclosest, &yclosest)) != NULL) {
 		goto start;
 	}
 	// issue a callback to procure the tile data; if this fails, we're sunk:
-	if ((data = l->tile_procure(zoom, xn, yn, search_depth - 1)) == NULL) {
+	req->search_depth--;
+	if ((data = l->tile_procure(req)) == NULL) {
 		return NULL;
 	}
 	// New data; hang it in to the xylist after the closest x and y members:
 	// Do we already have the right x col?
-	if (xclosest == NULL || xclosest->n != xn) {
+	if (xclosest == NULL || xclosest->n != req->xn) {
 		// Nope, try to create it in place:
-		if ((xmatch = xlist_insert(z, xclosest, xn)) == NULL) {
+		if ((xmatch = xlist_insert(z, xclosest, req->xn)) == NULL) {
 			// This should never happen, but if so, destroy fresh tile:
 			l->tile_destroy(data);
 			return NULL;
@@ -771,7 +800,7 @@ start:	if ((data = tile_find_cached(z, xn, yn, &xclosest, &yclosest)) != NULL) {
 	}
 	// Here we know that have the proper x col (even if perhaps empty);
 	// but we weren't able to find the tile before, so we know it does not exist:
-	if ((ymatch = ytile_insert(l, z, xmatch, yclosest, yn, data)) == NULL) {
+	if ((ymatch = ytile_insert(l, z, xmatch, yclosest, req->yn, data)) == NULL) {
 		// Again, this should not happen; trash our freshly procured data:
 		l->tile_destroy(data);
 		return NULL;

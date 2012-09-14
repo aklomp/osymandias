@@ -1,6 +1,8 @@
 #ifndef TEXTURE_MGR_H
 #define TEXTURE_MGR_H
 
+struct xylist_req;
+
 struct texture {
 	GLuint id;
 	int zoomfactor;
@@ -10,7 +12,7 @@ struct texture {
 
 int texture_mgr_init (void);
 void texture_mgr_destroy (void);
-struct texture *texture_request (const unsigned int zoom, const unsigned int xn, const unsigned int yn);
-int texture_area_is_covered (const unsigned int zoom, const unsigned int tile_xmin, const unsigned int tile_ymin, const unsigned int tile_xmax, const unsigned int tile_ymax);
+struct texture *texture_request (struct xylist_req *req);
+int texture_area_is_covered (const unsigned int zoom, const unsigned int xmin, const unsigned int ymin, const unsigned int xmax, const unsigned int ymax);
 
 #endif	/* TEXTURE_MGR_H */

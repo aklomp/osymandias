@@ -12,7 +12,7 @@ struct texdata {
 	GLuint id;
 };
 
-static void *texture_procure (const unsigned int zoom, const unsigned int xn, const unsigned int yn, const unsigned int search_depth);
+static void *texture_procure (struct xylist_req *req);
 static void texture_destroy (void *data);
 
 struct xylist *textures = NULL;
@@ -31,12 +31,14 @@ texture_mgr_destroy (void)
 }
 
 struct texture *
-texture_request (const unsigned int zoom, const unsigned int xn, const unsigned int yn)
+texture_request (struct xylist_req *req)
 {
 	void *data;
 
+	req->search_depth = 9;
+
 	// Is the texture already loaded?
-	if ((data = xylist_request(textures, zoom, xn, yn, 9)) != NULL) {
+	if ((data = xylist_request(textures, req)) != NULL) {
 		output.id = ((struct texdata *)data)->id;
 		output.offset_x = 0;
 		output.offset_y = 0;
@@ -44,26 +46,38 @@ texture_request (const unsigned int zoom, const unsigned int xn, const unsigned 
 		return &output;
 	}
 	// Otherwise, can we find the texture at lower zoomlevels?
-	for (int z = (int)zoom - 1; z >= 0; z--)
+	for (int z = (int)req->zoom - 1; z >= 0; z--)
 	{
-		unsigned int zoomdiff = (zoom - z);
-		unsigned int zoomed_xn = xn >> (zoomdiff);
-		unsigned int zoomed_yn = yn >> (zoomdiff);
+		unsigned int zoomdiff = (req->zoom - z);
 		unsigned int blocksz;
 		unsigned int xblock;
 		unsigned int yblock;
+		struct xylist_req zoomed_req;
+
+		// Create our own request, based on the one we have, but zoomed:
+		zoomed_req.xn = req->xn >> zoomdiff;
+		zoomed_req.yn = req->yn >> zoomdiff;
+		zoomed_req.zoom = (unsigned int)z;
+		zoomed_req.xmin = req->xmin >> zoomdiff;
+		zoomed_req.ymin = req->ymin >> zoomdiff;
+		zoomed_req.xmax = req->xmax >> zoomdiff;
+		zoomed_req.ymax = req->ymax >> zoomdiff;
+
+		// Allow one descent from texture cache to bitmap cache, and that's it;
+		// don't go to disk or to the network:
+		zoomed_req.search_depth = 1;
 
 		// Request the tile from the xylist with a search_depth of 1,
 		// so that we will first try the texture cache, then try to procure
 		// from the bitmap cache, and then give up:
-		if ((data = xylist_request(textures, (unsigned int)z, zoomed_xn, zoomed_yn, 1)) == NULL) {
+		if ((data = xylist_request(textures, &zoomed_req)) == NULL) {
 			continue;
 		}
 		// At this zoom level, cut a block of this pixel size out of parent:
 		blocksz = (256 >> zoomdiff);
 		// This is the nth block out of parent, counting from top left:
-		xblock = (xn - (zoomed_xn << zoomdiff));
-		yblock = (yn - (zoomed_yn << zoomdiff));
+		xblock = (req->xn - (zoomed_req.xn << zoomdiff));
+		yblock = (req->yn - (zoomed_req.yn << zoomdiff));
 
 		// Reverse the yblock index, texture coordinates run from bottom left:
 		yblock = (1 << zoomdiff) - 1 - yblock;
@@ -78,7 +92,7 @@ texture_request (const unsigned int zoom, const unsigned int xn, const unsigned 
 }
 
 static void *
-texture_procure (const unsigned int zoom, const unsigned int xn, const unsigned int yn, const unsigned int search_depth)
+texture_procure (struct xylist_req *req)
 {
 	struct texdata *data;
 	void *rawbits;
@@ -91,7 +105,7 @@ texture_procure (const unsigned int zoom, const unsigned int xn, const unsigned 
 		return NULL;
 	}
 	// Can we find rawbits to generate the texture?
-	if ((rawbits = bitmap_request(zoom, xn, yn, search_depth)) == NULL) {
+	if ((rawbits = bitmap_request(req)) == NULL) {
 		free(data);
 		return NULL;
 	}
@@ -110,7 +124,15 @@ texture_destroy (void *data)
 }
 
 int
-texture_area_is_covered (const unsigned int zoom, const unsigned int tile_xmin, const unsigned int tile_ymin, const unsigned int tile_xmax, const unsigned int tile_ymax)
+texture_area_is_covered (const unsigned int zoom, const unsigned int xmin, const unsigned int ymin, const unsigned int xmax, const unsigned int ymax)
 {
-	return xylist_area_is_covered(textures, zoom, tile_xmin, tile_ymin, tile_xmax, tile_ymax);
+	struct xylist_req req;
+
+	req.zoom = zoom;
+	req.xmin = xmin;
+	req.ymin = ymin;
+	req.xmax = xmax;
+	req.ymax = ymax;
+
+	return xylist_area_is_covered(textures, &req);
 }

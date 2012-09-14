@@ -5,6 +5,7 @@
 #include <GL/gl.h>
 
 #include "shaders.h"
+#include "xylist.h"
 #include "texture_mgr.h"
 #include "viewport.h"
 
@@ -243,13 +244,21 @@ viewport_draw_tiles (void)
 	struct texture *texture;
 	unsigned int screen_offs_x = (center_x - screen_wd / 2) & 0xFF;
 	unsigned int screen_offs_y = (center_y - screen_ht / 2) & 0xFF;
+	struct xylist_req req;
 
 	glEnable(GL_TEXTURE_2D);
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	for (int x = tile_left; x <= tile_right; x++) {
 		for (int y = tile_top; y <= tile_bottom; y++) {
-			if ((texture = texture_request(zoom, x, y)) == NULL) {
+			req.xn = x;
+			req.yn = y;
+			req.zoom = zoom;
+			req.xmin = tile_left;
+			req.ymin = tile_top;
+			req.xmax = tile_right;
+			req.ymax = tile_bottom;
+			if ((texture = texture_request(&req)) == NULL) {
 				continue;
 			}
 			shader_use_tile(screen_offs_x, screen_offs_y, texture->offset_x, texture->offset_y, texture->zoomfactor);

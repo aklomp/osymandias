@@ -49,22 +49,20 @@ viking_filename (unsigned int zoom, int tile_x, int tile_y)
 }
 
 void *
-bitmap_request (const unsigned int zoom, const unsigned int xn, const unsigned int yn, const unsigned int search_depth)
+bitmap_request (struct xylist_req *req)
 {
-	return xylist_request(bitmaps, zoom, xn, yn, search_depth);
+	return xylist_request(bitmaps, req);
 }
 
 static void *
-rawbits_procure (const unsigned int zoom, const unsigned int xn, const unsigned int yn, const unsigned int search_depth)
+rawbits_procure (struct xylist_req *req)
 {
 	char *filename;
 	void *rawbits;
 	unsigned int width;
 	unsigned int height;
 
-	(void)search_depth;
-
-	if ((filename = viking_filename(zoom, xn, yn)) == NULL) {
+	if ((filename = viking_filename(req->zoom, req->xn, req->yn)) == NULL) {
 		return NULL;
 	}
 	if (!load_png_file(filename, &height, &width, &rawbits)) {
