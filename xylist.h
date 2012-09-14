@@ -22,6 +22,7 @@ xylist_create (const unsigned int zoom_min, const unsigned int zoom_max, const u
 void xylist_destroy (struct xylist **l);
 void *xylist_request (struct xylist *l, struct xylist_req *req);
 bool xylist_insert_tile (struct xylist *l, const unsigned int zoom, const unsigned int xn, const unsigned int yn, void *const data);
+bool xylist_delete_tile (struct xylist *l, const unsigned int zoom, const unsigned int xn, const unsigned int yn);
 bool xylist_area_is_covered (struct xylist *l, const struct xylist_req *const req);
 
 #endif /* XYLIST_H */

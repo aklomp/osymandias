@@ -744,6 +744,31 @@ xylist_insert_tile (struct xylist *l, const unsigned int zoom, const unsigned in
 	return true;
 }
 
+bool
+xylist_delete_tile (struct xylist *l, const unsigned int zoom, const unsigned int xn, const unsigned int yn)
+{
+	struct xlist *xclosest = NULL;
+	struct ytile *yclosest = NULL;
+	struct zoomlevel *z = l->zoom[zoom];
+
+	if (zoom < l->zoom_min || zoom > l->zoom_max) {
+		return false;
+	}
+	// Find the tile:
+	if (tile_find_cached(z, xn, yn, &xclosest, &yclosest) == NULL
+	 || xclosest == NULL || xclosest->n != xn
+	 || yclosest == NULL || yclosest->n != yn) {
+		return false;
+	}
+	list_detach(xclosest->ys, xclosest->ye, yclosest);
+	ytile_destroy(l, z, &yclosest, xn);
+	if (xclosest->ys == NULL) {
+		list_detach(z->xs, z->xe, xclosest);
+		xlist_destroy(l, z, &xclosest);
+	}
+	return true;
+}
+
 void *
 xylist_request (struct xylist *l, struct xylist_req *req)
 {
