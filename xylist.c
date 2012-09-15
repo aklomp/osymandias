@@ -722,6 +722,22 @@ xylist_insert_tile (struct xylist *l, const unsigned int zoom, const unsigned in
 	if (data == NULL || zoom < l->zoom_min || zoom > l->zoom_max) {
 		return false;
 	}
+	// Must flush cache?
+	// FIXME just use a real struct xylist_req
+	if (l->ntiles >= l->tiles_max) {
+		struct xylist_req req;
+		req.zoom = zoom;
+		req.xn = xn;
+		req.yn = yn;
+		req.xmin = 0;
+		req.ymin = 0;
+		req.xmax = 1 << (18 - zoom);
+		req.ymax = 1 << (18 - zoom);
+		cache_purge(l, &req);
+		if (l->ntiles > l->purge_to) {
+			return 0;
+		}
+	}
 	// Find the closest tile; if exact match, delete existing data:
 	if ((current = tile_find_cached(z, xn, yn, &xclosest, &yclosest)) != NULL) {
 		l->tile_destroy(current);
@@ -796,7 +812,7 @@ start:	if ((data = tile_find_cached(z, req->xn, req->yn, &xclosest, &yclosest)) 
 	// Purge items from the cache if it's getting too full:
 	if (l->ntiles >= l->tiles_max) {
 		cache_purge(l, req);
-		if (l->ntiles >= l->purge_to) {
+		if (l->ntiles > l->purge_to) {
 			return NULL;
 		}
 		// At this point we cannot trust xclosest and yclosest any more; regenerate:
