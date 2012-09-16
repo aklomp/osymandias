@@ -75,43 +75,51 @@ struct xylist {
 };
 
 static void
-ytile_destroy (struct xylist *l, struct zoomlevel *z, struct ytile **y, const unsigned int xn)
+ytile_destroy (struct xylist *l, struct zoomlevel *z, struct ytile **yy, const unsigned int xn)
 {
-	if (y == NULL || *y == NULL) {
+	struct ytile *y = *yy;
+
+	if (y == NULL) {
 		return;
 	}
 	// Does the cached pointer point to here?
 	if (z->saved_x != NULL && z->saved_x->n == xn) {
-		if (z->saved_y != NULL && z->saved_y == *y) {
+		if (z->saved_y != NULL && z->saved_y == y) {
 			z->saved_x = NULL;
 			z->saved_y = NULL;
 		}
 	}
 	// Call custom destructor on data pointer:
-	l->tile_destroy((*y)->data);
+	l->tile_destroy(y->data);
 	l->ntiles--;
 	z->ntiles--;
-	free(*y);
-	*y = NULL;
+	free(y);
+	*yy = NULL;
 }
 
 static void
-xlist_destroy (struct xylist *l, struct zoomlevel *z, struct xlist **x)
+xlist_destroy (struct xylist *l, struct zoomlevel *z, struct xlist **xx)
 {
-	struct ytile *y = (*x)->ys;
+	struct xlist *x = *xx;
+	struct ytile *y = x->ys;
 
-	// Node must be detached by caller:
+	// Node must be detached by caller.
+	if (z->saved_x && z->saved_x->n == x->n) {
+		z->saved_x = NULL;
+		z->saved_y = NULL;
+	}
 	while (y) {
+		// Optimize this: we know we are trashing the y list,
+		// so don't bother to detach and be nice:
 		struct ytile *yt = list_next(y);
-		list_detach((*x)->ys, (*x)->ye, y);
-		ytile_destroy(l, z, &y, (*x)->n);
+		l->tile_destroy(y->data);
+		l->ntiles--;
+		z->ntiles--;
+		free(y);
 		y = yt;
 	}
-	if (z->xe == *x) {
-		z->xe = list_prev(*x);
-	}
-	free(*x);
-	*x = NULL;
+	free(x);
+	*xx = NULL;
 }
 
 static void
@@ -124,8 +132,9 @@ cache_purge_zoomlevel (struct xylist *l, struct zoomlevel *z)
 	}
 	x = z->xs;
 	while (x) {
+		// Don't bother to detach the x list properly,
+		// we're trashing the entire zoom level anyway:
 		struct xlist *xt = list_next(x);
-		list_detach(z->xs, z->xe, x);
 		xlist_destroy(l, z, &x);
 		x = xt;
 	}
