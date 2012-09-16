@@ -7,6 +7,7 @@
 #include "shaders.h"
 #include "xylist.h"
 #include "texture_mgr.h"
+#include "autoscroll.h"
 #include "viewport.h"
 
 static unsigned int world_size = 0;	// current world size in pixels
@@ -155,6 +156,12 @@ viewport_center_at (const int screen_x, const int screen_y)
 void
 viewport_reshape (const unsigned int new_width, const unsigned int new_height)
 {
+	int dx;
+	int dy;
+
+	if (autoscroll_update(&dx, &dy)) {
+		viewport_scroll(dx, dy);
+	}
 	screen_wd = new_width;
 	screen_ht = new_height;
 

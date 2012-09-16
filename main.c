@@ -7,7 +7,21 @@
 #include "mouse.h"
 #include "bitmap_mgr.h"
 #include "texture_mgr.h"
+#include "autoscroll.h"
 #include "viewport.h"
+
+static gboolean
+autoscroll_tick (GtkWidget *widget)
+{
+	if (!GTK_IS_WIDGET(widget)) {
+		autoscroll_stop();
+	}
+	if (!autoscroll_is_on()) {
+		return FALSE;
+	}
+	gtk_widget_queue_draw(widget);
+	return TRUE;
+}
 
 static gboolean
 on_expose_event (GtkWidget *widget)
@@ -29,6 +43,10 @@ on_expose_event (GtkWidget *widget)
 		glFlush();
 	}
 	gdk_gl_drawable_gl_end(gldrawable);
+
+	if (autoscroll_is_on()) {
+		g_timeout_add(40, (GSourceFunc)autoscroll_tick, (gpointer)widget);
+	}
 	return FALSE;
 }
 

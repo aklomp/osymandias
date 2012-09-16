@@ -12,6 +12,7 @@ PROG = osymandias
 OBJS = \
   xylist.o \
   pngloader.o \
+  autoscroll.o \
   bitmap_mgr.o \
 
 OBJS_GTK = \
