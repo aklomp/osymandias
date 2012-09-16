@@ -7,24 +7,12 @@
 #include "mouse.h"
 #include "bitmap_mgr.h"
 #include "texture_mgr.h"
+#include "framerate.h"
 #include "autoscroll.h"
 #include "viewport.h"
 
-static gboolean
-autoscroll_tick (GtkWidget *widget)
-{
-	if (!GTK_IS_WIDGET(widget)) {
-		autoscroll_stop();
-	}
-	if (!autoscroll_is_on()) {
-		return FALSE;
-	}
-	gtk_widget_queue_draw(widget);
-	return TRUE;
-}
-
-static gboolean
-on_expose_event (GtkWidget *widget)
+static void
+paint_canvas (GtkWidget *widget)
 {
 	GdkGLContext  *glcontext;
 	GdkGLDrawable *gldrawable;
@@ -43,11 +31,6 @@ on_expose_event (GtkWidget *widget)
 		glFlush();
 	}
 	gdk_gl_drawable_gl_end(gldrawable);
-
-	if (autoscroll_is_on()) {
-		g_timeout_add(40, (GSourceFunc)autoscroll_tick, (gpointer)widget);
-	}
-	return FALSE;
 }
 
 int
@@ -84,12 +67,14 @@ main (int argc, char **argv)
 	gtk_container_add(GTK_CONTAINER(window), canvas);
 
 	gtk_widget_add_events(canvas, GDK_BUTTON_PRESS_MASK | GDK_BUTTON1_MOTION_MASK | GDK_BUTTON_RELEASE_MASK);
-	g_signal_connect(canvas, "expose-event", G_CALLBACK(on_expose_event), NULL);
 	g_signal_connect(canvas, "scroll_event", G_CALLBACK(on_mouse_scroll), NULL);
 	g_signal_connect(canvas, "button_press_event", G_CALLBACK(on_button_press), NULL);
 	g_signal_connect(canvas, "motion_notify_event", G_CALLBACK(on_button_motion), NULL);
 	g_signal_connect(canvas, "button_release_event", G_CALLBACK(on_button_release), NULL);
 	g_signal_connect(canvas, "destroy", G_CALLBACK(gtk_main_quit), NULL);
+
+	// Expose events are scheduled through the framerate manager, not handled directly:
+	g_signal_connect(canvas, "expose-event", G_CALLBACK(framerate_request_refresh), NULL);
 
 	gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_CENTER);
 	gtk_window_set_default_size(GTK_WINDOW(window), 600, 600);
@@ -104,7 +89,7 @@ main (int argc, char **argv)
 	gtk_widget_show_all(window);
 
 	viewport_init();
-
+	framerate_init(canvas, paint_canvas);
 	bitmap_mgr_init();
 	texture_mgr_init();
 
@@ -112,6 +97,7 @@ main (int argc, char **argv)
 
 	texture_mgr_destroy();
 	bitmap_mgr_destroy();
+	framerate_destroy();
 	viewport_destroy();
 
 	ret = 0;

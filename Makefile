@@ -17,6 +17,7 @@ OBJS = \
 
 OBJS_GTK = \
   mouse.o \
+  framerate.o \
 
 OBJS_GTKGL = \
   shaders.o \

@@ -9,6 +9,7 @@
 #include <fcntl.h>
 #include <png.h>
 
+#include "framerate.h"
 #include "pngloader.h"
 #include "xylist.h"
 
@@ -21,6 +22,7 @@ struct thread {
 	pthread_attr_t attr;
 	pthread_mutex_t run_mutex;
 	int running;
+	void (*completed_callback)(void);
 };
 
 struct png_thread_resources {
@@ -183,6 +185,9 @@ thread_procure_main (void *data)
 		free(res.rawbits);
 		res.rawbits = NULL;
 	}
+	else if (res.t->completed_callback != NULL) {
+		res.t->completed_callback();
+	}
 
 exit:	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 	pthread_cleanup_pop(0);
@@ -240,6 +245,7 @@ thread_procure (struct xylist_req *req)
 	pthread_attr_init(&t->attr);
 	pthread_mutex_init(&t->run_mutex, NULL);
 	t->running = 0;
+	t->completed_callback = framerate_request_refresh;
 
 	// Start thread:
 	pthread_create(&t->thread, &t->attr, &thread_procure_main, t);
