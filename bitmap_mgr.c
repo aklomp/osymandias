@@ -14,7 +14,6 @@
 static struct xylist *bitmaps = NULL;
 static struct xylist *threadlist = NULL;
 static pthread_mutex_t bitmaps_mutex;
-static pthread_mutex_t threadlist_mutex;
 static pthread_mutex_t running_mutex;
 static pthread_attr_t attr_detached;
 
@@ -32,9 +31,7 @@ bitmap_request (struct xylist_req *req)
 void
 bitmap_zoom_change (const unsigned int zoom)
 {
-	pthread_mutex_lock(&threadlist_mutex);
 	xylist_purge_other_zoomlevels(threadlist, zoom);
-	pthread_mutex_unlock(&threadlist_mutex);
 }
 
 static void *
@@ -49,9 +46,7 @@ bitmap_procure (struct xylist_req *req)
 	// it will be procured by xylist_request by indirectly calling back on
 	// thread_procure(). Our work here is done.
 
-	pthread_mutex_lock(&threadlist_mutex);
 	xylist_request(threadlist, req);
-	pthread_mutex_unlock(&threadlist_mutex);
 	return NULL;
 }
 
@@ -126,7 +121,6 @@ bitmap_mgr_init (void)
 		return false;
 	}
 	pthread_mutex_init(&bitmaps_mutex, NULL);
-	pthread_mutex_init(&threadlist_mutex, NULL);
 	pthread_mutex_init(&running_mutex, NULL);
 	pthread_attr_init(&attr_detached);
 	pthread_attr_setdetachstate(&attr_detached, PTHREAD_CREATE_DETACHED);
@@ -137,9 +131,7 @@ bitmap_mgr_init (void)
 void
 bitmap_mgr_destroy (void)
 {
-	pthread_mutex_lock(&threadlist_mutex);
 	xylist_destroy(&threadlist);
-	pthread_mutex_unlock(&threadlist_mutex);
 
 	pthread_mutex_lock(&bitmaps_mutex);
 	xylist_destroy(&bitmaps);
@@ -147,6 +139,5 @@ bitmap_mgr_destroy (void)
 
 	pthread_attr_destroy(&attr_detached);
 	pthread_mutex_destroy(&running_mutex);
-	pthread_mutex_destroy(&threadlist_mutex);
 	pthread_mutex_destroy(&bitmaps_mutex);
 }
