@@ -152,7 +152,6 @@ exit_0:	return ret;
 void *
 pngloader_main (void *data)
 {
-	bool found = 0;
 	char filename[100];
 	struct pngloader *p;
 	unsigned int width;
@@ -200,7 +199,6 @@ pngloader_main (void *data)
 	}
 	// Got tile, insert into bitmaps:
 	ret = false;
-	found = true;
 	// pointer to bitmaps can become NULL if the parent process is
 	// suddenly shutting down on us:
 	pthread_mutex_lock(p->bitmaps_mutex);
@@ -227,27 +225,12 @@ exit:	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 		fd = -1;
 	}
 	png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
-
-	// Really rudimentary rate-limiting to occupy this (zoom,xn,yn) slot a
-	// little longer, ensurng that unavailable tiles aren't re-probed at
-	// every screen refresh; if the slot is needed, this thread will be
-	// reaped here:
-	if (!found) {
-/****/		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-		sleep(5);
-/****/		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-	}
-	// From here on we are not cancelable; get rid of cleanup:
 	pthread_cleanup_pop(0);
-	// We delete ourselves from the threads xylist. This will free up a
-	// tile. but not cancel us, since we check for suicide:
-	pthread_mutex_lock(p->threadlist_mutex);
-	if (p->threadlist != NULL) {
-		xylist_delete_tile(*(p->threadlist), &p->req);
-	}
-	pthread_mutex_unlock(p->threadlist_mutex);
+	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+	pthread_testcancel();
+	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 	pthread_mutex_lock(p->running_mutex);
-	p->running = 0;
+	p->n->running = 0;
 	pthread_mutex_unlock(p->running_mutex);
 	free(p);
 	pthread_exit(NULL);

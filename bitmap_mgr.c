@@ -56,6 +56,7 @@ static void *
 thread_procure (struct xylist_req *req)
 {
 	struct pngloader *p;
+	struct pngloader_node *n;
 	pthread_attr_t attr;
 
 	// We have been asked to create a thread that loads the given bitmap
@@ -64,14 +65,23 @@ thread_procure (struct xylist_req *req)
 	if ((p = malloc(sizeof(*p))) == NULL) {
 		return NULL;
 	}
+	if ((n = malloc(sizeof(*n))) == NULL) {
+		free(p);
+		return NULL;
+	}
+	// The pngloader structure is owned by the thread.
+	// It is responsible for free()'ing it.
 	p->bitmaps = &bitmaps;
 	p->bitmaps_mutex = &bitmaps_mutex;
-	p->threadlist = &threadlist;
-	p->threadlist_mutex = &threadlist_mutex;
 	memcpy(&p->req, req, sizeof(*req));
 	p->completed_callback = framerate_request_refresh;
 	p->running_mutex = &running_mutex;
-	p->running = 1;
+	p->n = n;
+
+	// The pngloader_node structure is owned by us, the threadlist.
+	// We will free it in thread_destroy().
+	n->running = 1;
+	n->thread = &p->thread;
 
 	pthread_attr_init(&attr);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
@@ -80,34 +90,25 @@ thread_procure (struct xylist_req *req)
 	pthread_create(&p->thread, &attr, &pngloader_main, p);
 	pthread_attr_destroy(&attr);
 
-	// Store pointer into threads xylist. The ownership (who deletes this)
-	// lies with the thread itself, not with the xylist!
-	return p;
+	// Store node in xylist:
+	return n;
 }
 
 static void
 thread_destroy (void *data)
 {
-	struct pngloader *p = data;
+	struct pngloader_node *n = data;
 
-	// The xylist does not own the pointer to the thread structure; it is
-	// up to the thread to free it, we merely ask the thread to quit and
-	// remove the pointer to its control structure.  Only one thread at a
-	// time can be in the xylist, so this pointer is safe to read. We meet
-	// ourselves when deleting our tile with xylist_delete_tile(). but
-	// ignore that (we'll quit soon enough).
-
-	// Must ensure that the thread is alive before calling pthread_cancel();
-	// otherwise we segfault; we do this by pinning the thread if it's alive:
+	// Free the node pointer. If we can acquire the lock, we are guaranteed
+	// that the thread is either waiting for the lock, or already dead.
 	pthread_mutex_lock(&running_mutex);
-	if (p->thread == pthread_self()) {
-		goto exit;
+	// pthread_cancel() segfaults horribly if a thread is not running,
+	// hence the check:
+	if (n->running) {
+		pthread_cancel(*n->thread);
 	}
-	if (p->running) {
-		p->running = 0;
-		pthread_cancel(p->thread);
-	}
-exit:	pthread_mutex_unlock(&running_mutex);
+	pthread_mutex_unlock(&running_mutex);
+	free(n);
 }
 
 bool
@@ -116,7 +117,7 @@ bitmap_mgr_init (void)
 	if ((bitmaps = xylist_create(0, ZOOM_MAX, MAX_BITMAPS, &bitmap_procure, &bitmap_destroy)) == NULL) {
 		return false;
 	}
-	if ((threadlist = xylist_create(0, ZOOM_MAX, 20, &thread_procure, &thread_destroy)) == NULL) {
+	if ((threadlist = xylist_create(0, ZOOM_MAX, 200, &thread_procure, &thread_destroy)) == NULL) {
 		xylist_destroy(&bitmaps);
 		return false;
 	}
