@@ -115,6 +115,7 @@ viewport_zoom_in (const int screen_x, const int screen_y)
 		center_x *= 2;
 		center_y *= 2;
 		world_size = total_canvas_size(zoom);
+		texture_zoom_change(zoom);
 	}
 	// Keep same point under mouse cursor:
 	int dx = screen_x - screen_wd / 2;
@@ -130,6 +131,7 @@ viewport_zoom_out (const int screen_x, const int screen_y)
 		center_x /= 2;
 		center_y /= 2;
 		world_size = total_canvas_size(zoom);
+		texture_zoom_change(zoom);
 	}
 	int dx = screen_x - screen_wd / 2;
 	int dy = screen_y - screen_ht / 2;

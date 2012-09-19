@@ -28,6 +28,14 @@ bitmap_request (struct xylist_req *req)
 	return data;
 }
 
+void
+bitmap_zoom_change (const unsigned int zoom)
+{
+	pthread_mutex_lock(&threadlist_mutex);
+	xylist_purge_other_zoomlevels(threadlist, zoom);
+	pthread_mutex_unlock(&threadlist_mutex);
+}
+
 static void *
 bitmap_procure (struct xylist_req *req)
 {

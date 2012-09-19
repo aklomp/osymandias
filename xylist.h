@@ -24,5 +24,6 @@ void *xylist_request (struct xylist *l, struct xylist_req *req);
 bool xylist_insert_tile (struct xylist *l, struct xylist_req *req, void *const data);
 bool xylist_delete_tile (struct xylist *l, struct xylist_req *req);
 bool xylist_area_is_covered (struct xylist *l, const struct xylist_req *const req);
+void xylist_purge_other_zoomlevels (struct xylist *l, const unsigned int zoom);
 
 #endif /* XYLIST_H */

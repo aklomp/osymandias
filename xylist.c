@@ -145,6 +145,17 @@ cache_purge_zoomlevel (struct xylist *l, struct zoomlevel *z)
 	z->saved_y = NULL;
 }
 
+void
+xylist_purge_other_zoomlevels (struct xylist *l, const unsigned int zoom)
+{
+	for (unsigned int z = l->zoom_min; z <= l->zoom_max; z++) {
+		if (z == zoom) {
+			continue;
+		}
+		cache_purge_zoomlevel(l, l->zoom[z]);
+	}
+}
+
 static struct zoomlevel *
 zoomlevel_create (const unsigned int level)
 {

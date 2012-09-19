@@ -30,6 +30,12 @@ texture_mgr_destroy (void)
 	xylist_destroy(&textures);
 }
 
+void
+texture_zoom_change (const unsigned int zoom)
+{
+	bitmap_zoom_change(zoom);
+}
+
 struct texture *
 texture_request (struct xylist_req *req)
 {
