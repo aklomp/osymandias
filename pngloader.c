@@ -205,7 +205,7 @@ pngloader_main (void *data)
 	// suddenly shutting down on us:
 	pthread_mutex_lock(p->bitmaps_mutex);
 	if (p->bitmaps != NULL) {
-		ret = xylist_insert_tile(*(p->bitmaps), p->req.zoom, p->req.xn, p->req.yn, rawbits);
+		ret = xylist_insert_tile(*(p->bitmaps), &p->req, rawbits);
 	}
 	pthread_mutex_unlock(p->bitmaps_mutex);
 	if (!ret) {
@@ -243,7 +243,7 @@ exit:	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 	// tile. but not cancel us, since we check for suicide:
 	pthread_mutex_lock(p->threadlist_mutex);
 	if (p->threadlist != NULL) {
-		xylist_delete_tile(*(p->threadlist), p->req.zoom, p->req.xn, p->req.yn);
+		xylist_delete_tile(*(p->threadlist), &p->req);
 	}
 	pthread_mutex_unlock(p->threadlist_mutex);
 	pthread_mutex_lock(p->running_mutex);

@@ -712,14 +712,14 @@ cache_purge (struct xylist *l, struct xylist_req *req)
 }
 
 bool
-xylist_insert_tile (struct xylist *l, const unsigned int zoom, const unsigned int xn, const unsigned int yn, void *const data)
+xylist_insert_tile (struct xylist *l, struct xylist_req *req, void *const data)
 {
 	void *current;
 	struct xlist *xclosest = NULL;
 	struct ytile *yclosest = NULL;
 	struct xlist *xmatch;
 	struct ytile *ymatch;
-	struct zoomlevel *z = l->zoom[zoom];
+	struct zoomlevel *z = l->zoom[req->zoom];
 
 	// Lets the list owner insert a tile into the list at any time.
 	// This can be used by nonblocking tile fetchers. The owner asks the xylist for a tile,
@@ -728,34 +728,25 @@ xylist_insert_tile (struct xylist *l, const unsigned int zoom, const unsigned in
 	// That thread then uses this function to add the tile to the list when it's done.
 	// A true return value means "tile successfully inserted", false is "insert failed".
 
-	if (data == NULL || zoom < l->zoom_min || zoom > l->zoom_max) {
+	if (data == NULL || req->zoom < l->zoom_min || req->zoom > l->zoom_max) {
 		return false;
 	}
 	// Must flush cache?
-	// FIXME just use a real struct xylist_req
 	if (l->ntiles >= l->tiles_max) {
-		struct xylist_req req;
-		req.zoom = zoom;
-		req.xn = xn;
-		req.yn = yn;
-		req.xmin = 0;
-		req.ymin = 0;
-		req.xmax = 1 << (18 - zoom);
-		req.ymax = 1 << (18 - zoom);
-		cache_purge(l, &req);
+		cache_purge(l, req);
 		if (l->ntiles > l->purge_to) {
-			return 0;
+			return false;
 		}
 	}
 	// Find the closest tile; if exact match, delete existing data:
-	if ((current = tile_find_cached(z, xn, yn, &xclosest, &yclosest)) != NULL) {
+	if ((current = tile_find_cached(z, req->xn, req->yn, &xclosest, &yclosest)) != NULL) {
 		l->tile_destroy(current);
 		yclosest->data = data;
 		return true;
 	}
 	// Otherwise, create a new tile at requested position. First create x col if we have to:
-	if (xclosest == NULL || xclosest->n != xn) {
-		if ((xmatch = xlist_insert(z, xclosest, xn)) == NULL) {
+	if (xclosest == NULL || xclosest->n != req->xn) {
+		if ((xmatch = xlist_insert(z, xclosest, req->xn)) == NULL) {
 			return false;
 		}
 	}
@@ -763,30 +754,30 @@ xylist_insert_tile (struct xylist *l, const unsigned int zoom, const unsigned in
 		xmatch = xclosest;
 	}
 	// We're on the right x col, now create the y tile:
-	if ((ymatch = ytile_insert(l, z, xmatch, yclosest, yn, data)) == NULL) {
+	if ((ymatch = ytile_insert(l, z, xmatch, yclosest, req->yn, data)) == NULL) {
 		return false;
 	}
 	return true;
 }
 
 bool
-xylist_delete_tile (struct xylist *l, const unsigned int zoom, const unsigned int xn, const unsigned int yn)
+xylist_delete_tile (struct xylist *l, struct xylist_req *req)
 {
 	struct xlist *xclosest = NULL;
 	struct ytile *yclosest = NULL;
-	struct zoomlevel *z = l->zoom[zoom];
+	struct zoomlevel *z = l->zoom[req->zoom];
 
-	if (zoom < l->zoom_min || zoom > l->zoom_max) {
+	if (req->zoom < l->zoom_min || req->zoom > l->zoom_max) {
 		return false;
 	}
 	// Find the tile:
-	if (tile_find_cached(z, xn, yn, &xclosest, &yclosest) == NULL
-	 || xclosest == NULL || xclosest->n != xn
-	 || yclosest == NULL || yclosest->n != yn) {
+	if (tile_find_cached(z, req->xn, req->yn, &xclosest, &yclosest) == NULL
+	 || xclosest == NULL || xclosest->n != req->xn
+	 || yclosest == NULL || yclosest->n != req->yn) {
 		return false;
 	}
 	list_detach(xclosest->ys, xclosest->ye, yclosest);
-	ytile_destroy(l, z, &yclosest, xn);
+	ytile_destroy(l, z, &yclosest, req->xn);
 	if (xclosest->ys == NULL) {
 		list_detach(z->xs, z->xe, xclosest);
 		xlist_destroy(l, z, &xclosest);
