@@ -16,6 +16,7 @@ static struct xylist *threadlist = NULL;
 static pthread_mutex_t bitmaps_mutex;
 static pthread_mutex_t threadlist_mutex;
 static pthread_mutex_t running_mutex;
+static pthread_attr_t attr_detached;
 
 void *
 bitmap_request (struct xylist_req *req)
@@ -65,7 +66,6 @@ thread_procure (struct xylist_req *req)
 {
 	struct pngloader *p;
 	struct pngloader_node *n;
-	pthread_attr_t attr;
 
 	// We have been asked to create a thread that loads the given bitmap
 	// from disk and puts it in the bitmaps xylist.
@@ -91,12 +91,8 @@ thread_procure (struct xylist_req *req)
 	n->running = 1;
 	n->thread = &p->thread;
 
-	pthread_attr_init(&attr);
-	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-
 	// Start thread:
-	pthread_create(&p->thread, &attr, &pngloader_main, p);
-	pthread_attr_destroy(&attr);
+	pthread_create(&p->thread, &attr_detached, &pngloader_main, p);
 
 	// Store node in xylist:
 	return n;
@@ -132,6 +128,9 @@ bitmap_mgr_init (void)
 	pthread_mutex_init(&bitmaps_mutex, NULL);
 	pthread_mutex_init(&threadlist_mutex, NULL);
 	pthread_mutex_init(&running_mutex, NULL);
+	pthread_attr_init(&attr_detached);
+	pthread_attr_setdetachstate(&attr_detached, PTHREAD_CREATE_DETACHED);
+
 	return true;
 }
 
@@ -146,6 +145,7 @@ bitmap_mgr_destroy (void)
 	xylist_destroy(&bitmaps);
 	pthread_mutex_unlock(&bitmaps_mutex);
 
+	pthread_attr_destroy(&attr_detached);
 	pthread_mutex_destroy(&running_mutex);
 	pthread_mutex_destroy(&threadlist_mutex);
 	pthread_mutex_destroy(&bitmaps_mutex);
