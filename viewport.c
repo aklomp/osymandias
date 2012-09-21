@@ -1,13 +1,14 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
 #include <GL/gl.h>
 
 #include "shaders.h"
 #include "xylist.h"
-#include "texture_mgr.h"
 #include "autoscroll.h"
+#include "bitmap_mgr.h"
 #include "viewport.h"
 
 static unsigned int world_size = 0;	// current world size in pixels
@@ -22,13 +23,16 @@ static int tile_left;
 static int tile_right;
 static int tile_bottom;
 static int tile_last;
+char *scratch = NULL;
+char *missing_tile = NULL;
 
 static void viewport_gl_setup (void);
 static void viewport_draw_bkgd (void);
 static void viewport_draw_cursor (void);
 static bool viewport_need_bkgd (void);
 static void viewport_draw_tiles (void);
-static void glQuadTextured (const float, const float);
+static int tile_request (struct xylist_req *req, char **rawbits, unsigned int *offset_x, unsigned int *offset_y, unsigned int *zoomfactor);
+static void missing_tile_init (void);
 
 static unsigned int
 total_canvas_size (const int zoom)
@@ -93,18 +97,29 @@ center_add_delta (unsigned int *const center, const int delta)
 	}
 }
 
-void
+bool
 viewport_init (void)
 {
+	if ((scratch = malloc(256 * 256 * 3)) == NULL) {
+		return false;
+	}
+	if ((missing_tile = malloc(256 * 256 * 3)) == NULL) {
+		free(scratch);
+		return false;
+	}
 	zoom = 0;
 	world_size = total_canvas_size(zoom);
 	center_x = center_y = world_size / 2;
 	recalc_tile_extents();
+	missing_tile_init();
+	return true;
 }
 
 void
 viewport_destroy (void)
 {
+	free(missing_tile);
+	free(scratch);
 }
 
 void
@@ -115,7 +130,7 @@ viewport_zoom_in (const int screen_x, const int screen_y)
 		center_x *= 2;
 		center_y *= 2;
 		world_size = total_canvas_size(zoom);
-		texture_zoom_change(zoom);
+		bitmap_zoom_change(zoom);
 	}
 	// Keep same point under mouse cursor:
 	int dx = screen_x - screen_wd / 2;
@@ -131,7 +146,7 @@ viewport_zoom_out (const int screen_x, const int screen_y)
 		center_x /= 2;
 		center_y /= 2;
 		world_size = total_canvas_size(zoom);
-		texture_zoom_change(zoom);
+		bitmap_zoom_change(zoom);
 	}
 	int dx = screen_x - screen_wd / 2;
 	int dy = screen_y - screen_ht / 2;
@@ -243,23 +258,27 @@ viewport_need_bkgd (void)
 	if (tile_left <= 0 || tile_top <= 0 || tile_right >= tile_last || tile_bottom >= tile_last) {
 		return true;
 	}
-	// If we are not sure that the area is covered, better draw the background:
-	return !texture_area_is_covered(zoom, tile_left, tile_top, tile_right, tile_bottom);
+	return 0;
 }
 
 static void
 viewport_draw_tiles (void)
 {
-	struct texture *texture;
-	unsigned int screen_offs_x = (center_x - screen_wd / 2) & 0xFF;
-	unsigned int screen_offs_y = (center_y - screen_ht / 2) & 0xFF;
 	struct xylist_req req;
+	char *rawbits;
+	unsigned int offset_x;
+	unsigned int offset_y;
+	unsigned int zoomfactor;
 
 	glEnable(GL_TEXTURE_2D);
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glPixelZoom(1.0, -1.0);
 	for (int x = tile_left; x <= tile_right; x++) {
 		for (int y = tile_top; y <= tile_bottom; y++) {
+			unsigned int tile_x = x * 256 + screen_wd / 2  - center_x;
+			unsigned int tile_y = (y + 1) * 256 + screen_ht / 2 - center_y;
+			glWindowPos2i(tile_x, tile_y);
 			req.xn = x;
 			req.yn = y;
 			req.zoom = zoom;
@@ -267,14 +286,32 @@ viewport_draw_tiles (void)
 			req.ymin = tile_top;
 			req.xmax = tile_right;
 			req.ymax = tile_bottom;
-			if ((texture = texture_request(&req)) == NULL) {
-				continue;
+			if (!tile_request(&req, &rawbits, &offset_x, &offset_y, &zoomfactor)) {
+				/* Draw the "missing tile" */
+				glDrawPixels(256, 256, GL_RGB, GL_UNSIGNED_BYTE, missing_tile);
 			}
-			shader_use_tile(screen_offs_x, screen_offs_y, texture->offset_x, texture->offset_y, texture->zoomfactor);
-			glBindTexture(GL_TEXTURE_2D, texture->id);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-			glQuadTextured(x * 256, y * 256);
+			else {
+				if (zoomfactor == 0) {
+					glDrawPixels(256, 256, GL_RGB, GL_UNSIGNED_BYTE, rawbits);
+				}
+				else {
+					char *r = rawbits;
+					char *b = scratch;
+					for (int rows = 0; rows < (256 >> zoomfactor); rows++) {
+						for (int repy = 0; repy < (1 << zoomfactor); repy++) {
+							for (int cols = 0; cols < (256 >> zoomfactor); cols++) {
+								r = rawbits + ((offset_y + rows) * 256 + offset_x + cols) * 3;
+								for (int repx = 0; repx < (1 << zoomfactor); repx++) {
+									*b++ = r[0];
+									*b++ = r[1];
+									*b++ = r[2];
+								}
+							}
+						}
+					}
+					glDrawPixels(256, 256, GL_RGB, GL_UNSIGNED_BYTE, scratch);
+				}
+			}
 		}
 	}
 	glDisable(GL_BLEND);
@@ -282,21 +319,78 @@ viewport_draw_tiles (void)
 	glUseProgram(0);
 }
 
-static void
-glQuadTextured (const float x1, const float y1)
+static int
+tile_request (struct xylist_req *req, char **rawbits, unsigned int *offset_x, unsigned int *offset_y, unsigned int *zoomfactor)
 {
-	// Add a 10px margin around each tile:
-	// The float precision is not that great at 2^26 pixels
-	float rx1 = x1 - 10.0;
-	float rx2 = x1 + 266.0;
-	float ry1 = y1 - 10.0;
-	float ry2 = y1 + 266.0;
+	void *data;
 
-	// Draw the quad:
-	glBegin(GL_QUADS);
-		glTexCoord2f(0.0f, 0.0f); glVertex2f(rx1, ry1);
-		glTexCoord2f(1.0f, 0.0f); glVertex2f(rx2, ry1);
-		glTexCoord2f(1.0f, 1.0f); glVertex2f(rx2, ry2);
-		glTexCoord2f(0.0f, 1.0f); glVertex2f(rx1, ry2);
-	glEnd();
+	req->search_depth = 9;
+
+	// Is the texture already loaded?
+	if ((data = bitmap_request(req)) != NULL) {
+		*rawbits = data;
+		*offset_x = 0;
+		*offset_y = 0;
+		*zoomfactor = 0;
+		return 1;
+	}
+	// Otherwise, can we find the texture at lower zoomlevels?
+	for (int z = (int)req->zoom - 1; z >= 0; z--)
+	{
+		unsigned int zoomdiff = (req->zoom - z);
+		unsigned int blocksz;
+		unsigned int xblock;
+		unsigned int yblock;
+		struct xylist_req zoomed_req;
+
+		// Create our own request, based on the one we have, but zoomed:
+		zoomed_req.xn = req->xn >> zoomdiff;
+		zoomed_req.yn = req->yn >> zoomdiff;
+		zoomed_req.zoom = (unsigned int)z;
+		zoomed_req.xmin = req->xmin >> zoomdiff;
+		zoomed_req.ymin = req->ymin >> zoomdiff;
+		zoomed_req.xmax = req->xmax >> zoomdiff;
+		zoomed_req.ymax = req->ymax >> zoomdiff;
+
+		// Don't go to disk or to the network:
+		zoomed_req.search_depth = 0;
+
+		// Request the tile from the xylist with a search_depth of 1,
+		// so that we will first try the texture cache, then try to procure
+		// from the bitmap cache, and then give up:
+		if ((data = bitmap_request(&zoomed_req)) == NULL) {
+			continue;
+		}
+		// At this zoom level, cut a block of this pixel size out of parent:
+		blocksz = (256 >> zoomdiff);
+		// This is the nth block out of parent, counting from top left:
+		xblock = (req->xn - (zoomed_req.xn << zoomdiff));
+		yblock = (req->yn - (zoomed_req.yn << zoomdiff));
+
+		// Reverse the yblock index, texture coordinates run from bottom left:
+		yblock = (1 << zoomdiff) - 1 - yblock;
+
+		*rawbits = data;
+		*offset_x = blocksz * xblock;
+		*offset_y = blocksz * yblock;
+		*zoomfactor = zoomdiff;
+		return 1;
+	}
+	return 0;
+}
+
+static void
+missing_tile_init (void)
+{
+	// Background color:
+	memset(missing_tile, 35, 256 * 256 * 3);
+
+	// Border around bottom:
+	for (char *p = missing_tile + 255 * 256 * 3; p < missing_tile + 256 * 256 * 3; p++) {
+		*p = 51;
+	}
+	// Border around left:
+	for (char *p = missing_tile; p < missing_tile + 256 * 256 * 3; p += 256 * 3) {
+		p[0] = p[1] = p[2] = 51;
+	}
 }

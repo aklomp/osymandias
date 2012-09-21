@@ -6,7 +6,6 @@
 
 #include "mouse.h"
 #include "bitmap_mgr.h"
-#include "texture_mgr.h"
 #include "framerate.h"
 #include "autoscroll.h"
 #include "viewport.h"
@@ -91,11 +90,9 @@ main (int argc, char **argv)
 	viewport_init();
 	framerate_init(canvas, paint_canvas);
 	bitmap_mgr_init();
-	texture_mgr_init();
 
 	gtk_main();
 
-	texture_mgr_destroy();
 	bitmap_mgr_destroy();
 	framerate_destroy();
 	viewport_destroy();

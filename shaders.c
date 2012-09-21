@@ -6,7 +6,6 @@
 enum shaders {
 	SHADER_BKGD,
 	SHADER_CURSOR,
-	SHADER_TILE,
 	NUM_SHADERS
 };
 
@@ -16,11 +15,8 @@ static const char *fs_bkgd =
 static const char *fs_cursor =
 #include "cursor.glsl.h"
 
-static const char *fs_tile =
-#include "tile.glsl.h"
-
 static GLuint progs[NUM_SHADERS] = { 0, 0 };
-static const char **fs[NUM_SHADERS] = { &fs_bkgd, &fs_cursor, &fs_tile };
+static const char **fs[NUM_SHADERS] = { &fs_bkgd, &fs_cursor };
 
 static bool
 shader_compile (const enum shaders n)
@@ -111,27 +107,4 @@ shader_use_cursor (const float cur_halfwd, const float cur_halfht)
 	glUseProgram(progs[SHADER_CURSOR]);
 	rebind_float(&halfwd, cur_halfwd, &halfwd_loc, "halfwd", SHADER_CURSOR);
 	rebind_float(&halfht, cur_halfht, &halfht_loc, "halfht", SHADER_CURSOR);
-}
-
-void
-shader_use_tile (const int cur_offs_x, const int cur_offs_y, const int texture_offs_x, const int texture_offs_y, const int zoomfactor)
-{
-	static int offs_x = 0;
-	static int offs_y = 0;
-	static int s_texture_offs_x = 0;
-	static int s_texture_offs_y = 0;
-	static float s_zoomfactor = 0.0;
-	static GLuint offs_x_loc = 0;
-	static GLuint offs_y_loc = 0;
-	static GLuint texture_offs_x_loc = 0;
-	static GLuint texture_offs_y_loc = 0;
-	static GLuint zoomfactor_loc = 0;
-
-	glUseProgram(progs[SHADER_TILE]);
-	rebind_int(&offs_x, cur_offs_x, &offs_x_loc, "offs_x", SHADER_TILE);
-	rebind_int(&offs_y, cur_offs_y, &offs_y_loc, "offs_y", SHADER_TILE);
-	rebind_int(&s_texture_offs_x, texture_offs_x, &texture_offs_x_loc, "texture_offs_x", SHADER_TILE);
-	rebind_int(&s_texture_offs_y, texture_offs_y, &texture_offs_y_loc, "texture_offs_y", SHADER_TILE);
-	/* 1:1 is 256.0, 2:1 is 512.0, etc */
-	rebind_float(&s_zoomfactor, (float)(1U << (7 + zoomfactor)), &zoomfactor_loc, "zoomfactor", SHADER_TILE);
 }

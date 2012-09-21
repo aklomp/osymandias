@@ -1,7 +1,7 @@
 #ifndef VIEWPORT_H
 #define VIEWPORT_H
 
-void viewport_init (void);
+bool viewport_init (void);
 void viewport_destroy (void);
 void viewport_zoom_in (const int screen_x, const int screen_y);
 void viewport_zoom_out (const int screen_x, const int screen_y);

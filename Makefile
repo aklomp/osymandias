@@ -21,13 +21,12 @@ OBJS_GTK = \
 
 OBJS_GTKGL = \
   shaders.o \
-  texture_mgr.o \
 
 OBJS_GTK_GTKGL = \
   main.o \
   viewport.o \
 
-GLSL = bkgd.glsl.h cursor.glsl.h tile.glsl.h
+GLSL = bkgd.glsl.h cursor.glsl.h
 
 all: $(PROG)
 
