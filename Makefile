@@ -11,6 +11,7 @@ PROG = osymandias
 
 OBJS = \
   xylist.o \
+  diskcache.o \
   pngloader.o \
   autoscroll.o \
   bitmap_mgr.o \

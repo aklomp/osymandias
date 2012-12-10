@@ -9,6 +9,7 @@
 #include <png.h>
 
 #include "xylist.h"
+#include "diskcache.h"
 #include "pngloader.h"
 
 static __thread int fd = -1;
@@ -16,25 +17,6 @@ static __thread FILE *fp = NULL;
 static __thread void *rawbits = NULL;
 static __thread png_structp png_ptr = NULL;
 static __thread png_infop info_ptr = NULL;
-
-static bool
-viking_filename (char *buf, size_t buflen, unsigned int zoom, int tile_x, int tile_y)
-{
-	size_t len;
-	char *home;
-
-	// FIXME: horrible copypaste of code from viewport.c:
-	unsigned int world_size = ((unsigned int)1) << (zoom + 8);
-
-	if ((home = getenv("HOME")) == NULL) {
-		return false;
-	}
-	if ((len = snprintf(buf, buflen, "%s/.viking-maps/t13s%uz0/%u/%u", home, 17 - zoom, tile_x, world_size / 256 - 1 - tile_y)) == buflen) {
-		return false;
-	}
-	buf[len] = '\0';
-	return true;
-}
 
 static void
 pngloader_cancel (void *data)
@@ -49,6 +31,7 @@ pngloader_cancel (void *data)
 	}
 	png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
 	free(rawbits);
+	free(p->filename);
 	free(p);
 }
 
@@ -152,7 +135,6 @@ exit_0:	return ret;
 void *
 pngloader_main (void *data)
 {
-	char filename[100];
 	struct pngloader *p;
 	unsigned int width;
 	unsigned int height;
@@ -162,13 +144,13 @@ pngloader_main (void *data)
 
 	p = data;
 
-	if (!viking_filename(filename, sizeof(filename), p->req.zoom, p->req.xn, p->req.yn)) {
+	if ((p->filename = tile_filename(p->req.zoom, p->req.xn, p->req.yn)) == NULL) {
 		goto exit;
 	}
 	// Get a file descriptor to the file. We just want a file descriptor to
 	// associate with this thread so that we know what to clean up, and not
 	// wait for the disk to actually deliver, so we issue a nonblocking call:
-	if ((fd = open(filename, O_RDONLY | O_NONBLOCK)) < 0) {
+	if ((fd = open(p->filename, O_RDONLY | O_NONBLOCK)) < 0) {
 		goto exit;
 	}
 	// Now that we have the fd, make it properly blocking:
@@ -232,6 +214,7 @@ exit:	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 	pthread_mutex_lock(p->running_mutex);
 	p->n->running = 0;
 	pthread_mutex_unlock(p->running_mutex);
+	free(p->filename);
 	free(p);
 	pthread_exit(NULL);
 }

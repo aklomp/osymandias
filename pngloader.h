@@ -18,6 +18,8 @@ struct pngloader
 
 	struct xylist_req req;
 	struct pngloader_node *n;
+
+	char *filename;
 };
 
 void *pngloader_main (void *data);
