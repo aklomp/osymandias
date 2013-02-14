@@ -12,16 +12,18 @@ framerate_tick (void *data)
 {
 	(void)(data);	// Unused parameter
 
+	if (!(autoscroll_is_on() || refresh_requested)) {
+		return TRUE;
+	}
 	if (canvas == NULL || !GTK_IS_WIDGET(canvas)) {
 		if (autoscroll_is_on()) {
 			autoscroll_stop();
 		}
 		return FALSE;
 	}
-	if (autoscroll_is_on() || refresh_requested) {
-		refresh_requested = false;
-		paint(canvas);
-	}
+	refresh_requested = false;
+	paint(canvas);
+
 	return TRUE;
 }
 
