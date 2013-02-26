@@ -15,5 +15,9 @@ unsigned int viewport_get_ht (void);
 unsigned int viewport_get_wd (void);
 unsigned int viewport_get_center_x (void);
 unsigned int viewport_get_center_y (void);
+int viewport_get_tile_top (void);
+int viewport_get_tile_left (void);
+int viewport_get_tile_right (void);
+int viewport_get_tile_bottom (void);
 
 #endif

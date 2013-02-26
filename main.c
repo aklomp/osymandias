@@ -12,6 +12,7 @@
 #include "layers.h"
 #include "layer_background.h"
 #include "layer_cursor.h"
+#include "layer_osm.h"
 
 static void
 paint_canvas (GtkWidget *widget)
@@ -94,13 +95,12 @@ main (int argc, char **argv)
 
 	layer_background_create();
 	layer_cursor_create();
+	layer_osm_create();
 
 	framerate_init(canvas, paint_canvas);
-	bitmap_mgr_init();
 
 	gtk_main();
 
-	bitmap_mgr_destroy();
 	framerate_destroy();
 	layers_destroy();
 	viewport_destroy();
