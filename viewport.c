@@ -10,6 +10,7 @@
 #include "autoscroll.h"
 #include "bitmap_mgr.h"
 #include "world.h"
+#include "layers.h"
 #include "viewport.h"
 
 static unsigned int center_x;	// in world coordinates
@@ -26,9 +27,7 @@ char *scratch = NULL;
 char *missing_tile = NULL;
 
 static void viewport_gl_setup (void);
-static void viewport_draw_bkgd (void);
 static void viewport_draw_cursor (void);
-static bool viewport_need_bkgd (void);
 static void viewport_draw_tiles (void);
 static int tile_request (struct xylist_req *req, char **rawbits, unsigned int *offset_x, unsigned int *offset_y, unsigned int *zoomfactor);
 static void missing_tile_init (void);
@@ -174,9 +173,9 @@ void
 viewport_render (void)
 {
 	viewport_gl_setup();
-	if (viewport_need_bkgd()) {
-		viewport_draw_bkgd();
-	}
+
+	layers_paint();
+
 	viewport_draw_tiles();
 	viewport_draw_cursor();
 }
@@ -218,31 +217,17 @@ viewport_draw_cursor (void)
 	glDisable(GL_BLEND);
 }
 
-static void
-viewport_draw_bkgd (void)
+bool
+viewport_within_world_bounds (void)
 {
-	// Keep some margin to be on the sure side:
-	float halfwd = (float)screen_wd / 2.0 + 1.0;
-	float halfht = (float)screen_ht / 2.0 + 1.0;
+	unsigned int world_size = world_get_size();
 
-	shader_use_bkgd(world_get_size(), (center_x - screen_wd / 2) & 0xFF, (center_y - screen_ht / 2) & 0xFF);
-	glBegin(GL_QUADS);
-		glVertex2f(center_x - halfwd, center_y - halfht);
-		glVertex2f(center_x + halfwd, center_y - halfht);
-		glVertex2f(center_x + halfwd, center_y + halfht);
-		glVertex2f(center_x - halfwd, center_y + halfht);
-	glEnd();
-	glUseProgram(0);
-}
-
-static bool
-viewport_need_bkgd (void)
-{
-	// Out-of-bounds situation?
-	if (tile_left <= 0 || tile_top <= 0 || tile_right >= tile_last || tile_bottom >= tile_last) {
-		return true;
-	}
-	return 0;
+	// Does part of the viewport show an area outside of the world?
+	if (center_x < screen_wd / 2) return false;
+	if (center_y < screen_ht / 2) return false;
+	if (center_x + screen_wd / 2 >= world_size) return false;
+	if (center_y + screen_ht / 2 >= world_size) return false;
+	return true;
 }
 
 static void
@@ -377,4 +362,28 @@ missing_tile_init (void)
 	for (char *p = missing_tile; p < missing_tile + 256 * 256 * 3; p += 256 * 3) {
 		p[0] = p[1] = p[2] = 51;
 	}
+}
+
+unsigned int
+viewport_get_wd (void)
+{
+	return screen_wd;
+}
+
+unsigned int
+viewport_get_ht (void)
+{
+	return screen_ht;
+}
+
+unsigned int
+viewport_get_center_x (void)
+{
+	return center_x;
+}
+
+unsigned int
+viewport_get_center_y (void)
+{
+	return center_y;
 }

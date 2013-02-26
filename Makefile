@@ -11,6 +11,7 @@ PROG = osymandias
 
 OBJS = \
   world.o \
+  layers.o \
   xylist.o \
   diskcache.o \
   pngloader.o \
@@ -23,6 +24,7 @@ OBJS_GTK = \
 
 OBJS_GTKGL = \
   shaders.o \
+  layer_background.o \
 
 OBJS_GTK_GTKGL = \
   main.o \

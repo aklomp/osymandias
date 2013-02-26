@@ -9,5 +9,11 @@ void viewport_scroll (const int dx, const int dy);
 void viewport_center_at (const int screen_x, const int screen_y);
 void viewport_reshape (const unsigned int width, const unsigned int height);
 void viewport_render (void);
+bool viewport_within_world_bounds (void);
+
+unsigned int viewport_get_ht (void);
+unsigned int viewport_get_wd (void);
+unsigned int viewport_get_center_x (void);
+unsigned int viewport_get_center_y (void);
 
 #endif

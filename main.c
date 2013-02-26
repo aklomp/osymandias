@@ -9,6 +9,8 @@
 #include "framerate.h"
 #include "autoscroll.h"
 #include "viewport.h"
+#include "layers.h"
+#include "layer_background.h"
 
 static void
 paint_canvas (GtkWidget *widget)
@@ -88,6 +90,9 @@ main (int argc, char **argv)
 	gtk_widget_show_all(window);
 
 	viewport_init();
+
+	layer_background_create();
+
 	framerate_init(canvas, paint_canvas);
 	bitmap_mgr_init();
 
@@ -95,6 +100,7 @@ main (int argc, char **argv)
 
 	bitmap_mgr_destroy();
 	framerate_destroy();
+	layers_destroy();
 	viewport_destroy();
 
 	ret = 0;
