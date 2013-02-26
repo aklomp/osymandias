@@ -9,10 +9,9 @@
 #include "xylist.h"
 #include "autoscroll.h"
 #include "bitmap_mgr.h"
+#include "world.h"
 #include "viewport.h"
 
-static unsigned int world_size = 0;	// current world size in pixels
-static unsigned int zoom = 0;
 static unsigned int center_x;	// in world coordinates
 static unsigned int center_y;	// in world coordinates
 static unsigned int screen_wd;	// screen dimension
@@ -34,17 +33,6 @@ static void viewport_draw_tiles (void);
 static int tile_request (struct xylist_req *req, char **rawbits, unsigned int *offset_x, unsigned int *offset_y, unsigned int *zoomfactor);
 static void missing_tile_init (void);
 
-static unsigned int
-total_canvas_size (const int zoom)
-{
-	// Zoom level 0 = 256 pixels
-	// Zoom level 1 = 512 pixels
-	// Zoom level 2 = 1024 pixels
-	// Zoom level n = 2^(n + 8)
-
-	return ((unsigned int)1) << (zoom + 8);
-}
-
 static void
 recalc_tile_extents (void)
 {
@@ -57,7 +45,7 @@ recalc_tile_extents (void)
 	int screen_bottom = center_y + screen_ht / 2;
 
 	// Calculate border tiles, keep 1 tile margin:
-	tile_last = world_size / 256 - 1;
+	tile_last = world_get_size() / 256 - 1;
 	tile_left = screen_left / 256 - 1;
 	tile_right = screen_right / 256 + 1;
 	tile_top = screen_top / 256 - 1;
@@ -74,6 +62,8 @@ static void
 center_add_delta (unsigned int *const center, const int delta)
 {
 	// Add delta to center coordinates, but clip to [0, world_size]:
+
+	unsigned int world_size = world_get_size();
 
 	if (delta == 0) {
 		return;
@@ -107,9 +97,7 @@ viewport_init (void)
 		free(scratch);
 		return false;
 	}
-	zoom = 0;
-	world_size = total_canvas_size(zoom);
-	center_x = center_y = world_size / 2;
+	center_x = center_y = world_get_size() / 2;
 	recalc_tile_extents();
 	missing_tile_init();
 	return true;
@@ -125,12 +113,10 @@ viewport_destroy (void)
 void
 viewport_zoom_in (const int screen_x, const int screen_y)
 {
-	if (zoom != 18) {
-		zoom++;
+	if (world_zoom_in()) {
 		center_x *= 2;
 		center_y *= 2;
-		world_size = total_canvas_size(zoom);
-		bitmap_zoom_change(zoom);
+		bitmap_zoom_change();
 	}
 	// Keep same point under mouse cursor:
 	int dx = screen_x - screen_wd / 2;
@@ -141,12 +127,10 @@ viewport_zoom_in (const int screen_x, const int screen_y)
 void
 viewport_zoom_out (const int screen_x, const int screen_y)
 {
-	if (zoom != 0) {
-		zoom--;
+	if (world_zoom_out()) {
 		center_x /= 2;
 		center_y /= 2;
-		world_size = total_canvas_size(zoom);
-		bitmap_zoom_change(zoom);
+		bitmap_zoom_change();
 	}
 	int dx = screen_x - screen_wd / 2;
 	int dy = screen_y - screen_ht / 2;
@@ -241,7 +225,7 @@ viewport_draw_bkgd (void)
 	float halfwd = (float)screen_wd / 2.0 + 1.0;
 	float halfht = (float)screen_ht / 2.0 + 1.0;
 
-	shader_use_bkgd(world_size, (center_x - screen_wd / 2) & 0xFF, (center_y - screen_ht / 2) & 0xFF);
+	shader_use_bkgd(world_get_size(), (center_x - screen_wd / 2) & 0xFF, (center_y - screen_ht / 2) & 0xFF);
 	glBegin(GL_QUADS);
 		glVertex2f(center_x - halfwd, center_y - halfht);
 		glVertex2f(center_x + halfwd, center_y - halfht);
@@ -281,7 +265,7 @@ viewport_draw_tiles (void)
 			glWindowPos2i(tile_x, tile_y);
 			req.xn = x;
 			req.yn = y;
-			req.zoom = zoom;
+			req.zoom = world_get_zoom();
 			req.xmin = tile_left;
 			req.ymin = tile_top;
 			req.xmax = tile_right;

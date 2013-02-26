@@ -1,5 +1,8 @@
+#include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
+
+#include "world.h"
 
 // Return a malloc()'ed string containing the filename,
 // to be freed by the caller with free(), or NULL on error.
@@ -14,9 +17,6 @@ tile_filename (unsigned int zoom, int tile_x, int tile_y)
 	char *temp;
 	char *home;
 
-	// FIXME: horrible copypaste of code from viewport.c:
-	unsigned int world_size = ((unsigned int)1) << (zoom + 8);
-
 	if ((home = getenv("HOME")) == NULL) {
 		return NULL;
 	}
@@ -25,7 +25,7 @@ tile_filename (unsigned int zoom, int tile_x, int tile_y)
 	}
 	for (;;) {
 		// FIXME: actual customizable pattern here:
-		retlen = snprintf(name, buflen, "%s/.viking-maps/t13s%uz0/%u/%u", home, 17 - zoom, tile_x, world_size / 256 - 1 - tile_y);
+		retlen = snprintf(name, buflen, "%s/.viking-maps/t13s%uz0/%u/%u", home, 17 - zoom, tile_x, world_get_size() / 256 - 1 - tile_y);
 		if (retlen > -1 && (size_t)retlen < buflen) {
 			return name;
 		}

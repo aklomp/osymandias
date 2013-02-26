@@ -6,6 +6,6 @@ struct xylist_req;
 bool bitmap_mgr_init (void);
 void bitmap_mgr_destroy (void);
 void *bitmap_request (struct xylist_req *req);
-void bitmap_zoom_change (const unsigned int zoom);
+void bitmap_zoom_change (void);
 
 #endif	/* BITMAP_MGR_H */

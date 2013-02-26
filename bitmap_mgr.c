@@ -6,6 +6,7 @@
 
 #include "framerate.h"
 #include "xylist.h"
+#include "world.h"
 #include "pngloader.h"
 
 #define ZOOM_MAX	18
@@ -29,9 +30,9 @@ bitmap_request (struct xylist_req *req)
 }
 
 void
-bitmap_zoom_change (const unsigned int zoom)
+bitmap_zoom_change (void)
 {
-	xylist_purge_other_zoomlevels(threadlist, zoom);
+	xylist_purge_other_zoomlevels(threadlist, world_get_zoom());
 }
 
 static void *

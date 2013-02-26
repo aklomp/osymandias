@@ -10,6 +10,7 @@ GTKGL_LDFLAGS = `pkg-config --libs gtkglext-1.0 gdkglext-1.0`
 PROG = osymandias
 
 OBJS = \
+  world.o \
   xylist.o \
   diskcache.o \
   pngloader.o \
