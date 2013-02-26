@@ -24,6 +24,7 @@ OBJS_GTK = \
 
 OBJS_GTKGL = \
   shaders.o \
+  layer_cursor.o \
   layer_background.o \
 
 OBJS_GTK_GTKGL = \

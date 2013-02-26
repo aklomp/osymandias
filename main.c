@@ -11,6 +11,7 @@
 #include "viewport.h"
 #include "layers.h"
 #include "layer_background.h"
+#include "layer_cursor.h"
 
 static void
 paint_canvas (GtkWidget *widget)
@@ -92,6 +93,7 @@ main (int argc, char **argv)
 	viewport_init();
 
 	layer_background_create();
+	layer_cursor_create();
 
 	framerate_init(canvas, paint_canvas);
 	bitmap_mgr_init();

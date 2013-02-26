@@ -27,7 +27,6 @@ char *scratch = NULL;
 char *missing_tile = NULL;
 
 static void viewport_gl_setup (void);
-static void viewport_draw_cursor (void);
 static void viewport_draw_tiles (void);
 static int tile_request (struct xylist_req *req, char **rawbits, unsigned int *offset_x, unsigned int *offset_y, unsigned int *zoomfactor);
 static void missing_tile_init (void);
@@ -177,7 +176,6 @@ viewport_render (void)
 	layers_paint();
 
 	viewport_draw_tiles();
-	viewport_draw_cursor();
 }
 
 static void
@@ -196,25 +194,6 @@ viewport_gl_setup (void)
 	glDepthMask(GL_FALSE);
 
 	shaders_init();
-}
-
-static void
-viewport_draw_cursor (void)
-{
-	float halfwd = (float)screen_wd / 2.0;
-	float halfht = (float)screen_ht / 2.0;
-
-	shader_use_cursor(halfwd, halfht);
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	glBegin(GL_QUADS);
-		glVertex2f((float)center_x - 15.0, (float)center_y - 15.0);
-		glVertex2f((float)center_x + 15.0, (float)center_y - 15.0);
-		glVertex2f((float)center_x + 15.0, (float)center_y + 15.0);
-		glVertex2f((float)center_x - 15.0, (float)center_y + 15.0);
-	glEnd();
-	glUseProgram(0);
-	glDisable(GL_BLEND);
 }
 
 bool
