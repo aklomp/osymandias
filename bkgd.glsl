@@ -46,3 +46,6 @@ void main(void)
 		gl_FragColor = vec4(vec3(0.15), 1.0);
 	}
 }
+
+/* vim:ft=c
+ */
