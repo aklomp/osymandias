@@ -33,7 +33,7 @@ OBJS_GTK_GTKGL = \
   main.o \
   viewport.o \
 
-GLSL = bkgd.glsl.h cursor.glsl.h
+GLSL = cursor.glsl.h
 
 all: $(PROG)
 

@@ -22,8 +22,6 @@ static int tile_right;
 static int tile_bottom;
 static int tile_last;
 
-static void viewport_gl_setup (void);
-
 static void
 recalc_tile_extents (void)
 {
@@ -154,18 +152,46 @@ viewport_reshape (const unsigned int new_width, const unsigned int new_height)
 void
 viewport_render (void)
 {
-	viewport_gl_setup();
-
+	shaders_init();
 	layers_paint();
 }
 
-static void
-viewport_gl_setup (void)
+void
+viewport_gl_setup_screen (void)
 {
+	// Setup the OpenGL frustrum to map 1:1 to screen coordinates,
+	// with the origin at left bottom. Handy for drawing items that
+	// are statically positioned relative to the screen, such as the
+	// background and the cursor.
+
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
 	glOrtho(0, screen_wd, 0, screen_ht, 0, 1);
 	glViewport(0, 0, screen_wd, screen_ht);
+
+	// Slight translation to snap line artwork to pixels:
+	glMatrixMode(GL_MODELVIEW);
+	glLoadIdentity();
+	glTranslatef(0.375, 0.375, 0.0);
+
+	glDisable(GL_BLEND);
+	glDisable(GL_DEPTH_TEST);
+	glDepthMask(GL_FALSE);
+}
+
+void
+viewport_gl_setup_world (void)
+{
+	// Setup the OpenGL frustrum to map screen to world coordinates,
+	// with the origin at left bottom. This is a different convention
+	// from the one OSM uses for its tiles: origin at left top. But it
+	// makes tile and texture handling much easier (no vertical flips).
+
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
+	glOrtho(0, screen_wd, 0, screen_ht, 0, 1);
+	glViewport(0, 0, screen_wd, screen_ht);
+
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
 	glTranslatef(0.375 - center_x + screen_wd / 2, 0.375 - center_y + screen_ht / 2, 0.0);
@@ -173,8 +199,6 @@ viewport_gl_setup (void)
 	glDisable(GL_BLEND);
 	glDisable(GL_DEPTH_TEST);
 	glDepthMask(GL_FALSE);
-
-	shaders_init();
 }
 
 bool

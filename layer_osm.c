@@ -44,6 +44,9 @@ layer_osm_paint (void)
 	int tile_right = viewport_get_tile_right();
 	int tile_bottom = viewport_get_tile_bottom();
 
+	// Draw to world coordinates:
+	viewport_gl_setup_world();
+
 	glEnable(GL_TEXTURE_2D);
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);

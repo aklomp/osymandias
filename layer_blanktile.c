@@ -8,21 +8,6 @@
 #include "viewport.h"
 #include "layers.h"
 
-// Tile size is one pixel more than the real tile size, so that we can use a
-// single tile with full borders around all edges, and overlap the tiles by 1px
-// with their neighbors:
-#define TSIZE  257
-
-static char *tile = NULL;
-
-static void
-layer_blanktile_destroy (void *data)
-{
-	(void)data;
-
-	free(tile);
-}
-
 static bool
 layer_blanktile_full_occlusion (void)
 {
@@ -34,70 +19,50 @@ layer_blanktile_full_occlusion (void)
 static void
 layer_blanktile_paint (void)
 {
-	int tile_top = viewport_get_tile_top();
-	int tile_left = viewport_get_tile_left();
-	int tile_right = viewport_get_tile_right();
-	int tile_bottom = viewport_get_tile_bottom();
+	int tile_left   = viewport_get_tile_left();
+	int tile_right  = viewport_get_tile_right() + 1;
+	int tile_top    = viewport_get_tile_top();
+	int tile_bottom = viewport_get_tile_bottom() + 1;
+	int world_size  = world_get_size();
 
-	glEnable(GL_TEXTURE_2D);
-	glDisable(GL_BLEND);
-	for (int x = tile_left; x <= tile_right; x++) {
-		for (int y = tile_top; y <= tile_bottom; y++) {
-			unsigned int tile_x = x * 256 + viewport_get_wd() / 2 - viewport_get_center_x();
-			unsigned int tile_y = (y + 1) * 256 + viewport_get_ht() / 2 - viewport_get_center_y();
+	// Draw to world coordinates:
+	viewport_gl_setup_world();
 
-			// Shift the tile inward by 1 pixel if not bottom or leftmost row;
-			// the 1-pixel border of the tile will overlap with the border of its
-			// left and bottom neighbors; note that the coordinate system is flipped,
-			// which doesn't concern us:
-			if (x != tile_left) {
-				tile_x -= 1;
-			}
-			if (y != tile_top) {
-				tile_y -= 1;
-			}
-			glWindowPos2i(tile_x, tile_y);
-			glDrawPixels(TSIZE, TSIZE, GL_RGB, GL_UNSIGNED_BYTE, tile);
-		}
+	// Draw a giant quad to the current world size:
+	glColor3f(0.12, 0.12, 0.12);
+	glBegin(GL_QUADS);
+		glVertex2f(0.0, 0.0);
+		glVertex2f(world_size, 0.0);
+		glVertex2f(world_size, world_size);
+		glVertex2f(0.0, world_size);
+	glEnd();
+
+	glColor3f(0.20, 0.20, 0.20);
+	glBegin(GL_LINES);
+
+	// Vertical grid lines:
+	// Include some extra bounds checks to draw the bottommost line
+	// *inside* the tile area instead of 1px outside it:
+	for (int x = (tile_left < 0) ? 0 : tile_left; x <= tile_right && x * 256 <= world_size; x++) {
+		int top = (tile_top < 0) ? 0 : tile_top * 256;
+		int btm = (tile_bottom * 256 >= world_size) ? world_size - 1 : tile_bottom * 256;
+		int scx = (x * 256 >= world_size) ? x * 256 - 1 : x * 256;
+		glVertex2f(scx, btm);
+		glVertex2f(scx, top);
 	}
-	glDisable(GL_TEXTURE_2D);
-}
-
-static void
-tile_init (void)
-{
-	char *p;
-
-	// Align strides to dword boundary with a ghetto modulo operation:
-	int stride = TSIZE * 3 + (TSIZE - 4 * (TSIZE / 4));
-
-	// Background color:
-	memset(tile, 35, TSIZE * stride);
-
-	// Border around top:
-	for (p = tile; p < tile + stride; p += 3) {
-		p[0] = p[1] = p[2] = 51;
+	// Horizontal grid lines:
+	for (int y = (tile_top < 0) ? 0 : tile_top; y <= tile_bottom && y * 256 <= world_size; y++) {
+		int lft = (tile_left < 0) ? 0 : tile_left * 256;
+		int rgt = (tile_right * 256 >= world_size) ? world_size - 1 : tile_right * 256;
+		int scy = (y * 256 >= world_size) ? y * 256 - 1 : y * 256;
+		glVertex2f(lft, scy);
+		glVertex2f(rgt, scy);
 	}
-	// Border around bottom:
-	for (p = tile + (TSIZE - 1) * stride; p < tile + TSIZE * stride; p += 3) {
-		p[0] = p[1] = p[2] = 51;
-	}
-	// Border around left:
-	for (p = tile; p < tile + (TSIZE - 1) * stride; p += stride) {
-		p[0] = p[1] = p[2] = 51;
-	}
-	// Border around right:
-	for (p = tile + (TSIZE - 1) * 3; p < tile + TSIZE * stride; p += stride) {
-		p[0] = p[1] = p[2] = 51;
-	}
+	glEnd();
 }
 
 bool
 layer_blanktile_create (void)
 {
-	if ((tile = malloc(TSIZE * TSIZE * 3)) == NULL) {
-		return false;
-	}
-	tile_init();
-	return layer_register(layer_create(layer_blanktile_full_occlusion, layer_blanktile_paint, NULL, layer_blanktile_destroy, NULL), 10);
+	return layer_register(layer_create(layer_blanktile_full_occlusion, layer_blanktile_paint, NULL, NULL, NULL), 10);
 }

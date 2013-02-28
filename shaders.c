@@ -4,19 +4,15 @@
 #include <GL/gl.h>
 
 enum shaders {
-	SHADER_BKGD,
 	SHADER_CURSOR,
 	NUM_SHADERS
 };
 
-static const char *fs_bkgd =
-#include "bkgd.glsl.h"
-
 static const char *fs_cursor =
 #include "cursor.glsl.h"
 
-static GLuint progs[NUM_SHADERS] = { 0, 0 };
-static const char **fs[NUM_SHADERS] = { &fs_bkgd, &fs_cursor };
+static GLuint progs[NUM_SHADERS] = { 0 };
+static const char **fs[NUM_SHADERS] = { &fs_cursor };
 
 static bool
 shader_compile (const enum shaders n)
@@ -67,6 +63,7 @@ rebind_float (float *cur, const float new, GLuint *loc, const char *name, const 
 	*cur = new;
 }
 
+#if 0
 static void
 rebind_int (int *cur, const int new, GLuint *loc, const char *name, const enum shaders n)
 {
@@ -79,22 +76,7 @@ rebind_int (int *cur, const int new, GLuint *loc, const char *name, const enum s
 	glUniform1i(*loc, new);
 	*cur = new;
 }
-
-void
-shader_use_bkgd (const float cur_maxsize, const int cur_offs_x, const int cur_offs_y)
-{
-	static int offs_x;
-	static int offs_y;
-	static float maxsize = 0.0;
-	static GLuint offs_x_loc = 0;
-	static GLuint offs_y_loc = 0;
-	static GLuint maxsize_loc = 0;
-
-	glUseProgram(progs[SHADER_BKGD]);
-	rebind_float(&maxsize, cur_maxsize, &maxsize_loc, "maxsize", SHADER_BKGD);
-	rebind_int(&offs_x, cur_offs_x, &offs_x_loc, "offs_x", SHADER_BKGD);
-	rebind_int(&offs_y, cur_offs_y, &offs_y_loc, "offs_y", SHADER_BKGD);
-}
+#endif
 
 void
 shader_use_cursor (const float cur_halfwd, const float cur_halfht)
