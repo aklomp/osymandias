@@ -12,6 +12,7 @@
 #include "layers.h"
 #include "layer_background.h"
 #include "layer_cursor.h"
+#include "layer_blanktile.h"
 #include "layer_osm.h"
 
 static void
@@ -95,6 +96,7 @@ main (int argc, char **argv)
 
 	layer_background_create();
 	layer_cursor_create();
+	layer_blanktile_create();
 	layer_osm_create();
 
 	framerate_init(canvas, paint_canvas);

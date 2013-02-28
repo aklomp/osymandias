@@ -13,10 +13,8 @@
 #include "layer_osm.h"
 
 static bool tile_request (struct xylist_req *req, char **rawbits, unsigned int *offset_x, unsigned int *offset_y, unsigned int *zoomfactor);
-static void missing_tile_init (void);
 
 static char *scratch = NULL;
-static char *missing_tile = NULL;
 
 static void
 layer_osm_destroy (void *data)
@@ -24,7 +22,6 @@ layer_osm_destroy (void *data)
 	(void)data;
 
 	bitmap_mgr_destroy();
-	free(missing_tile);
 	free(scratch);
 }
 
@@ -63,32 +60,33 @@ layer_osm_paint (void)
 			req.ymin = tile_top;
 			req.xmax = tile_right;
 			req.ymax = tile_bottom;
+
+			// Failed to find tile? Continue:
 			if (!tile_request(&req, &rawbits, &offset_x, &offset_y, &zoomfactor)) {
-				// Draw the "missing tile":
-				glDrawPixels(256, 256, GL_RGB, GL_UNSIGNED_BYTE, missing_tile);
+				continue;
 			}
-			else {
-				if (zoomfactor == 0) {
-					glDrawPixels(256, 256, GL_RGB, GL_UNSIGNED_BYTE, rawbits);
-				}
-				else {
-					char *r = rawbits;
-					char *b = scratch;
-					for (int rows = 0; rows < (256 >> zoomfactor); rows++) {
-						for (int repy = 0; repy < (1 << zoomfactor); repy++) {
-							for (int cols = 0; cols < (256 >> zoomfactor); cols++) {
-								r = rawbits + ((offset_y + rows) * 256 + offset_x + cols) * 3;
-								for (int repx = 0; repx < (1 << zoomfactor); repx++) {
-									*b++ = r[0];
-									*b++ = r[1];
-									*b++ = r[2];
-								}
-							}
+			// Found tile at current zoomlevel? Blit:
+			if (zoomfactor == 0) {
+				glDrawPixels(256, 256, GL_RGB, GL_UNSIGNED_BYTE, rawbits);
+				continue;
+			}
+			// Different (lower) zoomlevel? Cut out the relevant
+			// piece of the tile and enlarge it:
+			char *r = rawbits;
+			char *b = scratch;
+			for (int rows = 0; rows < (256 >> zoomfactor); rows++) {
+				for (int repy = 0; repy < (1 << zoomfactor); repy++) {
+					for (int cols = 0; cols < (256 >> zoomfactor); cols++) {
+						r = rawbits + ((offset_y + rows) * 256 + offset_x + cols) * 3;
+						for (int repx = 0; repx < (1 << zoomfactor); repx++) {
+							*b++ = r[0];
+							*b++ = r[1];
+							*b++ = r[2];
 						}
 					}
-					glDrawPixels(256, 256, GL_RGB, GL_UNSIGNED_BYTE, scratch);
 				}
 			}
+			glDrawPixels(256, 256, GL_RGB, GL_UNSIGNED_BYTE, scratch);
 		}
 	}
 	glDisable(GL_BLEND);
@@ -163,35 +161,12 @@ tile_request (struct xylist_req *req, char **rawbits, unsigned int *offset_x, un
 	return false;
 }
 
-static void
-missing_tile_init (void)
-{
-	char *p;
-
-	// Background color:
-	memset(missing_tile, 35, 256 * 256 * 3);
-
-	// Border around bottom:
-	for (p = missing_tile + 255 * 256 * 3; p < missing_tile + 256 * 256 * 3; p++) {
-		*p = 51;
-	}
-	// Border around left:
-	for (p = missing_tile; p < missing_tile + 256 * 256 * 3; p += 256 * 3) {
-		p[0] = p[1] = p[2] = 51;
-	}
-}
-
 bool
 layer_osm_create (void)
 {
 	if ((scratch = malloc(256 * 256 * 3)) == NULL) {
 		return false;
 	}
-	if ((missing_tile = malloc(256 * 256 * 3)) == NULL) {
-		free(scratch);
-		return false;
-	}
-	missing_tile_init();
 	bitmap_mgr_init();
-	return layer_register(layer_create(layer_osm_full_occlusion, layer_osm_paint, layer_osm_zoom, layer_osm_destroy, NULL), 1);
+	return layer_register(layer_create(layer_osm_full_occlusion, layer_osm_paint, layer_osm_zoom, layer_osm_destroy, NULL), 100);
 }
