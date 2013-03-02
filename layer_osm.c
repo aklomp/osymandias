@@ -53,8 +53,9 @@ layer_osm_paint (void)
 	glPixelZoom(1.0, -1.0);
 	for (int x = tile_left; x <= tile_right; x++) {
 		for (int y = tile_top; y <= tile_bottom; y++) {
-			unsigned int tile_x = x * 256 + viewport_get_wd() / 2 - viewport_get_center_x();
-			unsigned int tile_y = (y + 1) * 256 + viewport_get_ht() / 2 - viewport_get_center_y();
+			int tile_x, tile_y;
+
+			viewport_world_to_screen(x * 256, (y + 1) * 256, &tile_x, &tile_y);
 			glWindowPos2i(tile_x, tile_y);
 			req.xn = x;
 			req.yn = y;

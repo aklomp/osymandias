@@ -12,6 +12,8 @@ void viewport_render (void);
 void viewport_gl_setup_screen (void);
 void viewport_gl_setup_world (void);
 bool viewport_within_world_bounds (void);
+void viewport_screen_to_world (int sx, int sy, int *wx, int *wy);
+void viewport_world_to_screen (int wx, int wy, int *sx, int *sy);
 
 unsigned int viewport_get_ht (void);
 unsigned int viewport_get_wd (void);

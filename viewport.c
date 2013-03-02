@@ -23,6 +23,13 @@ static int tile_bottom;
 static int tile_last;
 
 static void
+viewport_screen_extents_to_world (int *world_left, int *world_bottom, int *world_right, int *world_top)
+{
+	viewport_screen_to_world(0, 0, world_left, world_bottom);
+	viewport_screen_to_world(screen_wd, screen_ht, world_right, world_top);
+}
+
+static void
 recalc_tile_extents (void)
 {
 	// Given center_x, center_y and world_size,
@@ -48,32 +55,21 @@ recalc_tile_extents (void)
 }
 
 static void
-center_add_delta (unsigned int *const center, const int delta)
+center_set (const int world_x, const int world_y)
 {
-	// Add delta to center coordinates, but clip to [0, world_size]:
+	// Set center to coordinates, but clip to [0, world_size]
 
-	unsigned int world_size = world_get_size();
+	int world_size = world_get_size();
 
-	if (delta == 0) {
-		return;
-	}
-	if (delta < 0) {
-		unsigned int abs_delta = (unsigned int)(-delta);
-		if (abs_delta <= *center) {
-			*center -= abs_delta;
-		}
-		else {
-			*center = 0;
-		}
-	}
-	else {
-		if (*center + delta <= world_size) {
-			*center += delta;
-		}
-		else {
-			*center = world_size;
-		}
-	}
+	center_x = (world_x < 0) ? 0
+	         : (world_x >= world_size) ? world_size - 1
+	         : (world_x);
+
+	center_y = (world_y < 0) ? 0
+	         : (world_y >= world_size) ? world_size - 1
+	         : (world_y);
+
+	recalc_tile_extents();
 }
 
 bool
@@ -119,18 +115,22 @@ viewport_zoom_out (const int screen_x, const int screen_y)
 void
 viewport_scroll (const int dx, const int dy)
 {
-	center_add_delta(&center_x, -dx);
-	center_add_delta(&center_y, -dy);
-	recalc_tile_extents();
+	int world_x, world_y;
+
+	// Find out which world coordinate will be in the center of the screen
+	// after the offsets have been applied, then set the center to that
+	// value:
+	viewport_screen_to_world(screen_wd / 2 - dx, screen_ht / 2 - dy, &world_x, &world_y);
+	center_set(world_x, world_y);
 }
 
 void
 viewport_center_at (const int screen_x, const int screen_y)
 {
-	int dx = screen_wd / 2 - screen_x;
-	int dy = screen_ht / 2 - screen_y;
+	int world_x, world_y;
 
-	viewport_scroll(dx, dy);
+	viewport_screen_to_world(screen_x, screen_y, &world_x, &world_y);
+	center_set(world_x, world_y);
 }
 
 void
@@ -187,14 +187,18 @@ viewport_gl_setup_world (void)
 	// from the one OSM uses for its tiles: origin at left top. But it
 	// makes tile and texture handling much easier (no vertical flips).
 
+	int world_left, world_right, world_top, world_bottom;
+
+	// Find extents of viewport in world coordinates:
+	viewport_screen_extents_to_world(&world_left, &world_bottom, &world_right, &world_top);
+
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
-	glOrtho(0, screen_wd, 0, screen_ht, 0, 1);
 	glViewport(0, 0, screen_wd, screen_ht);
+	glOrtho((double)world_left - 0.5, (double)world_right - 0.5, (double)world_bottom - 0.5, (double)world_top - 0.5, 0, 1);
 
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
-	glTranslatef(0.375 - center_x + screen_wd / 2, 0.375 - center_y + screen_ht / 2, 0.0);
 
 	glDisable(GL_BLEND);
 	glDisable(GL_DEPTH_TEST);
@@ -204,13 +208,16 @@ viewport_gl_setup_world (void)
 bool
 viewport_within_world_bounds (void)
 {
-	unsigned int world_size = world_get_size();
+	int world_left, world_bottom, world_right, world_top;
+	int world_size = world_get_size();
+
+	viewport_screen_extents_to_world(&world_left, &world_bottom, &world_right, &world_top);
 
 	// Does part of the viewport show an area outside of the world?
-	if (center_x < screen_wd / 2) return false;
-	if (center_y < screen_ht / 2) return false;
-	if (center_x + screen_wd / 2 >= world_size) return false;
-	if (center_y + screen_ht / 2 >= world_size) return false;
+	if (world_left < 0) return false;
+	if (world_bottom < 0) return false;
+	if (world_right >= world_size) return false;
+	if (world_top >= world_size) return false;
 	return true;
 }
 
@@ -242,3 +249,18 @@ int viewport_get_tile_top (void) { return tile_top; }
 int viewport_get_tile_left (void) { return tile_left; }
 int viewport_get_tile_right (void) { return tile_right; }
 int viewport_get_tile_bottom (void) { return tile_bottom; }
+
+
+void
+viewport_screen_to_world (int sx, int sy, int *wx, int *wy)
+{
+	*wx = center_x + (sx - screen_wd / 2);
+	*wy = center_y + (sy - screen_ht / 2);
+}
+
+void
+viewport_world_to_screen (int wx, int wy, int *sx, int *sy)
+{
+	*sx = screen_wd / 2 + (wx - center_x);
+	*sy = screen_ht / 2 + (wy - center_y);
+}
