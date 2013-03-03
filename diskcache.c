@@ -25,7 +25,7 @@ tile_filename (unsigned int zoom, int tile_x, int tile_y)
 	}
 	for (;;) {
 		// FIXME: actual customizable pattern here:
-		retlen = snprintf(name, buflen, "%s/.viking-maps/t13s%uz0/%u/%u", home, 17 - zoom, tile_x, world_get_size() / 256 - 1 - tile_y);
+		retlen = snprintf(name, buflen, "%s/.viking-maps/t13s%uz0/%u/%u", home, 17 - zoom, tile_x, world_get_size() - 1 - tile_y);
 		if (retlen > -1 && (size_t)retlen < buflen) {
 			return name;
 		}

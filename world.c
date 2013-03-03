@@ -2,7 +2,7 @@
 
 #define ZOOM_MIN	0
 #define ZOOM_MAX	18
-#define ZOOM_SIZE(z)	(1 << ((z) + 8))
+#define ZOOM_SIZE(z)	(1 << (z))
 
 // Current zoomlevel:
 static int world_zoom = ZOOM_MIN;
@@ -11,7 +11,10 @@ static int world_zoom = ZOOM_MIN;
 static unsigned int world_size = ZOOM_SIZE(ZOOM_MIN);
 
 // NB: the current world contracts and expands based on zoom level.
-// The world is measured in pixels.
+// The world is measured in tile units (which subdivide into 256 pixels).
+// We previously measured directly in pixels, but it turned out that floats
+// were not precise enough to perform pixel-perfect operations at the highest
+// zoom levels.
 
 unsigned int
 world_get_size (void)
@@ -23,11 +26,11 @@ world_get_size (void)
 unsigned int
 world_get_size_at (const int zoomlevel)
 {
-	// Zoom level 0 = 256 pixels
-	// Zoom level 1 = 512 pixels
-	// Zoom level 2 = 1024 pixels
-	// Zoom level n = 2^(n + 8)
-	return ((unsigned int)1) << (zoomlevel + 8);
+	// Zoom level 0 = 1 tile
+	// Zoom level 1 = 2 tiles
+	// Zoom level 2 = 3 tiles
+	// Zoom level n = 2^n tiles
+	return ((unsigned int)1) << zoomlevel;
 }
 
 int

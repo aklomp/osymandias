@@ -24,6 +24,8 @@ layer_blanktile_paint (void)
 	int tile_top    = viewport_get_tile_top();
 	int tile_bottom = viewport_get_tile_bottom() + 1;
 	int world_size  = world_get_size();
+	double cx = -viewport_get_center_x();
+	double cy = -viewport_get_center_y();
 
 	// Draw to world coordinates:
 	viewport_gl_setup_world();
@@ -31,10 +33,10 @@ layer_blanktile_paint (void)
 	// Draw a giant quad to the current world size:
 	glColor3f(0.12, 0.12, 0.12);
 	glBegin(GL_QUADS);
-		glVertex2f(0.0, 0.0);
-		glVertex2f(world_size, 0.0);
-		glVertex2f(world_size, world_size);
-		glVertex2f(0.0, world_size);
+		glVertex2f(cx, cy);
+		glVertex2f(cx + world_size, cy);
+		glVertex2f(cx + world_size, cy + world_size);
+		glVertex2f(cx, cy + world_size);
 	glEnd();
 
 	glColor3f(0.20, 0.20, 0.20);
@@ -43,20 +45,20 @@ layer_blanktile_paint (void)
 	// Vertical grid lines:
 	// Include some extra bounds checks to draw the bottommost line
 	// *inside* the tile area instead of 1px outside it:
-	for (int x = (tile_left < 0) ? 0 : tile_left; x <= tile_right && x * 256 <= world_size; x++) {
-		int top = (tile_top < 0) ? 0 : tile_top * 256;
-		int btm = (tile_bottom * 256 >= world_size) ? world_size - 1 : tile_bottom * 256;
-		int scx = (x * 256 >= world_size) ? x * 256 - 1 : x * 256;
-		glVertex2f(scx, btm);
-		glVertex2f(scx, top);
+	for (int x = (tile_left < 0) ? 0 : tile_left; x <= tile_right && x <= world_size; x++) {
+		double top = (tile_top < 0) ? 0 : tile_top;
+		double btm = (tile_bottom >= world_size) ? (double)world_size - 1.0 / 256.0 : tile_bottom;
+		double scx = (x >= world_size) ? (double)x - 1.0 / 256.0 : x;
+		glVertex2f(cx + scx, cy + btm);
+		glVertex2f(cx + scx, cy + top);
 	}
 	// Horizontal grid lines:
-	for (int y = (tile_top < 0) ? 0 : tile_top; y <= tile_bottom && y * 256 <= world_size; y++) {
-		int lft = (tile_left < 0) ? 0 : tile_left * 256;
-		int rgt = (tile_right * 256 >= world_size) ? world_size - 1 : tile_right * 256;
-		int scy = (y * 256 >= world_size) ? y * 256 - 1 : y * 256;
-		glVertex2f(lft, scy);
-		glVertex2f(rgt, scy);
+	for (int y = (tile_top < 0) ? 0 : tile_top; y <= tile_bottom && y <= world_size; y++) {
+		double lft = (tile_left < 0) ? 0 : tile_left;
+		double rgt = (tile_right >= world_size) ? (double)world_size - 1.0 / 256.0 : tile_right;
+		double scy = (y >= world_size) ? (double)y - 1.0 / 256.0 : y;
+		glVertex2f(cx + lft, cy + scy);
+		glVertex2f(cx + rgt, cy + scy);
 	}
 	glEnd();
 }

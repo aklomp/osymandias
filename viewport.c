@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <math.h>
 
 #include <GL/gl.h>
 
@@ -11,8 +12,8 @@
 #include "layers.h"
 #include "viewport.h"
 
-static unsigned int center_x;	// in world coordinates
-static unsigned int center_y;	// in world coordinates
+static double center_x;		// in world coordinates
+static double center_y;		// in world coordinates
 static unsigned int screen_wd;	// screen dimension
 static unsigned int screen_ht;	// screen dimension
 
@@ -23,7 +24,7 @@ static int tile_bottom;
 static int tile_last;
 
 static void
-viewport_screen_extents_to_world (int *world_left, int *world_bottom, int *world_right, int *world_top)
+viewport_screen_extents_to_world (double *world_left, double *world_bottom, double *world_right, double *world_top)
 {
 	viewport_screen_to_world(0, 0, world_left, world_bottom);
 	viewport_screen_to_world(screen_wd, screen_ht, world_right, world_top);
@@ -35,17 +36,18 @@ recalc_tile_extents (void)
 	// Given center_x, center_y and world_size,
 	// get the tile extents shown on screen
 
-	int screen_left = center_x - screen_wd / 2;
-	int screen_right = center_x + screen_wd / 2;
-	int screen_top = center_y - screen_ht / 2;
-	int screen_bottom = center_y + screen_ht / 2;
+	double world_left, world_right, world_top, world_bottom;
 
-	// Calculate border tiles, keep 1 tile margin:
-	tile_last = world_get_size() / 256 - 1;
-	tile_left = screen_left / 256 - 1;
-	tile_right = screen_right / 256 + 1;
-	tile_top = screen_top / 256 - 1;
-	tile_bottom = screen_bottom / 256 + 1;
+	viewport_screen_extents_to_world(&world_left, &world_bottom, &world_right, &world_top);
+
+	// Calculate border tiles. Tile origin is left top, world origin is
+	// left bottom. That's why we use world_bottom for tile_top and vice
+	// versa:
+	tile_last = world_get_size() - 1;
+	tile_left = floor(world_left);
+	tile_right = ceil(world_right);
+	tile_top = floor(world_bottom);
+	tile_bottom = ceil(world_top);
 
 	// Clip to world:
 	if (tile_left < 0) tile_left = 0;
@@ -55,18 +57,18 @@ recalc_tile_extents (void)
 }
 
 static void
-center_set (const int world_x, const int world_y)
+center_set (const double world_x, const double world_y)
 {
 	// Set center to coordinates, but clip to [0, world_size]
 
-	int world_size = world_get_size();
+	unsigned int world_size = world_get_size();
 
-	center_x = (world_x < 0) ? 0
-	         : (world_x >= world_size) ? world_size - 1
+	center_x = (world_x < 0) ? 0.0
+	         : (world_x >= world_size) ? world_size
 	         : (world_x);
 
-	center_y = (world_y < 0) ? 0
-	         : (world_y >= world_size) ? world_size - 1
+	center_y = (world_y < 0) ? 0.0
+	         : (world_y >= world_size) ? world_size
 	         : (world_y);
 
 	recalc_tile_extents();
@@ -75,7 +77,7 @@ center_set (const int world_x, const int world_y)
 bool
 viewport_init (void)
 {
-	center_x = center_y = world_get_size() / 2;
+	center_x = center_y = (double)world_get_size() / 2.0;
 	recalc_tile_extents();
 	return true;
 }
@@ -115,7 +117,7 @@ viewport_zoom_out (const int screen_x, const int screen_y)
 void
 viewport_scroll (const int dx, const int dy)
 {
-	int world_x, world_y;
+	double world_x, world_y;
 
 	// Find out which world coordinate will be in the center of the screen
 	// after the offsets have been applied, then set the center to that
@@ -127,7 +129,7 @@ viewport_scroll (const int dx, const int dy)
 void
 viewport_center_at (const int screen_x, const int screen_y)
 {
-	int world_x, world_y;
+	double world_x, world_y;
 
 	viewport_screen_to_world(screen_x, screen_y, &world_x, &world_y);
 	center_set(world_x, world_y);
@@ -187,15 +189,24 @@ viewport_gl_setup_world (void)
 	// from the one OSM uses for its tiles: origin at left top. But it
 	// makes tile and texture handling much easier (no vertical flips).
 
-	int world_left, world_right, world_top, world_bottom;
-
-	// Find extents of viewport in world coordinates:
-	viewport_screen_extents_to_world(&world_left, &world_bottom, &world_right, &world_top);
+	double halfwd = (double)screen_wd / 512.0;
+	double halfht = (double)screen_ht / 512.0;
 
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
 	glViewport(0, 0, screen_wd, screen_ht);
-	glOrtho((double)world_left - 0.5, (double)world_right - 0.5, (double)world_bottom - 0.5, (double)world_top - 0.5, 0, 1);
+	glTranslatef(0.375 / 256.0, 0.375 / 256.0, 0.0);
+	glOrtho(-halfwd, halfwd, -halfht, halfht, 0, 1);
+
+	// NB: layers that use this projection need to MANUALLY offset all
+	// coordinates with (-center_x, -center_y)! This is necessary because
+	// OpenGL uses floats internally, and their precision is not high
+	// enough for pixel-perfect placement in far corners of a giant world.
+	// So we keep the ortho window close around the origin, where floats
+	// are still precise enough, and apply the transformation *manually* in
+	// software.
+	// Yes, even glTranslated() does not work at the required precision.
+	// Yes, even when used on the MODELVIEW matrix.
 
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
@@ -208,8 +219,8 @@ viewport_gl_setup_world (void)
 bool
 viewport_within_world_bounds (void)
 {
-	int world_left, world_bottom, world_right, world_top;
-	int world_size = world_get_size();
+	double world_left, world_bottom, world_right, world_top;
+	unsigned int world_size = world_get_size();
 
 	viewport_screen_extents_to_world(&world_left, &world_bottom, &world_right, &world_top);
 
@@ -233,13 +244,13 @@ viewport_get_ht (void)
 	return screen_ht;
 }
 
-unsigned int
+double
 viewport_get_center_x (void)
 {
 	return center_x;
 }
 
-unsigned int
+double
 viewport_get_center_y (void)
 {
 	return center_y;
@@ -252,15 +263,15 @@ int viewport_get_tile_bottom (void) { return tile_bottom; }
 
 
 void
-viewport_screen_to_world (int sx, int sy, int *wx, int *wy)
+viewport_screen_to_world (double sx, double sy, double *wx, double *wy)
 {
-	*wx = center_x + (sx - screen_wd / 2);
-	*wy = center_y + (sy - screen_ht / 2);
+	*wx = center_x + (sx - (double)screen_wd / 2.0) / 256.0;
+	*wy = center_y + (sy - (double)screen_ht / 2.0) / 256.0;
 }
 
 void
-viewport_world_to_screen (int wx, int wy, int *sx, int *sy)
+viewport_world_to_screen (double wx, double wy, int *sx, int *sy)
 {
-	*sx = screen_wd / 2 + (wx - center_x);
-	*sy = screen_ht / 2 + (wy - center_y);
+	*sx = (double)screen_wd / 2.0 + (wx - center_x) * 256.0;
+	*sy = (double)screen_ht / 2.0 + (wy - center_y) * 256.0;
 }

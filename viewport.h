@@ -12,13 +12,13 @@ void viewport_render (void);
 void viewport_gl_setup_screen (void);
 void viewport_gl_setup_world (void);
 bool viewport_within_world_bounds (void);
-void viewport_screen_to_world (int sx, int sy, int *wx, int *wy);
-void viewport_world_to_screen (int wx, int wy, int *sx, int *sy);
+void viewport_screen_to_world (double sx, double sy, double *wx, double *wy);
+void viewport_world_to_screen (double wx, double wy, int *sx, int *sy);
 
 unsigned int viewport_get_ht (void);
 unsigned int viewport_get_wd (void);
-unsigned int viewport_get_center_x (void);
-unsigned int viewport_get_center_y (void);
+double viewport_get_center_x (void);
+double viewport_get_center_y (void);
 int viewport_get_tile_top (void);
 int viewport_get_tile_left (void);
 int viewport_get_tile_right (void);

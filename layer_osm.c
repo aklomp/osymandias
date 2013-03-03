@@ -18,7 +18,7 @@
 static bool tile_request (struct xylist_req *req, char **rawbits, unsigned int *offset_x, unsigned int *offset_y, unsigned int *zoomfactor);
 
 #ifdef USE_QUADS
-static void draw_textured_tile (int tile_x, int tile_y, void *rawbits, int xoffs, int yoffs, int size);
+static void draw_textured_tile (int tile_x, int tile_y, void *rawbits, int xoffs, int yoffs, int size, double cx, double cy);
 #else
 static char *scratch = NULL;
 #endif
@@ -58,6 +58,9 @@ layer_osm_paint (void)
 
 	glEnable(GL_TEXTURE_2D);
 #ifdef USE_QUADS
+	double cx = -viewport_get_center_x();
+	double cy = -viewport_get_center_y();
+
 	glDisable(GL_BLEND);
 
 	// The texture colors are multiplied with this value:
@@ -72,7 +75,7 @@ layer_osm_paint (void)
 #ifndef USE_QUADS
 			int tile_x, tile_y;
 
-			viewport_world_to_screen(x * 256, (y + 1) * 256, &tile_x, &tile_y);
+			viewport_world_to_screen(x, y + 1, &tile_x, &tile_y);
 			glWindowPos2i(tile_x, tile_y);
 #endif
 			req.xn = x;
@@ -90,7 +93,7 @@ layer_osm_paint (void)
 			// Found tile at current zoomlevel? Blit:
 			if (zoomfactor == 0) {
 #ifdef USE_QUADS
-				draw_textured_tile(x * 256, y * 256, rawbits, 0, 0, 256);
+				draw_textured_tile(x, y, rawbits, 0, 0, 256, cx, cy);
 #else
 				glDrawPixels(256, 256, GL_RGB, GL_UNSIGNED_BYTE, rawbits);
 #endif
@@ -99,7 +102,7 @@ layer_osm_paint (void)
 			// Different (lower) zoomlevel? Cut out the relevant
 			// piece of the tile and enlarge it:
 #ifdef USE_QUADS
-			draw_textured_tile(x * 256, y * 256, rawbits, offset_x, offset_y, 256 >> zoomfactor);
+			draw_textured_tile(x, y, rawbits, offset_x, offset_y, 256 >> zoomfactor, cx, cy);
 #else
 			char *r = rawbits;
 			char *b = scratch;
@@ -193,7 +196,7 @@ tile_request (struct xylist_req *req, char **rawbits, unsigned int *offset_x, un
 
 #ifdef USE_QUADS
 static void
-draw_textured_tile (int tile_x, int tile_y, void *rawbits, int xoffs, int yoffs, int size)
+draw_textured_tile (int tile_x, int tile_y, void *rawbits, int xoffs, int yoffs, int size, double cx, double cy)
 {
 	GLuint id;
 	GLdouble txoffs = (GLdouble)xoffs / 256.0;
@@ -205,11 +208,17 @@ draw_textured_tile (int tile_x, int tile_y, void *rawbits, int xoffs, int yoffs,
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 256, 256, 0, GL_RGB, GL_UNSIGNED_BYTE, rawbits);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+	// Need to calculate the world coordinates of our tile in double
+	// precision, then translate the coordinates to the center ourselves.
+	// OpenGL uses floats to represent the world, which lack the precision
+	// to represent individual pixels at the max zoom level.
+
 	glBegin(GL_QUADS);
-		glTexCoord2d(txoffs,         tyoffs);         glVertex2d(tile_x,       tile_y + 256);
-		glTexCoord2d(txoffs + tsize, tyoffs);         glVertex2d(tile_x + 256, tile_y + 256);
-		glTexCoord2d(txoffs + tsize, tyoffs + tsize); glVertex2d(tile_x + 256, tile_y);
-		glTexCoord2d(txoffs,         tyoffs + tsize); glVertex2d(tile_x,       tile_y);
+		glTexCoord2f(txoffs,         tyoffs);         glVertex2f(cx + (double)tile_x,       cy + (double)tile_y + 1.0);
+		glTexCoord2f(txoffs + tsize, tyoffs);         glVertex2f(cx + (double)tile_x + 1.0, cy + (double)tile_y + 1.0);
+		glTexCoord2f(txoffs + tsize, tyoffs + tsize); glVertex2f(cx + (double)tile_x + 1.0, cy + (double)tile_y);
+		glTexCoord2f(txoffs,         tyoffs + tsize); glVertex2f(cx + (double)tile_x,       cy + (double)tile_y);
 	glEnd();
 	glDeleteTextures(1, &id);
 }
