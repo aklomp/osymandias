@@ -833,7 +833,7 @@ start:	if ((data = tile_find_cached(z, req->xn, req->yn, &xclosest, &yclosest)) 
 	}
 	// issue a callback to procure the tile data; if this fails, we're sunk:
 	req->search_depth--;
-	if ((data = l->tile_procure(req)) == NULL) {
+	if (l->tile_procure == NULL || (data = l->tile_procure(req)) == NULL) {
 		return NULL;
 	}
 	// New data; hang it in to the xylist after the closest x and y members:
