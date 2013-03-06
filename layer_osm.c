@@ -12,16 +12,8 @@
 #include "layers.h"
 #include "layer_osm.h"
 
-// Use textured quads to draw the tiles instead of using a direct drawing technique:
-#define USE_QUADS
-
 static bool tile_request (struct xylist_req *req, char **rawbits, unsigned int *offset_x, unsigned int *offset_y, unsigned int *zoomfactor);
-
-#ifdef USE_QUADS
 static void draw_textured_tile (int tile_x, int tile_y, void *rawbits, int xoffs, int yoffs, int size, double cx, double cy);
-#else
-static char *scratch = NULL;
-#endif
 
 static void
 layer_osm_destroy (void *data)
@@ -29,9 +21,6 @@ layer_osm_destroy (void *data)
 	(void)data;
 
 	bitmap_mgr_destroy();
-#ifndef USE_QUADS
-	free(scratch);
-#endif
 }
 
 static bool
@@ -57,7 +46,6 @@ layer_osm_paint (void)
 	viewport_gl_setup_world();
 
 	glEnable(GL_TEXTURE_2D);
-#ifdef USE_QUADS
 	double cx = -viewport_get_center_x();
 	double cy = -viewport_get_center_y();
 
@@ -65,19 +53,8 @@ layer_osm_paint (void)
 
 	// The texture colors are multiplied with this value:
 	glColor3f(1.0, 1.0, 1.0);
-#else
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	glPixelZoom(1.0, -1.0);
-#endif
 	for (int x = tile_left; x <= tile_right; x++) {
 		for (int y = tile_top; y <= tile_bottom; y++) {
-#ifndef USE_QUADS
-			int tile_x, tile_y;
-
-			viewport_world_to_screen(x, y + 1, &tile_x, &tile_y);
-			glWindowPos2i(tile_x, tile_y);
-#endif
 			req.xn = x;
 			req.yn = y;
 			req.zoom = world_get_zoom();
@@ -92,34 +69,12 @@ layer_osm_paint (void)
 			}
 			// Found tile at current zoomlevel? Blit:
 			if (zoomfactor == 0) {
-#ifdef USE_QUADS
 				draw_textured_tile(x, y, rawbits, 0, 0, 256, cx, cy);
-#else
-				glDrawPixels(256, 256, GL_RGB, GL_UNSIGNED_BYTE, rawbits);
-#endif
 				continue;
 			}
 			// Different (lower) zoomlevel? Cut out the relevant
 			// piece of the tile and enlarge it:
-#ifdef USE_QUADS
 			draw_textured_tile(x, y, rawbits, offset_x, offset_y, 256 >> zoomfactor, cx, cy);
-#else
-			char *r = rawbits;
-			char *b = scratch;
-			for (int rows = 0; rows < (256 >> zoomfactor); rows++) {
-				for (int repy = 0; repy < (1 << zoomfactor); repy++) {
-					for (int cols = 0; cols < (256 >> zoomfactor); cols++) {
-						r = rawbits + ((offset_y + rows) * 256 + offset_x + cols) * 3;
-						for (int repx = 0; repx < (1 << zoomfactor); repx++) {
-							*b++ = r[0];
-							*b++ = r[1];
-							*b++ = r[2];
-						}
-					}
-				}
-			}
-			glDrawPixels(256, 256, GL_RGB, GL_UNSIGNED_BYTE, scratch);
-#endif
 		}
 	}
 	glDisable(GL_BLEND);
@@ -194,7 +149,6 @@ tile_request (struct xylist_req *req, char **rawbits, unsigned int *offset_x, un
 	return false;
 }
 
-#ifdef USE_QUADS
 static void
 draw_textured_tile (int tile_x, int tile_y, void *rawbits, int xoffs, int yoffs, int size, double cx, double cy)
 {
@@ -222,16 +176,10 @@ draw_textured_tile (int tile_x, int tile_y, void *rawbits, int xoffs, int yoffs,
 	glEnd();
 	glDeleteTextures(1, &id);
 }
-#endif
 
 bool
 layer_osm_create (void)
 {
-#ifndef USE_QUADS
-	if ((scratch = malloc(256 * 256 * 3)) == NULL) {
-		return false;
-	}
-#endif
 	bitmap_mgr_init();
 	return layer_register(layer_create(layer_osm_full_occlusion, layer_osm_paint, layer_osm_zoom, layer_osm_destroy, NULL), 100);
 }
