@@ -15,6 +15,27 @@
 #include "layer_blanktile.h"
 #include "layer_osm.h"
 
+static bool
+gdkgl_check (int argc, char **argv)
+{
+	int major, minor;
+
+	if (gdk_gl_init_check(&argc, &argv) == FALSE) {
+		fprintf(stderr, "No OpenGL library support.\n");
+		return false;
+	}
+	if (gdk_gl_query_extension() == FALSE) {
+		fprintf(stderr, "No OpenGL windowing support.\n");
+		return false;
+	}
+	if (gdk_gl_query_version(&major, &minor) == FALSE) {
+		fprintf(stderr, "Could not query OpenGL version.\n");
+		return false;
+	}
+	fprintf(stderr, "OpenGL %d.%d\n", major, minor);
+	return true;
+}
+
 static void
 paint_canvas (GtkWidget *widget)
 {
@@ -41,7 +62,6 @@ int
 main (int argc, char **argv)
 {
 	int ret = 1;
-	int major, minor;
 
 	int config_attributes[] = {
 		GDK_GL_DOUBLEBUFFER,
@@ -55,16 +75,8 @@ main (int argc, char **argv)
 
 	gtk_init(&argc, &argv);
 
-	if (gdk_gl_init_check(&argc, &argv) == FALSE) {
-		fprintf(stderr, "No OpenGL library support!\n");
+	if (!gdkgl_check(argc, argv)) {
 		goto err_0;
-	}
-	if (gdk_gl_query_extension() == FALSE) {
-		fprintf(stderr, "No OpenGL windowing support!\n");
-		goto err_0;
-	}
-	if (gdk_gl_query_version(&major, &minor) != FALSE) {
-		fprintf(stderr, "OpenGL %d.%d\n", major, minor);
 	}
 	GtkWidget *window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
 	GtkWidget *canvas = gtk_drawing_area_new();
