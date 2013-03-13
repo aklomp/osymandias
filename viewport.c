@@ -16,6 +16,9 @@ static double center_x;		// in world coordinates
 static double center_y;		// in world coordinates
 static unsigned int screen_wd;	// screen dimension
 static unsigned int screen_ht;	// screen dimension
+static float view_tilt;		// tilt from vertical, in degrees
+static float view_rot;		// rotation along z axis, in degrees
+static float view_zdist;	// Distance from camera to cursor in z units (camera height)
 
 static int tile_top;
 static int tile_left;
@@ -79,6 +82,9 @@ viewport_init (void)
 {
 	center_x = center_y = (double)world_get_size() / 2.0;
 	recalc_tile_extents();
+	view_tilt = 0.0;
+	view_rot = 0.0;
+	view_zdist = 4;
 	return true;
 }
 
@@ -195,8 +201,14 @@ viewport_gl_setup_world (void)
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
 	glViewport(0, 0, screen_wd, screen_ht);
+
+	// Pixel snap offset, ensures proper pixel rounding:
 	glTranslatef(0.375 / 256.0, 0.375 / 256.0, 0.0);
-	glOrtho(-halfwd, halfwd, -halfht, halfht, 0, 1);
+
+	// This is built around the idea that the screen center is at (0,0) and
+	// that 1 pixel of the screen should correspond with 1 texture pixel at
+	// 0 degrees tilt angle:
+	glFrustum(-halfwd / view_zdist, halfwd / view_zdist, -halfht / view_zdist, halfht / view_zdist, 1.0, 100.0);
 
 	// NB: layers that use this projection need to MANUALLY offset all
 	// coordinates with (-center_x, -center_y)! This is necessary because
@@ -210,6 +222,10 @@ viewport_gl_setup_world (void)
 
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
+
+	glTranslatef(0.0, 0.0, -view_zdist);
+	glRotatef(-view_tilt, 1.0, 0.0, 0.0);
+	glRotatef(view_rot, 0.0, 0.0, 1.0);
 
 	glDisable(GL_BLEND);
 	glDisable(GL_DEPTH_TEST);
