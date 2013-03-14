@@ -13,7 +13,7 @@ void viewport_gl_setup_screen (void);
 void viewport_gl_setup_world (void);
 bool viewport_within_world_bounds (void);
 void viewport_screen_to_world (double sx, double sy, double *wx, double *wy);
-void viewport_world_to_screen (double wx, double wy, int *sx, int *sy);
+void viewport_world_to_screen (double wx, double wy, double *sx, double *sy);
 
 unsigned int viewport_get_ht (void);
 unsigned int viewport_get_wd (void);

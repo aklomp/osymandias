@@ -5,6 +5,7 @@
 #include <math.h>
 
 #include <GL/gl.h>
+#include <GL/glu.h>
 
 #include "shaders.h"
 #include "autoscroll.h"
@@ -25,6 +26,9 @@ static int tile_left;
 static int tile_right;
 static int tile_bottom;
 static int tile_last;
+
+static double modelview[16];	// OpenGL projection matrices
+static double projection[16];
 
 static void
 viewport_screen_extents_to_world (double *world_left, double *world_bottom, double *world_right, double *world_top)
@@ -227,6 +231,9 @@ viewport_gl_setup_world (void)
 	glRotatef(-view_tilt, 1.0, 0.0, 0.0);
 	glRotatef(view_rot, 0.0, 0.0, 1.0);
 
+	glGetDoublev(GL_MODELVIEW_MATRIX, modelview);
+	glGetDoublev(GL_PROJECTION_MATRIX, projection);
+
 	glDisable(GL_BLEND);
 	glDisable(GL_DEPTH_TEST);
 	glDepthMask(GL_FALSE);
@@ -281,13 +288,50 @@ int viewport_get_tile_bottom (void) { return tile_bottom; }
 void
 viewport_screen_to_world (double sx, double sy, double *wx, double *wy)
 {
-	*wx = center_x + (sx - (double)screen_wd / 2.0) / 256.0;
-	*wy = center_y + (sy - (double)screen_ht / 2.0) / 256.0;
+	// Shortcut: if we know the world is orthogonal, use simpler
+	// calculations; this also lets us "bootstrap" the world before
+	// the first OpenGL projection:
+	if (view_tilt == 0.0 && view_rot == 0.0) {
+		*wx = center_x + (sx - (double)screen_wd / 2.0) / 256.0;
+		*wy = center_y + (sy - (double)screen_ht / 2.0) / 256.0;
+		return;
+	}
+	GLdouble wax, way, waz;
+	GLdouble wbx, wby, wbz;
+	GLint viewport[4] = { 0, 0, screen_wd, screen_ht };
+
+	// Project two points at different z index to get a vector in world space:
+	gluUnProject(sx, sy, 0.75, modelview, projection, viewport, &wax, &way, &waz);
+	gluUnProject(sx, sy, 1.0, modelview, projection, viewport, &wbx, &wby, &wbz);
+
+	// Project this vector onto the world plane to get the world coordinates;
+	//
+	//     (p0 - l0) . n
+	// t = -------------
+	//        l . n
+	//
+	// n = normal vector of plane = (0, 0, 1);
+	// p0 = point in plane, (0, 0, 0);
+	// l0 = point on line, (wax, way, waz);
+	// l = point on line, (wbx, wby, wbz);
+	//
+	// This can be rewritten as:
+	double t = -waz / wbz;
+
+	*wx = wax + t * (wbx - wax) + center_x;
+	*wy = way + t * (wby - way) + center_y;
 }
 
 void
-viewport_world_to_screen (double wx, double wy, int *sx, int *sy)
+viewport_world_to_screen (double wx, double wy, double *sx, double *sy)
 {
-	*sx = (double)screen_wd / 2.0 + (wx - center_x) * 256.0;
-	*sy = (double)screen_ht / 2.0 + (wy - center_y) * 256.0;
+	if (view_tilt == 0.0 && view_rot == 0.0) {
+		*sx = (double)screen_wd / 2.0 + (wx - center_x) * 256.0;
+		*sy = (double)screen_ht / 2.0 + (wy - center_y) * 256.0;
+		return;
+	}
+	GLdouble sz;
+	GLint viewport[4] = { 0, 0, screen_wd, screen_ht };
+
+	gluProject(wx - center_x, wy - center_y, 0.0, modelview, projection, viewport, sx, sy, &sz);
 }
