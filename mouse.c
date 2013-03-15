@@ -11,6 +11,7 @@ static int button_dragged = false;
 static int button_pressed = false;
 static int button_pressed_x;
 static int button_pressed_y;
+static int button_num;
 static int click_halted_autoscroll = 0;
 
 void
@@ -20,6 +21,7 @@ on_button_press (GtkWidget *widget, GdkEventButton *event)
 	button_pressed = true;
 	button_pressed_x = EVENT_X;
 	button_pressed_y = EVENT_Y;
+	button_num = event->button;
 
 	// Does the press of this button cause the autoscroll to halt?
 	click_halted_autoscroll = autoscroll_is_on();
@@ -34,10 +36,18 @@ on_button_motion (GtkWidget *widget, GdkEventButton *event)
 	int dy = EVENT_Y - button_pressed_y;
 
 	button_dragged = true;
-	autoscroll_measure_hold(EVENT_X, EVENT_Y);
-	viewport_scroll(dx, dy);
-	gtk_widget_queue_draw(widget);
 
+	// Left mouse button:
+	if (button_num == 1) {
+		autoscroll_measure_hold(EVENT_X, EVENT_Y);
+		viewport_scroll(dx, dy);
+	}
+	// Right mouse button:
+	if (button_num == 3) {
+		viewport_rotate(dx);
+		viewport_tilt(dy);
+	}
+	gtk_widget_queue_draw(widget);
 	button_pressed_x = EVENT_X;
 	button_pressed_y = EVENT_Y;
 }

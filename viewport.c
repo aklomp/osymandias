@@ -108,7 +108,7 @@ viewport_zoom_in (const int screen_x, const int screen_y)
 	// Keep same point under mouse cursor:
 	int dx = screen_x - screen_wd / 2;
 	int dy = screen_y - screen_ht / 2;
-	viewport_scroll(-dx, -dy);
+	viewport_scroll(dx, dy);
 }
 
 void
@@ -121,7 +121,7 @@ viewport_zoom_out (const int screen_x, const int screen_y)
 	}
 	int dx = screen_x - screen_wd / 2;
 	int dy = screen_y - screen_ht / 2;
-	viewport_scroll(dx / 2, dy / 2);
+	viewport_scroll(-dx / 2, -dy / 2);
 }
 
 void
@@ -132,7 +132,7 @@ viewport_scroll (const int dx, const int dy)
 	// Find out which world coordinate will be in the center of the screen
 	// after the offsets have been applied, then set the center to that
 	// value:
-	viewport_screen_to_world(screen_wd / 2 - dx, screen_ht / 2 - dy, &world_x, &world_y);
+	viewport_screen_to_world(screen_wd / 2 + dx, screen_ht / 2 + dy, &world_x, &world_y);
 	center_set(world_x, world_y);
 }
 
@@ -146,13 +146,37 @@ viewport_center_at (const int screen_x, const int screen_y)
 }
 
 void
+viewport_tilt (const int dy)
+{
+	if (dy == 0) return;
+
+	view_tilt += (double)dy * 0.1;
+
+	if (view_tilt > 80.0) view_tilt = 80.0;
+	if (view_tilt < 0.0) view_tilt = 0.0;
+
+	/* Snap to 0.0: */
+	if (view_tilt < 0.05) view_tilt = 0.0;
+}
+
+void
+viewport_rotate (const int dx)
+{
+	if (dx == 0) return;
+
+	view_rot += (double)dx * 0.1;
+
+	if (view_rot < 0.0) view_rot += 360.0;
+	if (view_rot >= 360.0) view_rot -= 360.0;
+}
+
+void
 viewport_reshape (const unsigned int new_width, const unsigned int new_height)
 {
-	int dx;
-	int dy;
+	int dx, dy;
 
 	if (autoscroll_update(&dx, &dy)) {
-		viewport_scroll(dx, dy);
+		viewport_scroll(-dx, -dy);
 	}
 	screen_wd = new_width;
 	screen_ht = new_height;

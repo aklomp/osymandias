@@ -82,7 +82,7 @@ main (int argc, char **argv)
 	GtkWidget *canvas = gtk_drawing_area_new();
 	gtk_container_add(GTK_CONTAINER(window), canvas);
 
-	gtk_widget_add_events(canvas, GDK_BUTTON_PRESS_MASK | GDK_BUTTON1_MOTION_MASK | GDK_BUTTON_RELEASE_MASK);
+	gtk_widget_add_events(canvas, GDK_BUTTON_PRESS_MASK | GDK_BUTTON1_MOTION_MASK | GDK_BUTTON3_MOTION_MASK | GDK_BUTTON_RELEASE_MASK);
 	g_signal_connect(canvas, "scroll_event", G_CALLBACK(on_mouse_scroll), NULL);
 	g_signal_connect(canvas, "button_press_event", G_CALLBACK(on_button_press), NULL);
 	g_signal_connect(canvas, "motion_notify_event", G_CALLBACK(on_button_motion), NULL);
