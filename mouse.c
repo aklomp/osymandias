@@ -23,6 +23,9 @@ on_button_press (GtkWidget *widget, GdkEventButton *event)
 	button_pressed_y = EVENT_Y;
 	button_num = event->button;
 
+	if (button_num == 1) {
+		viewport_hold_start(EVENT_X, EVENT_Y);
+	}
 	// Does the press of this button cause the autoscroll to halt?
 	click_halted_autoscroll = autoscroll_is_on();
 	autoscroll_stop();
@@ -40,7 +43,7 @@ on_button_motion (GtkWidget *widget, GdkEventButton *event)
 	// Left mouse button:
 	if (button_num == 1) {
 		autoscroll_measure_hold(EVENT_X, EVENT_Y);
-		viewport_scroll(dx, dy);
+		viewport_hold_move(EVENT_X, EVENT_Y);
 	}
 	// Right mouse button:
 	if (button_num == 3) {

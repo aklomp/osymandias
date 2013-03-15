@@ -20,6 +20,8 @@ static unsigned int screen_ht;	// screen dimension
 static float view_tilt;		// tilt from vertical, in degrees
 static float view_rot;		// rotation along z axis, in degrees
 static float view_zdist;	// Distance from camera to cursor in z units (camera height)
+static double hold_x;		// Mouse hold/drag at this world coordinate
+static double hold_y;
 
 static int tile_top;
 static int tile_left;
@@ -122,6 +124,27 @@ viewport_zoom_out (const int screen_x, const int screen_y)
 	int dx = screen_x - screen_wd / 2;
 	int dy = screen_y - screen_ht / 2;
 	viewport_scroll(-dx / 2, -dy / 2);
+}
+
+void
+viewport_hold_start (const int screen_x, const int screen_y)
+{
+	// Save current world coordinates for later reference:
+	viewport_screen_to_world(screen_x, screen_y, &hold_x, &hold_y);
+}
+
+void
+viewport_hold_move (const int screen_x, const int screen_y)
+{
+	// Mouse has moved during a hold; ensure that (hold_x, hold_y)
+	// is under the cursor at the given screen position:
+	double wx, wy;
+
+	// Point currently under mouse:
+	viewport_screen_to_world(screen_x, screen_y, &wx, &wy);
+
+	center_x += hold_x - wx;
+	center_y += hold_y - wy;
 }
 
 void
