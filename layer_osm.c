@@ -14,9 +14,12 @@
 
 struct texture {
 	int zoom;
+	unsigned int tile_x;
+	unsigned int tile_y;
 	unsigned int size;
 	unsigned int offset_x;
 	unsigned int offset_y;
+	unsigned int zoomdiff;
 };
 
 static void *xylist_deep_search (void *(*xylist_req)(struct xylist_req *), struct xylist_req *req, struct texture *tex);
@@ -24,6 +27,7 @@ static void draw_tile (int tile_x, int tile_y, GLuint texture_id, struct texture
 static GLuint texture_from_rawbits (void *rawbits);
 static void *texture_request (struct xylist_req *req);
 static void texture_destroy (void *data);
+static void zoomed_texture_cutout (int orig_x, int orig_y, struct texture *t);
 
 static struct xylist *textures = NULL;
 
@@ -85,6 +89,7 @@ layer_osm_paint (void)
 				// If the texture is already cached at native resolution,
 				// then we're done; else still try to get the native bitmap:
 				if (t.zoom == world_zoom) {
+					zoomed_texture_cutout(x, y, &t);
 					draw_tile(x, y, (GLuint)txtdata, &t, cx, cy);
 					continue;
 				}
@@ -92,11 +97,15 @@ layer_osm_paint (void)
 			// Try to load the bitmap and turn it into an OpenGL texture:
 			if ((bmpdata = xylist_deep_search(bitmap_request, &req, &t)) == NULL) {
 				if (txtdata) {
+					t.zoomdiff = world_zoom - t.zoom;
+					zoomed_texture_cutout(x, y, &t);
 					draw_tile(x, y, (GLuint)txtdata, &t, cx, cy);
 				}
 				continue;
 			}
 			GLuint id = texture_from_rawbits(bmpdata);
+			t.zoomdiff = world_zoom - t.zoom;
+			zoomed_texture_cutout(x, y, &t);
 			draw_tile(x, y, id, &t, cx, cy);
 
 			// When we insert this texture id in the texture cache,
@@ -136,14 +145,15 @@ xylist_deep_search (void *(*xylist_req)(struct xylist_req *), struct xylist_req 
 		t->offset_y = 0;
 		t->size = 256;
 		t->zoom = req->zoom;
+		t->zoomdiff = 0;
+		t->tile_x = req->xn;
+		t->tile_y = req->yn;
 		return data;
 	}
 	// Didn't work, now try deeper zoom levels:
 	for (int z = (int)req->zoom - 1; z >= 0; z--)
 	{
 		unsigned int zoomdiff = (req->zoom - z);
-		unsigned int xblock;
-		unsigned int yblock;
 		struct xylist_req zoomed_req;
 
 		// Create our own request, based on the one we have, but zoomed:
@@ -161,19 +171,11 @@ xylist_deep_search (void *(*xylist_req)(struct xylist_req *), struct xylist_req 
 		if ((data = xylist_req(&zoomed_req)) == NULL) {
 			continue;
 		}
-		// At this zoom level, cut a block of this pixel size out of parent:
-		t->size = (256 >> zoomdiff);
 		t->zoom = z;
+		t->zoomdiff = zoomdiff;
+		t->tile_x = zoomed_req.xn;
+		t->tile_y = zoomed_req.yn;
 
-		// This is the nth block out of parent, counting from top left:
-		xblock = (req->xn - (zoomed_req.xn << zoomdiff));
-		yblock = (req->yn - (zoomed_req.yn << zoomdiff));
-
-		// Reverse the yblock index, texture coordinates run from bottom left:
-		yblock = (1 << zoomdiff) - 1 - yblock;
-
-		t->offset_x = t->size * xblock;
-		t->offset_y = t->size * yblock;
 		return data;
 	}
 	return NULL;
@@ -231,6 +233,23 @@ texture_destroy (void *data)
 	GLuint id = (GLuint)data;
 
 	glDeleteTextures(1, &id);
+}
+
+static void
+zoomed_texture_cutout (int orig_x, int orig_y, struct texture *t)
+{
+	// At this zoom level, cut a block of this pixel size out of parent:
+	t->size = 256 >> t->zoomdiff;
+
+	// This is the nth block out of parent, counting from top left:
+	int xblock = orig_x & ((1 << t->zoomdiff) - 1);
+	int yblock = orig_y & ((1 << t->zoomdiff) - 1);
+
+	// Reverse the yblock index, texture coordinates run from bottom left:
+	yblock = (1 << t->zoomdiff) - 1 - yblock;
+
+	t->offset_x = t->size * xblock;
+	t->offset_y = t->size * yblock;
 }
 
 bool
