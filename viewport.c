@@ -326,6 +326,12 @@ viewport_get_center_y (void)
 	return center_y;
 }
 
+float
+viewport_get_rot (void)
+{
+	return view_rot;
+}
+
 int viewport_get_tile_top (void) { return tile_top; }
 int viewport_get_tile_left (void) { return tile_left; }
 int viewport_get_tile_right (void) { return tile_right; }
