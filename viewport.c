@@ -22,6 +22,10 @@ static float view_rot;		// rotation along z axis, in degrees
 static float view_zdist;	// Distance from camera to cursor in z units (camera height)
 static double hold_x;		// Mouse hold/drag at this world coordinate
 static double hold_y;
+static double frustum_x[4];
+static double frustum_y[4];
+static double bbox_x[2];
+static double bbox_y[2];
 
 static int tile_top;
 static int tile_left;
@@ -31,6 +35,9 @@ static int tile_last;
 
 static double modelview[16];	// OpenGL projection matrices
 static double projection[16];
+
+static void intersect_lines (double x0, double y0, double x1, double y1, double x2, double y2, double x3, double y3, double *px, double *py);
+static bool point_inside_triangle (double tax, double tay, double tbx, double tby, double tcx, double tcy, double ax, double ay);
 
 static void
 viewport_screen_extents_to_world (double *world_left, double *world_bottom, double *world_right, double *world_top)
@@ -215,6 +222,161 @@ viewport_render (void)
 	layers_paint();
 }
 
+static void
+viewport_calc_frustum (void)
+{
+	// This function is run once when the viewport is setup;
+	// values are read out with viewport_get_frustum().
+
+	// NB: screen coordinates: (0,0) is left bottom:
+	viewport_screen_to_world(0.0,       screen_ht, &frustum_x[0], &frustum_y[0]);
+	viewport_screen_to_world(screen_wd, screen_ht, &frustum_x[1], &frustum_y[1]);
+	viewport_screen_to_world(screen_wd, 0.0,       &frustum_x[2], &frustum_y[2]);
+	viewport_screen_to_world(0.0,       0.0,       &frustum_x[3], &frustum_y[3]);
+
+	// Sometimes the far points of the frustum (0 at left top and 1 at right top)
+	// will cross the horizon and be flipped; use the property that the bottom two
+	// frustum points always lie on one line with the center to check for flip:
+	for (int i = 0; i < 2; i++)
+	{
+		// Point across diagonal (antipode):
+		int n = (i == 0) ? 2 : 3;
+
+		// Are both points on same side of the center? Then they are flipped
+		// (the center by definition should be on the diagonal between the two points):
+		if (((center_x < frustum_x[i]) == (center_x < frustum_x[n]))
+		 && ((center_y < frustum_y[i]) == (center_y < frustum_y[n]))) {
+			goto flip;
+		}
+	}
+	return;
+
+flip:	;
+	// If the point was flipped, synthetize the viewport area by taking the
+	// flipped vectors and extending them "far enough" in the other
+	// direction. This creates a finite viewport that extends well beyond
+	// the world area:
+	double extend = world_get_size() * ((screen_ht > screen_wd) ? screen_ht : screen_wd) / 256.0;
+
+	frustum_x[0] = frustum_x[3] + extend * (frustum_x[3] - frustum_x[0]);
+	frustum_y[0] = frustum_y[3] + extend * (frustum_y[3] - frustum_y[0]);
+
+	frustum_x[1] = frustum_x[2] + extend * (frustum_x[2] - frustum_x[1]);
+	frustum_y[1] = frustum_y[2] + extend * (frustum_y[2] - frustum_y[1]);
+}
+
+static void
+bbox_grow (double x, double y)
+{
+	if (x < bbox_x[0]) bbox_x[0] = x;
+	if (x > bbox_x[1]) bbox_x[1] = x;
+	if (y < bbox_y[0]) bbox_y[0] = y;
+	if (y > bbox_y[1]) bbox_y[1] = y;
+}
+
+static void
+viewport_calc_bbox (void)
+{
+	double world_size = (double)world_get_size();
+	double px, py;
+
+	// Reset bounding box:
+	bbox_x[0] = bbox_y[0] = world_size + 1;
+	bbox_x[1] = bbox_y[1] = -1;
+
+	// Split the frustum into four lines, one for each edge:
+	for (int i = 0; i < 4; i++)
+	{
+		// (ax, ay) and (bx, by) are bounding points of the edge:
+		double ax = frustum_x[i];
+		double ay = frustum_y[i];
+		double bx = frustum_x[(i == 3) ? 0 : i + 1];
+		double by = frustum_y[(i == 3) ? 0 : i + 1];
+
+		// Is this point inside the world plane?
+		int a_inside = (ax >= 0.0 && ax <= world_size && ay >= 0.0 && ay <= world_size);
+		int b_inside = (bx >= 0.0 && bx <= world_size && by >= 0.0 && by <= world_size);
+
+		// If line is completely inside world, expand our bounding box to this segment:
+		if (a_inside && b_inside) {
+			bbox_grow(ax, ay);
+			bbox_grow(bx, by);
+			continue;
+		}
+		// Always grow bounding box by the "inner" point:
+		if (a_inside) {
+			bbox_grow(ax, ay);
+		}
+		if (b_inside) {
+			bbox_grow(bx, by);
+		}
+		// If both points outside world, create a triangle with the
+		// next and the previous points. Check if corner points of the
+		// world are inside these triangles:
+		if (!a_inside && !b_inside)
+		{
+			for (int j = 0; j < 2; j++)
+			{
+				// Which other point to form triangle with?
+				int n = (j == 0)
+					? (i >= 2) ? i - 2 : i + 2
+					: (i == 0) ? 3 : i - 1;
+
+				double cx = frustum_x[n];
+				double cy = frustum_y[n];
+
+				// The triangle (a, b, c) is formed with the outside rib as one edge
+				// and a neighbouring point as the peak. Check for all world corner
+				// points whether they are inside the triangle; if so, they are
+				// visible:
+
+				// Bottom left:
+				if ((bbox_x[0] != 0.0 || bbox_y[0] != 0.0) && point_inside_triangle(ax, ay, bx, by, cx, cy, 0.0, 0.0)) {
+					bbox_x[0] = 0.0;
+					bbox_y[0] = 0.0;
+				}
+				// Top left:
+				if ((bbox_x[0] != 0.0 || bbox_y[1] != world_size) && point_inside_triangle(ax, ay, bx, by, cx, cy, 0.0, world_size)) {
+					bbox_x[0] = 0.0;
+					bbox_y[1] = world_size;
+				}
+				// Top right:
+				if ((bbox_x[1] != world_size || bbox_y[1] != world_size) && point_inside_triangle(ax, ay, bx, by, cx, cy, world_size, world_size)) {
+					bbox_x[1] = world_size;
+					bbox_y[1] = world_size;
+				}
+				// Bottom right:
+				if ((bbox_x[1] != world_size || bbox_y[0] != 0.0) && point_inside_triangle(ax, ay, bx, by, cx, cy, world_size, 0.0)) {
+					bbox_x[1] = world_size;
+					bbox_y[0] = 0.0;
+				}
+			}
+		}
+		// Intersect this line with all four edges of the world:
+
+		// Left vertical edge:
+		if ((ax < 0.0 && bx >= 0.0) || (bx < 0.0 && ax >= 0.0)) {
+			intersect_lines(ax, ay, bx, by, 0.0, 0.0, 0.0, world_size, &px, &py);
+			if (py >= 0.0 && py <= world_size) bbox_grow(0.0, py);
+		}
+		// Right vertical edge:
+		if ((ax < world_size && bx >= world_size) || (bx < world_size && ax >= world_size)) {
+			intersect_lines(ax, ay, bx, by, world_size, 0.0, world_size, world_size, &px, &py);
+			if (py >= 0.0 && py <= world_size) bbox_grow(world_size, py);
+		}
+		// Bottom horizontal edge:
+		if ((ay < 0.0 && by >= 0.0) || (by < 0.0 && ay >= 0.0)) {
+			intersect_lines(ax, ay, bx, by, 0.0, 0.0, world_size, 0.0, &px, &py);
+			if (px >= 0.0 && px <= world_size) bbox_grow(px, 0.0);
+		}
+		// Top horizontal edge:
+		if ((ay < world_size && by >= world_size) || (by < world_size && ay >= world_size)) {
+			intersect_lines(ax, ay, bx, by, 0.0, world_size, world_size, world_size, &px, &py);
+			if (px >= 0.0 && px <= world_size) bbox_grow(px, world_size);
+		}
+	}
+}
+
 void
 viewport_gl_setup_screen (void)
 {
@@ -280,6 +442,9 @@ viewport_gl_setup_world (void)
 
 	glGetDoublev(GL_MODELVIEW_MATRIX, modelview);
 	glGetDoublev(GL_PROJECTION_MATRIX, projection);
+
+	viewport_calc_frustum();
+	viewport_calc_bbox();
 
 	glDisable(GL_BLEND);
 	glDisable(GL_DEPTH_TEST);
@@ -387,4 +552,57 @@ viewport_world_to_screen (double wx, double wy, double *sx, double *sy)
 	GLint viewport[4] = { 0, 0, screen_wd, screen_ht };
 
 	gluProject(wx - center_x, wy - center_y, 0.0, modelview, projection, viewport, sx, sy, &sz);
+}
+
+void
+viewport_get_frustum (double **wx, double **wy)
+{
+	*wx = frustum_x;
+	*wy = frustum_y;
+}
+
+void
+viewport_get_bbox (double **bx, double **by)
+{
+	*bx = bbox_x;
+	*by = bbox_y;
+}
+
+static void
+intersect_lines (double x0, double y0, double x1, double y1, double x2, double y2, double x3, double y3, double *px, double *py)
+{
+	double d = (x0 - x1) * (y2 - y3) - (y0 - y1) * (x2 - x3);
+	double e = x0 * y1 - y0 * x1;
+	double f = x2 * y3 - y2 * x3;
+
+	*px = (e * (x2 - x3) - f * (x0 - x1)) / d;
+	*py = (e * (y2 - y3) - f * (y0 - y1)) / d;
+}
+
+static bool
+point_inside_triangle (double tax, double tay, double tbx, double tby, double tcx, double tcy, double ax, double ay)
+{
+	// Compute vectors:
+	double vx[3] = { tcx - tax, tbx - tax, ax - tax };
+	double vy[3] = { tcy - tay, tby - tay, ay - tay };
+
+	// Dot products:
+	double dot00 = vx[0] * vx[0] + vy[0] * vy[0];
+	double dot01 = vx[0] * vx[1] + vy[0] * vy[1];
+	double dot02 = vx[0] * vx[2] + vy[0] * vy[2];
+	double dot11 = vx[1] * vx[1] + vy[1] * vy[1];
+	double dot12 = vx[1] * vx[2] + vy[1] * vy[2];
+
+	double inv = 1.0 / (dot00 * dot11 - dot01 * dot01);
+
+	// Barycentric coordinates:
+	double u, v;
+
+	if ((u = (dot11 * dot02 - dot01 * dot12) * inv) < 0.0) {
+		return false;
+	}
+	if ((v = (dot00 * dot12 - dot01 * dot02) * inv) < 0.0) {
+		return false;
+	}
+	return (u + v < 1.0);
 }
