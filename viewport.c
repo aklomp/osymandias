@@ -60,21 +60,13 @@ viewport_screen_extents_to_world (double *world_left, double *world_bottom, doub
 static void
 recalc_tile_extents (void)
 {
-	// Given center_x, center_y and world_size,
-	// get the tile extents shown on screen
+	// Tile coordinates: (0,0) is top left, (tile_last,tile_last) is bottom right:
 
-	double world_left, world_right, world_top, world_bottom;
-
-	viewport_screen_extents_to_world(&world_left, &world_bottom, &world_right, &world_top);
-
-	// Calculate border tiles. Tile origin is left top, world origin is
-	// left bottom. That's why we use world_bottom for tile_top and vice
-	// versa:
 	tile_last = world_get_size() - 1;
-	tile_left = floor(world_left);
-	tile_right = ceil(world_right);
-	tile_top = floor(world_bottom);
-	tile_bottom = ceil(world_top);
+	tile_left = floor(bbox_x[0]);
+	tile_right = ceil(bbox_x[1]);
+	tile_top = tile_last - floor(bbox_y[1]);
+	tile_bottom = tile_last - floor(bbox_y[0]);
 
 	// Clip to world:
 	if (tile_left < 0) tile_left = 0;
@@ -462,16 +454,12 @@ viewport_gl_setup_world (void)
 bool
 viewport_within_world_bounds (void)
 {
-	double world_left, world_bottom, world_right, world_top;
-	unsigned int world_size = world_get_size();
+	double world_size = (double)world_get_size();
 
-	viewport_screen_extents_to_world(&world_left, &world_bottom, &world_right, &world_top);
-
-	// Does part of the viewport show an area outside of the world?
-	if (world_left < 0) return false;
-	if (world_bottom < 0) return false;
-	if (world_right >= world_size) return false;
-	if (world_top >= world_size) return false;
+	for (int i = 0; i < 4; i++) {
+		if (frustum_x[i] < 0.0 || frustum_x[i] > world_size) return false;
+		if (frustum_y[i] < 0.0 || frustum_y[i] > world_size) return false;
+	}
 	return true;
 }
 
