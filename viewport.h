@@ -20,6 +20,7 @@ void viewport_screen_to_world (double sx, double sy, double *wx, double *wy);
 void viewport_world_to_screen (double wx, double wy, double *sx, double *sy);
 void viewport_get_frustum (double **wx, double **wy);
 void viewport_get_bbox (double **bx, double **by);
+bool point_inside_frustum (double x, double y);
 
 unsigned int viewport_get_ht (void);
 unsigned int viewport_get_wd (void);

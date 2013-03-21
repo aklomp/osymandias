@@ -36,8 +36,19 @@ static int tile_last;
 static double modelview[16];	// OpenGL projection matrices
 static double projection[16];
 
+// Precalculated vectors for checking if a point is inside the frustum:
+static double frustum_bary_vx[2][3];
+static double frustum_bary_vy[2][3];
+static double frustum_bary_dot00[2];
+static double frustum_bary_dot01[2];
+static double frustum_bary_dot02[2];
+static double frustum_bary_dot11[2];
+static double frustum_bary_dot12[2];
+static double frustum_bary_inv[2];
+
 static void intersect_lines (double x0, double y0, double x1, double y1, double x2, double y2, double x3, double y3, double *px, double *py);
 static bool point_inside_triangle (double tax, double tay, double tbx, double tby, double tcx, double tcy, double ax, double ay);
+static void frustum_calc_barycentric (void);
 
 static void
 viewport_screen_extents_to_world (double *world_left, double *world_bottom, double *world_right, double *world_top)
@@ -237,6 +248,16 @@ viewport_calc_frustum (void)
 	// Sometimes the far points of the frustum (0 at left top and 1 at right top)
 	// will cross the horizon and be flipped; use the property that the bottom two
 	// frustum points always lie on one line with the center to check for flip:
+
+	// Frustum points are numbered like this:
+	//
+	//  0-----------1
+	//   \         /
+	//    \       /
+	//     3-----2
+	//
+	// 3 and 2 are always the near points, regardless of orientation.
+
 	for (int i = 0; i < 2; i++)
 	{
 		// Point across diagonal (antipode):
@@ -279,6 +300,7 @@ viewport_calc_bbox (void)
 {
 	double world_size = (double)world_get_size();
 	double px, py;
+	int checked_corners = 0;
 
 	// Reset bounding box:
 	bbox_x[0] = bbox_y[0] = world_size + 1;
@@ -310,47 +332,32 @@ viewport_calc_bbox (void)
 		if (b_inside) {
 			bbox_grow(bx, by);
 		}
-		// If both points outside world, create a triangle with the
-		// next and the previous points. Check if corner points of the
-		// world are inside these triangles:
-		if (!a_inside && !b_inside)
+		// If both points outside world, check for all corner points of
+		// the frustum whether they are visible:
+		if (!a_inside && !b_inside && !checked_corners)
 		{
-			for (int j = 0; j < 2; j++)
-			{
-				// Which other point to form triangle with?
-				int n = (j == 0)
-					? (i >= 2) ? i - 2 : i + 2
-					: (i == 0) ? 3 : i - 1;
-
-				double cx = frustum_x[n];
-				double cy = frustum_y[n];
-
-				// The triangle (a, b, c) is formed with the outside rib as one edge
-				// and a neighbouring point as the peak. Check for all world corner
-				// points whether they are inside the triangle; if so, they are
-				// visible:
-
-				// Bottom left:
-				if ((bbox_x[0] != 0.0 || bbox_y[0] != 0.0) && point_inside_triangle(ax, ay, bx, by, cx, cy, 0.0, 0.0)) {
-					bbox_x[0] = 0.0;
-					bbox_y[0] = 0.0;
-				}
-				// Top left:
-				if ((bbox_x[0] != 0.0 || bbox_y[1] != world_size) && point_inside_triangle(ax, ay, bx, by, cx, cy, 0.0, world_size)) {
-					bbox_x[0] = 0.0;
-					bbox_y[1] = world_size;
-				}
-				// Top right:
-				if ((bbox_x[1] != world_size || bbox_y[1] != world_size) && point_inside_triangle(ax, ay, bx, by, cx, cy, world_size, world_size)) {
-					bbox_x[1] = world_size;
-					bbox_y[1] = world_size;
-				}
-				// Bottom right:
-				if ((bbox_x[1] != world_size || bbox_y[0] != 0.0) && point_inside_triangle(ax, ay, bx, by, cx, cy, world_size, 0.0)) {
-					bbox_x[1] = world_size;
-					bbox_y[0] = 0.0;
-				}
+			// Bottom left:
+			if ((bbox_x[0] != 0.0 || bbox_y[0] != 0.0) && point_inside_frustum(0.0, 0.0)) {
+				bbox_x[0] = 0.0;
+				bbox_y[0] = 0.0;
 			}
+			// Top left:
+			if ((bbox_x[0] != 0.0 || bbox_y[1] != world_size) && point_inside_frustum(0.0, world_size)) {
+				bbox_x[0] = 0.0;
+				bbox_y[1] = world_size;
+			}
+			// Top right:
+			if ((bbox_x[1] != world_size || bbox_y[1] != world_size) && point_inside_frustum(world_size, world_size)) {
+				bbox_x[1] = world_size;
+				bbox_y[1] = world_size;
+			}
+			// Bottom right:
+			if ((bbox_x[1] != world_size || bbox_y[0] != 0.0) && point_inside_frustum(world_size, 0.0)) {
+				bbox_x[1] = world_size;
+				bbox_y[0] = 0.0;
+			}
+			// No need to do this more than once:
+			checked_corners = 1;
 		}
 		// Intersect this line with all four edges of the world:
 
@@ -444,6 +451,7 @@ viewport_gl_setup_world (void)
 	glGetDoublev(GL_PROJECTION_MATRIX, projection);
 
 	viewport_calc_frustum();
+	frustum_calc_barycentric();
 	viewport_calc_bbox();
 
 	glDisable(GL_BLEND);
@@ -605,4 +613,74 @@ point_inside_triangle (double tax, double tay, double tbx, double tby, double tc
 		return false;
 	}
 	return (u + v < 1.0);
+}
+
+static void
+frustum_calc_barycentric (void)
+{
+	// Precalculate as much data as possible for checking later on whether
+	// a point is inside the frustum. These calculations only need to be done once
+	// when the frustum changes.
+	//
+	// Frustum points are numbered like this:
+	//
+	//  0-----------1
+	//   \         /
+	//    \       /
+	//     3-----2
+	//
+	// 3 and 2 are always the near points, regardless of orientation.
+
+	for (int i = 0; i < 2; i++)
+	{
+		// First triangle:  frustum points (0, 1, 3) = (a, b, c),
+		// second triangle: frustum points (1, 2, 3) = (a, b, c):
+		if (i == 0) {
+			frustum_bary_vx[i][0] = frustum_x[3] - frustum_x[0];	// c - a
+			frustum_bary_vy[i][0] = frustum_y[3] - frustum_y[0];
+			frustum_bary_vx[i][1] = frustum_x[1] - frustum_x[0];	// b - a
+			frustum_bary_vy[i][1] = frustum_y[1] - frustum_y[0];
+		}
+		else {
+			frustum_bary_vx[i][0] = frustum_x[3] - frustum_x[1];	// c - a
+			frustum_bary_vy[i][0] = frustum_y[3] - frustum_y[1];
+			frustum_bary_vx[i][1] = frustum_x[2] - frustum_x[1];	// b - a
+			frustum_bary_vy[i][1] = frustum_y[2] - frustum_y[1];
+		}
+		frustum_bary_dot00[i] = frustum_bary_vx[i][0] * frustum_bary_vx[i][0] + frustum_bary_vy[i][0] * frustum_bary_vy[i][0];	// v0 . v0
+		frustum_bary_dot01[i] = frustum_bary_vx[i][0] * frustum_bary_vx[i][1] + frustum_bary_vy[i][0] * frustum_bary_vy[i][1];	// v0 . v1
+		frustum_bary_dot11[i] = frustum_bary_vx[i][1] * frustum_bary_vx[i][1] + frustum_bary_vy[i][1] * frustum_bary_vy[i][1];	// v1 . v1
+
+		frustum_bary_inv[i] = 1.0 / (frustum_bary_dot00[i] * frustum_bary_dot11[i] - frustum_bary_dot01[i] * frustum_bary_dot01[i]);
+	}
+}
+
+bool
+point_inside_frustum (double x, double y)
+{
+	// Use precomputed barycentric vectors to quickly determine whether a
+	// point is inside the frustum. Divide the frustum into two triangles
+	// and use a variation of point_inside_triangle() on both triangles.
+
+	double u, v;
+
+	for (int i = 0; i < 2; i++)
+	{
+		frustum_bary_vx[i][2] = x - frustum_x[i];
+		frustum_bary_vy[i][2] = y - frustum_y[i];
+
+		frustum_bary_dot02[i] = frustum_bary_vx[i][0] * frustum_bary_vx[i][2] + frustum_bary_vy[i][0] * frustum_bary_vy[i][2];
+		frustum_bary_dot12[i] = frustum_bary_vx[i][1] * frustum_bary_vx[i][2] + frustum_bary_vy[i][1] * frustum_bary_vy[i][2];
+
+		if ((u = (frustum_bary_dot11[i] * frustum_bary_dot02[i] - frustum_bary_dot01[i] * frustum_bary_dot12[i]) * frustum_bary_inv[i]) < 0.0) {
+			continue;
+		}
+		if ((v = (frustum_bary_dot00[i] * frustum_bary_dot12[i] - frustum_bary_dot01[i] * frustum_bary_dot02[i]) * frustum_bary_inv[i]) < 0.0) {
+			continue;
+		}
+		if (u + v < 1.0) {
+			return true;
+		}
+	}
+	return false;
 }
