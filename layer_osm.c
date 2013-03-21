@@ -60,6 +60,7 @@ layer_osm_paint (void)
 	int tile_left = viewport_get_tile_left();
 	int tile_right = viewport_get_tile_right();
 	int tile_bottom = viewport_get_tile_bottom();
+	int tile_last = world_get_size() - 1;
 
 	// Draw to world coordinates:
 	viewport_gl_setup_world();
@@ -78,6 +79,15 @@ layer_osm_paint (void)
 	for (int x = tile_left; x <= tile_right; x++) {
 		for (int y = tile_top; y <= tile_bottom; y++) {
 
+			// Check if at least one point of the tile is inside the frustum;
+			// else go to the next tile. This is expensive, but not as expensive
+			// as procuring and rendering an unnecessary tile.
+			if (!point_inside_frustum(x,     tile_last - y)
+			 && !point_inside_frustum(x + 1, tile_last - y)
+			 && !point_inside_frustum(x,     tile_last - y + 1)
+			 && !point_inside_frustum(x + 1, tile_last - y + 1)) {
+				continue;
+			}
 			// Calculate pixel width of tile on screen; this guides our
 			// selection of zoom level (faraway tiles get less detail):
 			int tile_pixelwd = tile_get_pixelwd(x, y);
