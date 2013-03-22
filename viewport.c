@@ -22,10 +22,10 @@ static float view_rot;		// rotation along z axis, in degrees
 static float view_zdist;	// Distance from camera to cursor in z units (camera height)
 static double hold_x;		// Mouse hold/drag at this world coordinate
 static double hold_y;
-static double frustum_x[4];
-static double frustum_y[4];
-static double bbox_x[2];
-static double bbox_y[2];
+static double frustum_x[4] = { 0.0, 0.0, 0.0, 0.0 };
+static double frustum_y[4] = { 0.0, 0.0, 0.0, 0.0 };
+static double bbox_x[2] = { 0.0, 0.0 };
+static double bbox_y[2] = { 0.0, 0.0 };
 
 static int tile_top;
 static int tile_left;
@@ -45,16 +45,29 @@ static double frustum_bary_dot02[2];
 static double frustum_bary_dot11[2];
 static double frustum_bary_dot12[2];
 static double frustum_bary_inv[2];
+static int frustum_bary_need_recalc = 1;
+static int frustum_coords_need_recalc = 1;
 
 static void intersect_lines (double x0, double y0, double x1, double y1, double x2, double y2, double x3, double y3, double *px, double *py);
 static bool point_inside_triangle (double tax, double tay, double tbx, double tby, double tcx, double tcy, double ax, double ay);
 static void frustum_calc_barycentric (void);
 
 static void
-viewport_screen_extents_to_world (double *world_left, double *world_bottom, double *world_right, double *world_top)
+frustum_changed_location (void)
 {
-	viewport_screen_to_world(0, 0, world_left, world_bottom);
-	viewport_screen_to_world(screen_wd, screen_ht, world_right, world_top);
+	// Called once when the location of the frustum changes, but no shape
+	// change occurs. For instance when the camera autopans over the tiles.
+	frustum_coords_need_recalc = 1;
+}
+
+static void
+frustum_changed_shape (void)
+{
+	// Called once whenever the frustum changes shape or dimensions.
+	frustum_bary_need_recalc = 1;
+
+	// Shape change implies changes in location:
+	frustum_changed_location();
 }
 
 static void
@@ -90,14 +103,14 @@ center_set (const double world_x, const double world_y)
 	         : (world_y >= world_size) ? world_size
 	         : (world_y);
 
-	recalc_tile_extents();
+	// Frustum size stays the same, but location changed:
+	frustum_changed_location();
 }
 
 bool
 viewport_init (void)
 {
 	center_x = center_y = (double)world_get_size() / 2.0;
-	recalc_tile_extents();
 	view_tilt = 0.0;
 	view_rot = 0.0;
 	view_zdist = 4;
@@ -121,6 +134,9 @@ viewport_zoom_in (const int screen_x, const int screen_y)
 	int dx = screen_x - screen_wd / 2;
 	int dy = screen_y - screen_ht / 2;
 	viewport_scroll(dx, dy);
+
+	// Frustum got smaller:
+	frustum_changed_shape();
 }
 
 void
@@ -134,6 +150,9 @@ viewport_zoom_out (const int screen_x, const int screen_y)
 	int dx = screen_x - screen_wd / 2;
 	int dy = screen_y - screen_ht / 2;
 	viewport_scroll(-dx / 2, -dy / 2);
+
+	// Frustum got larger:
+	frustum_changed_shape();
 }
 
 void
@@ -190,6 +209,9 @@ viewport_tilt (const int dy)
 
 	/* Snap to 0.0: */
 	if (view_tilt < 0.05) view_tilt = 0.0;
+
+	// This warps the frustum:
+	frustum_changed_shape();
 }
 
 void
@@ -201,6 +223,9 @@ viewport_rotate (const int dx)
 
 	if (view_rot < 0.0) view_rot += 360.0;
 	if (view_rot >= 360.0) view_rot -= 360.0;
+
+	// Basic shape of frustum stays the same, but it's rotated:
+	frustum_changed_location();
 }
 
 void
@@ -214,7 +239,8 @@ viewport_reshape (const unsigned int new_width, const unsigned int new_height)
 	screen_wd = new_width;
 	screen_ht = new_height;
 
-	recalc_tile_extents();
+	frustum_changed_shape();
+
 	viewport_render();
 }
 
@@ -442,10 +468,22 @@ viewport_gl_setup_world (void)
 	glGetDoublev(GL_MODELVIEW_MATRIX, modelview);
 	glGetDoublev(GL_PROJECTION_MATRIX, projection);
 
-	viewport_calc_frustum();
-	frustum_calc_barycentric();
-	viewport_calc_bbox();
-
+	// Must put this logic here because these recalc functions rely on the
+	// projection matrices that have just been set up; use control
+	// variables to run them only when needed, since this function can be
+	// called multiple times per frame.
+	if (frustum_coords_need_recalc) {
+		viewport_calc_frustum();
+		if (frustum_bary_need_recalc) {
+			// Relies on the frustum points:
+			frustum_calc_barycentric();
+			frustum_bary_need_recalc = 0;
+		}
+		// Relies on the barycentric coordinates:
+		viewport_calc_bbox();
+		recalc_tile_extents();
+		frustum_coords_need_recalc = 0;
+	}
 	glDisable(GL_BLEND);
 	glDisable(GL_DEPTH_TEST);
 	glDepthMask(GL_FALSE);
