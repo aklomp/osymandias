@@ -286,10 +286,16 @@ zoomed_texture_cutout (int orig_x, int orig_y, struct texture *t)
 static int
 tile_get_pixelwd (int tile_x, int tile_y)
 {
-	// For the given tile, calculate the width on screen of its closest edge.
+	// For the given tile, calculate the width on screen of its closest
+	// edge, or the diagonal.
 	// Useful to determine which zoom level to use for the tile.
 
 	// Corner points of the tile, clockwise from top left:
+	//
+	//    0---1
+	//    |   |
+	//    3---2
+	//
 	double px[4] = { tile_x, tile_x + 1, tile_x + 1, tile_x };
 	double py[4] = { tile_y + 1, tile_y + 1, tile_y, tile_y };
 	double tx[2], ty[2];
@@ -297,22 +303,57 @@ tile_get_pixelwd (int tile_x, int tile_y)
 	// Get rotation in world:
 	float rot = viewport_get_rot();
 
-	// Get coordinates of longest visible rib:
-	if (rot > 45.0 && rot <= 135.0) {
-		tx[0] = px[0]; ty[0] = py[0];
-		tx[1] = px[3]; ty[1] = py[3];
-	}
-	else if (rot > 135.0 && rot <= 225.0) {
-		tx[0] = px[0]; ty[0] = py[0];
-		tx[1] = px[1]; ty[1] = py[1];
-	}
-	else if (rot > 225.0 && rot <= 315.0) {
-		tx[0] = px[1]; ty[0] = py[1];
-		tx[1] = px[2]; ty[1] = py[2];
+	// Divide the circle into eight segments of 45 degrees each.
+	// Mark two points of a tile as the "longest in this segment":
+	// either a diagonal or a rib, whichever faces the viewer most.
+	// Use binary search to minimize comparisons.
+	if (rot < 202.5) {
+		if (rot < 67.5) {
+			if (rot < 22.5) {
+				tx[0] = px[3]; ty[0] = py[3];	// ..
+				tx[1] = px[2]; ty[1] = py[2];   // ++
+			}
+			else {
+				tx[0] = px[0]; ty[0] = py[0];	// +.
+				tx[1] = px[2]; ty[1] = py[2];	// .+
+			}
+		}
+		else {
+			if (rot < 112.5) {
+				tx[0] = px[0]; ty[0] = py[0];	// +.
+				tx[1] = px[3]; ty[1] = py[3];	// +.
+			}
+			else if (rot < 157.5) {
+				tx[0] = px[1]; ty[0] = py[1];	// .+
+				tx[1] = px[3]; ty[1] = py[3];	// +.
+			}
+			else {
+				tx[0] = px[0]; ty[0] = py[0];	// ++
+				tx[1] = px[1]; ty[1] = py[1];	// ..
+			}
+		}
 	}
 	else {
-		tx[0] = px[3]; ty[0] = py[3];
-		tx[1] = px[2]; ty[1] = py[2];
+		if (rot < 292.5) {
+			if (rot < 247.5) {
+				tx[0] = px[0]; ty[0] = py[0];	// +.
+				tx[1] = px[2]; ty[1] = py[2];	// .+
+			}
+			else {
+				tx[0] = px[1]; ty[0] = py[1];	// .+
+				tx[1] = px[2]; ty[1] = py[2];	// .+
+			}
+		}
+		else {
+			if (rot < 337.5) {
+				tx[0] = px[3]; ty[0] = py[3];	// .+
+				tx[1] = px[1]; ty[1] = py[1];	// +.
+			}
+			else {
+				tx[0] = px[3]; ty[0] = py[3];	// ..
+				tx[1] = px[2]; ty[1] = py[2];	// ++
+			}
+		}
 	}
 	// Project these points on the screen:
 	double sx[2], sy[2];
