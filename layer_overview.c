@@ -4,6 +4,7 @@
 #include "world.h"
 #include "viewport.h"
 #include "layers.h"
+#include "tilepicker.h"
 
 #define OVERVIEW_WD	256.0
 #define OVERVIEW_MARGIN	10.0
@@ -36,6 +37,42 @@ layer_overview_paint (void)
 		glVertex2d(wd - OVERVIEW_MARGIN,          ht - OVERVIEW_MARGIN);
 		glVertex2d(wd - OVERVIEW_MARGIN - OVERVIEW_WD, ht - OVERVIEW_MARGIN);
 	glEnd();
+
+	// Draw tiles from tile picker:
+	int x, y, tile_wd, tile_ht, zoom;
+
+	for (int iter = tilepicker_first(&x, &y, &tile_wd, &tile_ht, &zoom); iter; iter = tilepicker_next(&x, &y, &tile_wd, &tile_ht, &zoom)) {
+		float zoomcolors[6][3] = {
+			{ 1.0, 0.0, 0.0 },
+			{ 0.0, 1.0, 0.0 },
+			{ 0.0, 0.0, 1.0 },
+			{ 0.5, 0.5, 0.0 },
+			{ 0.0, 0.5, 0.5 },
+			{ 0.5, 0.0, 0.5 }
+		};
+		glColor4f(zoomcolors[zoom % 3][0], zoomcolors[zoom % 3][1], zoomcolors[zoom % 3][2], 0.5);
+		float xp[2] = {
+			wd - OVERVIEW_MARGIN - OVERVIEW_WD + OVERVIEW_WD * (x / world_size),
+			wd - OVERVIEW_MARGIN - OVERVIEW_WD + OVERVIEW_WD * ((x + tile_wd) / world_size)
+		};
+		float yp[2] = {
+			ht - OVERVIEW_MARGIN - OVERVIEW_WD + OVERVIEW_WD * ((world_size - y)  / world_size),
+			ht - OVERVIEW_MARGIN - OVERVIEW_WD + OVERVIEW_WD * ((world_size - y - tile_ht) / world_size)
+		};
+		glBegin(GL_QUADS);
+			glVertex2f(xp[0], yp[0]);
+			glVertex2f(xp[0], yp[1]);
+			glVertex2f(xp[1], yp[1]);
+			glVertex2f(xp[1], yp[0]);
+		glEnd();
+		glColor4f(1.0, 1.0, 1.0, 0.5);
+		glBegin(GL_LINE_LOOP);
+			glVertex2d(xp[0], yp[0]);
+			glVertex2d(xp[0], yp[1]);
+			glVertex2d(xp[1], yp[1]);
+			glVertex2d(xp[1], yp[0]);
+		glEnd();
+	}
 
 	// Draw frustum (view region):
 	double *wx, *wy;

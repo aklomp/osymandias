@@ -10,6 +10,7 @@
 #include "shaders.h"
 #include "world.h"
 #include "viewport.h"
+#include "tilepicker.h"
 #include "layers.h"
 #include "layer_osm.h"
 
@@ -30,7 +31,6 @@ static GLuint texture_from_rawbits (void *rawbits);
 static void *texture_request (struct xylist_req *req);
 static void texture_destroy (void *data);
 static void zoomed_texture_cutout (int orig_x, int orig_y, int wd, int ht, struct texture *t);
-static int tile_get_pixelwd (int tile_x, int tile_y);
 
 static struct xylist *textures = NULL;
 
@@ -52,6 +52,10 @@ layer_osm_full_occlusion (void)
 static void
 layer_osm_paint (void)
 {
+	int x;
+	int y;
+	int tile_wd, tile_ht;
+	int zoom;
 	void *txtdata = NULL;
 	void *bmpdata = NULL;
 	struct texture t;
@@ -61,7 +65,6 @@ layer_osm_paint (void)
 	int tile_left = viewport_get_tile_left();
 	int tile_right = viewport_get_tile_right();
 	int tile_bottom = viewport_get_tile_bottom();
-	int tile_last = world_get_size() - 1;
 
 	// Draw to world coordinates:
 	viewport_gl_setup_world();
@@ -77,79 +80,55 @@ layer_osm_paint (void)
 	// The texture colors are multiplied with this value:
 	glColor3f(1.0, 1.0, 1.0);
 
-	for (int x = tile_left; x <= tile_right; x++) {
-		for (int y = tile_top; y <= tile_bottom; y++) {
+	for (int iter = tilepicker_first(&x, &y, &tile_wd, &tile_ht, &zoom); iter; iter = tilepicker_next(&x, &y, &tile_wd, &tile_ht, &zoom))
+	{
+		// The tilepicker can tell us to draw a tile at a different zoom level to the world zoom;
+		// we need to correct the geometry to reflect that:
+		req.xn = x >> (world_zoom - zoom);
+		req.yn = y >> (world_zoom - zoom);
+		req.zoom = zoom;
+		req.xmin = tile_left >> (world_zoom - zoom);
+		req.ymin = tile_top >> (world_zoom - zoom);
+		req.xmax = tile_right >> (world_zoom - zoom);
+		req.ymax = tile_bottom >> (world_zoom - zoom);
+		req.search_depth = 9;
 
-			// Check if at least one point of the tile is inside the frustum;
-			// else go to the next tile. This is expensive, but not as expensive
-			// as procuring and rendering an unnecessary tile.
-			if (!point_inside_frustum(x,     tile_last - y)
-			 && !point_inside_frustum(x + 1, tile_last - y)
-			 && !point_inside_frustum(x,     tile_last - y + 1)
-			 && !point_inside_frustum(x + 1, tile_last - y + 1)) {
+		// Is the texture already cached in OpenGL?
+		if (textures && (txtdata = xylist_deep_search(texture_request, &req, &t)) != NULL) {
+			// If the texture is already cached at native resolution,
+			// then we're done; else still try to get the native bitmap:
+			if (t.zoom == zoom) {
+				t.zoomdiff = world_zoom - t.zoom;
+				zoomed_texture_cutout(x, y, tile_wd, tile_ht, &t);
+				draw_tile(x, y, tile_wd, tile_ht, (GLuint)txtdata, &t, cx, cy);
 				continue;
 			}
-			// Calculate pixel width of tile on screen; this guides our
-			// selection of zoom level (faraway tiles get less detail):
-			int tile_pixelwd = tile_get_pixelwd(x, y);
-			int tile_zoom = world_zoom;
-			int zoomdiff;
-
-			if (tile_pixelwd < 128) tile_zoom--;
-			if (tile_pixelwd < 64) tile_zoom--;
-			if (tile_pixelwd < 32) tile_zoom--;
-			if (tile_pixelwd < 16) tile_zoom--;
-			if (tile_pixelwd < 8) tile_zoom--;
-			if (tile_pixelwd < 4) tile_zoom--;
-			if (tile_pixelwd < 2) tile_zoom--;
-
-			if (tile_zoom < 0) tile_zoom = 0;
-			zoomdiff = world_zoom - tile_zoom;
-
-			req.xn = x >> zoomdiff;
-			req.yn = y >> zoomdiff;
-			req.zoom = tile_zoom;
-			req.xmin = tile_left >> zoomdiff;
-			req.ymin = tile_top >> zoomdiff;
-			req.xmax = tile_right >> zoomdiff;
-			req.ymax = tile_bottom >> zoomdiff;
-			req.search_depth = 9;
-
-			// Is the texture already cached in OpenGL?
-			if (textures && (txtdata = xylist_deep_search(texture_request, &req, &t)) != NULL) {
-				// If the texture is already cached at native resolution,
-				// then we're done; else still try to get the native bitmap:
-				if (t.zoom == tile_zoom) {
-					t.zoomdiff = world_zoom - t.zoom;
-					zoomed_texture_cutout(x, y, 1, 1, &t);
-					draw_tile(x, y, 1, 1, (GLuint)txtdata, &t, cx, cy);
-					continue;
-				}
+		}
+		// Try to load the bitmap and turn it into an OpenGL texture:
+		if ((bmpdata = xylist_deep_search(bitmap_request, &req, &t)) == NULL) {
+			if (txtdata) {
+				t.zoomdiff = world_zoom - t.zoom;
+				zoomed_texture_cutout(x, y, tile_wd, tile_ht, &t);
+				draw_tile(x, y, tile_wd, tile_ht, (GLuint)txtdata, &t, cx, cy);
 			}
-			// Try to load the bitmap and turn it into an OpenGL texture:
-			if ((bmpdata = xylist_deep_search(bitmap_request, &req, &t)) == NULL) {
-				if (txtdata) {
-					t.zoomdiff = world_zoom - t.zoom;
-					zoomed_texture_cutout(x, y, 1, 1, &t);
-					draw_tile(x, y, 1, 1, (GLuint)txtdata, &t, cx, cy);
-				}
-				continue;
-			}
-			GLuint id = texture_from_rawbits(bmpdata);
-			t.zoomdiff = world_zoom - t.zoom;
-			zoomed_texture_cutout(x, y, 1, 1, &t);
-			draw_tile(x, y, 1, 1, id, &t, cx, cy);
+			continue;
+		}
+		GLuint id = texture_from_rawbits(bmpdata);
+		t.zoomdiff = world_zoom - t.zoom;
+		zoomed_texture_cutout(x, y, tile_wd, tile_ht, &t);
+		draw_tile(x, y, tile_wd, tile_ht, id, &t, cx, cy);
 
-			// When we insert this texture id in the texture cache,
-			// we do so under its native zoom level, not the zoom level
-			// of the current viewport:
-			req.zoom = t.zoom;
+		// When we insert this texture id in the texture cache,
+		// we do so under its native zoom level, not the zoom level
+		// of the current viewport:
+		req.zoom = t.zoom;
+		req.xn = t.tile_x;
+		req.yn = t.tile_y;
 
-			// Store the identifier in the textures cache, else delete;
-			// HACK: dirty int-to-pointer conversion:
-			if (!textures || !xylist_insert_tile(textures, &req, (void *)id)) {
-				glDeleteTextures(1, &id);
-			}
+		// Store the identifier in the textures cache, else delete;
+		// HACK: dirty int-to-pointer conversion:
+		if (!textures || !xylist_insert_tile(textures, &req, (void *)id)) {
+			glDeleteTextures(1, &id);
 		}
 	}
 	glDisable(GL_BLEND);
@@ -289,91 +268,6 @@ zoomed_texture_cutout (int orig_x, int orig_y, int wd, int ht, struct texture *t
 	t->offset_y = (256 * yblock) >> t->zoomdiff;
 	t->wd = (256 * wd) >> t->zoomdiff;
 	t->ht = (256 * ht) >> t->zoomdiff;
-}
-
-static int
-tile_get_pixelwd (int tile_x, int tile_y)
-{
-	// For the given tile, calculate the width on screen of its closest
-	// edge, or the diagonal.
-	// Useful to determine which zoom level to use for the tile.
-
-	// Corner points of the tile, clockwise from top left:
-	//
-	//    0---1
-	//    |   |
-	//    3---2
-	//
-	double px[4] = { tile_x, tile_x + 1, tile_x + 1, tile_x };
-	double py[4] = { tile_y + 1, tile_y + 1, tile_y, tile_y };
-	double tx[2], ty[2];
-
-	// Get rotation in world:
-	float rot = viewport_get_rot();
-
-	// Divide the circle into eight segments of 45 degrees each.
-	// Mark two points of a tile as the "longest in this segment":
-	// either a diagonal or a rib, whichever faces the viewer most.
-	// Use binary search to minimize comparisons.
-	if (rot < 202.5) {
-		if (rot < 67.5) {
-			if (rot < 22.5) {
-				tx[0] = px[3]; ty[0] = py[3];	// ..
-				tx[1] = px[2]; ty[1] = py[2];   // ++
-			}
-			else {
-				tx[0] = px[0]; ty[0] = py[0];	// +.
-				tx[1] = px[2]; ty[1] = py[2];	// .+
-			}
-		}
-		else {
-			if (rot < 112.5) {
-				tx[0] = px[0]; ty[0] = py[0];	// +.
-				tx[1] = px[3]; ty[1] = py[3];	// +.
-			}
-			else if (rot < 157.5) {
-				tx[0] = px[1]; ty[0] = py[1];	// .+
-				tx[1] = px[3]; ty[1] = py[3];	// +.
-			}
-			else {
-				tx[0] = px[0]; ty[0] = py[0];	// ++
-				tx[1] = px[1]; ty[1] = py[1];	// ..
-			}
-		}
-	}
-	else {
-		if (rot < 292.5) {
-			if (rot < 247.5) {
-				tx[0] = px[0]; ty[0] = py[0];	// +.
-				tx[1] = px[2]; ty[1] = py[2];	// .+
-			}
-			else {
-				tx[0] = px[1]; ty[0] = py[1];	// .+
-				tx[1] = px[2]; ty[1] = py[2];	// .+
-			}
-		}
-		else {
-			if (rot < 337.5) {
-				tx[0] = px[3]; ty[0] = py[3];	// .+
-				tx[1] = px[1]; ty[1] = py[1];	// +.
-			}
-			else {
-				tx[0] = px[3]; ty[0] = py[3];	// ..
-				tx[1] = px[2]; ty[1] = py[2];	// ++
-			}
-		}
-	}
-	// Project these points on the screen:
-	double sx[2], sy[2];
-
-	viewport_world_to_screen(tx[0], ty[0], &sx[0], &sy[0]);
-	viewport_world_to_screen(tx[1], ty[1], &sx[1], &sy[1]);
-
-	// Calculate rib length:
-	double dx = sx[0] - sx[1];
-	double dy = sy[0] - sy[1];
-
-	return (int)sqrt(dx * dx + dy * dy);
 }
 
 bool

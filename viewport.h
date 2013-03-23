@@ -27,6 +27,7 @@ unsigned int viewport_get_wd (void);
 double viewport_get_center_x (void);
 double viewport_get_center_y (void);
 float viewport_get_rot (void);
+float viewport_get_tilt (void);
 int viewport_get_tile_top (void);
 int viewport_get_tile_left (void);
 int viewport_get_tile_right (void);

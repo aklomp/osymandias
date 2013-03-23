@@ -10,6 +10,7 @@
 #include "shaders.h"
 #include "autoscroll.h"
 #include "world.h"
+#include "tilepicker.h"
 #include "layers.h"
 #include "viewport.h"
 
@@ -482,6 +483,7 @@ viewport_gl_setup_world (void)
 		// Relies on the barycentric coordinates:
 		viewport_calc_bbox();
 		recalc_tile_extents();
+		tilepicker_recalc();
 		frustum_coords_need_recalc = 0;
 	}
 	glDisable(GL_BLEND);
@@ -529,6 +531,12 @@ float
 viewport_get_rot (void)
 {
 	return view_rot;
+}
+
+float
+viewport_get_tilt (void)
+{
+	return view_tilt;
 }
 
 int viewport_get_tile_top (void) { return tile_top; }

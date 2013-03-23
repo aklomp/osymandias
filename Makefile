@@ -17,6 +17,7 @@ OBJS = \
   pngloader.o \
   autoscroll.o \
   bitmap_mgr.o \
+  tilepicker.o \
 
 OBJS_GTK = \
   mouse.o \
