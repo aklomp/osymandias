@@ -225,6 +225,9 @@ draw_tile (int tile_x, int tile_y, GLuint texture_id, struct texture *t, double 
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
+	// Flip tile y coordinates: tile origin is top left, world origin is bottom left:
+	tile_y = world_get_size() - 1 - tile_y;
+
 	// Need to calculate the world coordinates of our tile in double
 	// precision, then translate the coordinates to the center ourselves.
 	// OpenGL uses floats to represent the world, which lack the precision
@@ -265,9 +268,6 @@ zoomed_texture_cutout (int orig_x, int orig_y, struct texture *t)
 	// This is the nth block out of parent, counting from top left:
 	int xblock = orig_x & ((1 << t->zoomdiff) - 1);
 	int yblock = orig_y & ((1 << t->zoomdiff) - 1);
-
-	// Reverse the yblock index, texture coordinates run from bottom left:
-	yblock = (1 << t->zoomdiff) - 1 - yblock;
 
 	t->offset_x = t->size * xblock;
 	t->offset_y = t->size * yblock;
