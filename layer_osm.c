@@ -24,7 +24,7 @@ struct texture {
 };
 
 static void *xylist_deep_search (void *(*xylist_req)(struct xylist_req *), struct xylist_req *req, struct texture *tex);
-static void draw_tile (int tile_x, int tile_y, GLuint texture_id, struct texture *t, double cx, double cy);
+static void draw_tile (int tile_x, int tile_y, int tile_wd, int tile_ht, GLuint texture_id, struct texture *t, double cx, double cy);
 static GLuint texture_from_rawbits (void *rawbits);
 static void *texture_request (struct xylist_req *req);
 static void texture_destroy (void *data);
@@ -121,7 +121,7 @@ layer_osm_paint (void)
 				if (t.zoom == tile_zoom) {
 					t.zoomdiff = world_zoom - t.zoom;
 					zoomed_texture_cutout(x, y, &t);
-					draw_tile(x, y, (GLuint)txtdata, &t, cx, cy);
+					draw_tile(x, y, 1, 1, (GLuint)txtdata, &t, cx, cy);
 					continue;
 				}
 			}
@@ -130,14 +130,14 @@ layer_osm_paint (void)
 				if (txtdata) {
 					t.zoomdiff = world_zoom - t.zoom;
 					zoomed_texture_cutout(x, y, &t);
-					draw_tile(x, y, (GLuint)txtdata, &t, cx, cy);
+					draw_tile(x, y, 1, 1, (GLuint)txtdata, &t, cx, cy);
 				}
 				continue;
 			}
 			GLuint id = texture_from_rawbits(bmpdata);
 			t.zoomdiff = world_zoom - t.zoom;
 			zoomed_texture_cutout(x, y, &t);
-			draw_tile(x, y, id, &t, cx, cy);
+			draw_tile(x, y, 1, 1, id, &t, cx, cy);
 
 			// When we insert this texture id in the texture cache,
 			// we do so under its native zoom level, not the zoom level
@@ -225,7 +225,7 @@ texture_from_rawbits (void *rawbits)
 }
 
 static void
-draw_tile (int tile_x, int tile_y, GLuint texture_id, struct texture *t, double cx, double cy)
+draw_tile (int tile_x, int tile_y, int tile_wd, int tile_ht, GLuint texture_id, struct texture *t, double cx, double cy)
 {
 	GLdouble txoffs = (GLdouble)t->offset_x / 256.0;
 	GLdouble tyoffs = (GLdouble)t->offset_y / 256.0;
@@ -244,10 +244,10 @@ draw_tile (int tile_x, int tile_y, GLuint texture_id, struct texture *t, double 
 	// to represent individual pixels at the max zoom level.
 
 	glBegin(GL_QUADS);
-		glTexCoord2f(txoffs,         tyoffs);         glVertex2f(cx + (double)tile_x,       cy + (double)tile_y + 1.0);
-		glTexCoord2f(txoffs + tsize, tyoffs);         glVertex2f(cx + (double)tile_x + 1.0, cy + (double)tile_y + 1.0);
-		glTexCoord2f(txoffs + tsize, tyoffs + tsize); glVertex2f(cx + (double)tile_x + 1.0, cy + (double)tile_y);
-		glTexCoord2f(txoffs,         tyoffs + tsize); glVertex2f(cx + (double)tile_x,       cy + (double)tile_y);
+		glTexCoord2f(txoffs,         tyoffs);         glVertex2f(cx + (double)tile_x,                   cy + (double)tile_y + (double)tile_ht);
+		glTexCoord2f(txoffs + tsize, tyoffs);         glVertex2f(cx + (double)tile_x + (double)tile_wd, cy + (double)tile_y + (double)tile_ht);
+		glTexCoord2f(txoffs + tsize, tyoffs + tsize); glVertex2f(cx + (double)tile_x + (double)tile_wd, cy + (double)tile_y);
+		glTexCoord2f(txoffs,         tyoffs + tsize); glVertex2f(cx + (double)tile_x,                   cy + (double)tile_y);
 	glEnd();
 }
 
