@@ -17,7 +17,8 @@ struct texture {
 	int zoom;
 	unsigned int tile_x;
 	unsigned int tile_y;
-	unsigned int size;
+	unsigned int wd;
+	unsigned int ht;
 	unsigned int offset_x;
 	unsigned int offset_y;
 	unsigned int zoomdiff;
@@ -28,7 +29,7 @@ static void draw_tile (int tile_x, int tile_y, int tile_wd, int tile_ht, GLuint 
 static GLuint texture_from_rawbits (void *rawbits);
 static void *texture_request (struct xylist_req *req);
 static void texture_destroy (void *data);
-static void zoomed_texture_cutout (int orig_x, int orig_y, struct texture *t);
+static void zoomed_texture_cutout (int orig_x, int orig_y, int wd, int ht, struct texture *t);
 static int tile_get_pixelwd (int tile_x, int tile_y);
 
 static struct xylist *textures = NULL;
@@ -120,7 +121,7 @@ layer_osm_paint (void)
 				// then we're done; else still try to get the native bitmap:
 				if (t.zoom == tile_zoom) {
 					t.zoomdiff = world_zoom - t.zoom;
-					zoomed_texture_cutout(x, y, &t);
+					zoomed_texture_cutout(x, y, 1, 1, &t);
 					draw_tile(x, y, 1, 1, (GLuint)txtdata, &t, cx, cy);
 					continue;
 				}
@@ -129,14 +130,14 @@ layer_osm_paint (void)
 			if ((bmpdata = xylist_deep_search(bitmap_request, &req, &t)) == NULL) {
 				if (txtdata) {
 					t.zoomdiff = world_zoom - t.zoom;
-					zoomed_texture_cutout(x, y, &t);
+					zoomed_texture_cutout(x, y, 1, 1, &t);
 					draw_tile(x, y, 1, 1, (GLuint)txtdata, &t, cx, cy);
 				}
 				continue;
 			}
 			GLuint id = texture_from_rawbits(bmpdata);
 			t.zoomdiff = world_zoom - t.zoom;
-			zoomed_texture_cutout(x, y, &t);
+			zoomed_texture_cutout(x, y, 1, 1, &t);
 			draw_tile(x, y, 1, 1, id, &t, cx, cy);
 
 			// When we insert this texture id in the texture cache,
@@ -174,7 +175,6 @@ xylist_deep_search (void *(*xylist_req)(struct xylist_req *), struct xylist_req 
 	if ((data = xylist_req(req)) != NULL) {
 		t->offset_x = 0;
 		t->offset_y = 0;
-		t->size = 256;
 		t->zoom = req->zoom;
 		t->zoomdiff = 0;
 		t->tile_x = req->xn;
@@ -229,14 +229,15 @@ draw_tile (int tile_x, int tile_y, int tile_wd, int tile_ht, GLuint texture_id, 
 {
 	GLdouble txoffs = (GLdouble)t->offset_x / 256.0;
 	GLdouble tyoffs = (GLdouble)t->offset_y / 256.0;
-	GLdouble tsize = (GLdouble)t->size / 256.0;
+	GLdouble twd = (GLdouble)t->wd / 256.0;
+	GLdouble tht = (GLdouble)t->ht / 256.0;
 
 	glBindTexture(GL_TEXTURE_2D, texture_id);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
 	// Flip tile y coordinates: tile origin is top left, world origin is bottom left:
-	tile_y = world_get_size() - 1 - tile_y;
+	tile_y = world_get_size() - tile_y - tile_ht;
 
 	// Need to calculate the world coordinates of our tile in double
 	// precision, then translate the coordinates to the center ourselves.
@@ -244,10 +245,10 @@ draw_tile (int tile_x, int tile_y, int tile_wd, int tile_ht, GLuint texture_id, 
 	// to represent individual pixels at the max zoom level.
 
 	glBegin(GL_QUADS);
-		glTexCoord2f(txoffs,         tyoffs);         glVertex2f(cx + (double)tile_x,                   cy + (double)tile_y + (double)tile_ht);
-		glTexCoord2f(txoffs + tsize, tyoffs);         glVertex2f(cx + (double)tile_x + (double)tile_wd, cy + (double)tile_y + (double)tile_ht);
-		glTexCoord2f(txoffs + tsize, tyoffs + tsize); glVertex2f(cx + (double)tile_x + (double)tile_wd, cy + (double)tile_y);
-		glTexCoord2f(txoffs,         tyoffs + tsize); glVertex2f(cx + (double)tile_x,                   cy + (double)tile_y);
+		glTexCoord2f(txoffs,       tyoffs);       glVertex2f(cx + (double)tile_x,                   cy + (double)tile_y + (double)tile_ht);
+		glTexCoord2f(txoffs + twd, tyoffs);       glVertex2f(cx + (double)tile_x + (double)tile_wd, cy + (double)tile_y + (double)tile_ht);
+		glTexCoord2f(txoffs + twd, tyoffs + tht); glVertex2f(cx + (double)tile_x + (double)tile_wd, cy + (double)tile_y);
+		glTexCoord2f(txoffs,       tyoffs + tht); glVertex2f(cx + (double)tile_x,                   cy + (double)tile_y);
 	glEnd();
 }
 
@@ -270,17 +271,24 @@ texture_destroy (void *data)
 }
 
 static void
-zoomed_texture_cutout (int orig_x, int orig_y, struct texture *t)
+zoomed_texture_cutout (int orig_x, int orig_y, int wd, int ht, struct texture *t)
 {
-	// At this zoom level, cut a block of this pixel size out of parent:
-	t->size = 256 >> t->zoomdiff;
-
 	// This is the nth block out of parent, counting from top left:
 	int xblock = orig_x & ((1 << t->zoomdiff) - 1);
 	int yblock = orig_y & ((1 << t->zoomdiff) - 1);
 
-	t->offset_x = t->size * xblock;
-	t->offset_y = t->size * yblock;
+	if (t->zoomdiff >= 8) {
+		t->offset_x = xblock >> (t->zoomdiff - 8);
+		t->offset_y = yblock >> (t->zoomdiff - 8);
+		t->wd = wd >> (t->zoomdiff - 8);
+		t->ht = ht >> (t->zoomdiff - 8);
+		return;
+	}
+	// Multiplication before division, avoid clipping:
+	t->offset_x = (256 * xblock) >> t->zoomdiff;
+	t->offset_y = (256 * yblock) >> t->zoomdiff;
+	t->wd = (256 * wd) >> t->zoomdiff;
+	t->ht = (256 * ht) >> t->zoomdiff;
 }
 
 static int
