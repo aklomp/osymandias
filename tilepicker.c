@@ -10,6 +10,7 @@ struct tile {
 	int wd;
 	int ht;
 	int zoom;
+	struct tile *prev;
 	struct tile *next;
 };
 
@@ -29,6 +30,7 @@ static struct tile *drawlist_iter = NULL;
 static int find_farthest_tile (void);
 static int tile_get_zoom (int tile_x, int tile_y);
 static void reduce_block (int real_x, int real_y, int tilesize, int maxzoom);
+static void optimize_block (int x, int y, int relzoom);
 static void tile_get_corner_zooms (int x, int y, int wd, int ht, int *z);
 static int tile_nearest_get_zoom (int x, int y, int sz);
 static bool line_segments_intersect (double x1, double y1, double x2, double y2, double x3, double y3, double x4, double y4);
@@ -60,16 +62,37 @@ drawlist_add (int tile_x, int tile_y, int zoom, int width, int height)
 	t->wd = width;
 	t->ht = height;
 	t->zoom = zoom;
+	t->prev = NULL;
 	t->next = NULL;
 
 	if (drawlist == NULL) {
 		drawlist = drawlist_tail = t;
 	}
 	else {
+		t->prev = drawlist_tail;
 		drawlist_tail->next = t;
 		drawlist_tail = t;
 	}
 	return true;
+}
+
+static void
+drawlist_detach (struct tile *t)
+{
+	// Detach and free a tile from the drawlist:
+	if (t->prev) {
+		t->prev->next = t->next;
+	}
+	else {
+		drawlist = t->next;
+	}
+	if (t->next) {
+		t->next->prev = t->prev;
+	}
+	else {
+		drawlist_tail = t->prev;
+	}
+	free(t);
 }
 
 void
@@ -107,6 +130,7 @@ tilepicker_recalc (void)
 	for (int tile_x = tile_left & ~(tilesize - 1); tile_x <= tile_right; tile_x += tilesize) {
 		for (int tile_y = tile_top & ~(tilesize - 1); tile_y <= tile_bottom; tile_y += tilesize) {
 			reduce_block(tile_x, tile_y, tilesize, lowzoom);
+			optimize_block(tile_x, tile_y, zoomdiff);
 		}
 	}
 }
@@ -290,6 +314,75 @@ reduce_block (int x, int y, int size, int maxzoom)
 		}
 		reduce_block(corner_x, corner_y, halfsize, maxzoom + 1);
 	}
+}
+
+static void
+optimize_block (int x, int y, int relzoom)
+{
+	int sz = (1 << relzoom);
+	int z = world_zoom - relzoom;
+	int have_smaller = 0;
+	struct tile *tile1, *tile2;
+
+reset:	for (tile1 = drawlist; tile1 != NULL; tile1 = tile1->next)
+	{
+		// Check if tile is part of this block:
+		if (tile1->x < x || tile1->x + tile1->wd > x + sz
+		 || tile1->y < y || tile1->y + tile1->ht > y + sz) {
+			continue;
+		}
+		// Higher zoom level found, register the fact:
+		if (tile1->zoom > z) {
+			have_smaller = 1;
+		}
+		// If not at the zoom level we're looking at, ignore:
+		if (tile1->zoom != z) {
+			continue;
+		}
+		// Find second tile to compare with:
+		for (tile2 = drawlist; tile2 != NULL; tile2 = tile2->next) {
+			if (tile1 == tile2 || tile2->zoom != z
+			 || tile2->x < x || tile2->x + tile2->wd > x + sz
+			 || tile2->y < y || tile2->y + tile2->ht > y + sz) {
+				continue;
+			}
+			// Do tiles share width and are they vertical neighbours?
+			if (tile1->wd == tile2->wd && tile1->x == tile2->x) {
+				if (tile1->y + tile1->ht == tile2->y) {
+					tile1->ht += tile2->ht;
+					drawlist_detach(tile2);
+					goto reset;
+				}
+				if (tile2->y + tile2->ht == tile1->y) {
+					tile2->ht += tile1->ht;
+					drawlist_detach(tile1);
+					goto reset;
+				}
+			}
+			// Do tiles share height and are they horizontal neighbours?
+			if (tile1->ht == tile2->ht && tile1->y == tile2->y) {
+				if (tile1->x + tile1->wd == tile2->x) {
+					tile1->wd += tile2->wd;
+					drawlist_detach(tile2);
+					goto reset;
+				}
+				if (tile2->x + tile2->wd == tile1->x) {
+					tile2->wd += tile1->wd;
+					drawlist_detach(tile1);
+					goto reset;
+				}
+			}
+		}
+	}
+	// If we reach this, could not combine; if we noted smaller tiles,
+	// divide blocks in four quads, move on to next zoom level:
+	if (!have_smaller || (sz /= 2) == 0) {
+		return;
+	}
+	optimize_block(x,      y,      relzoom - 1);
+	optimize_block(x + sz, y,      relzoom - 1);
+	optimize_block(x + sz, y + sz, relzoom - 1);
+	optimize_block(x,      y + sz, relzoom - 1);
 }
 
 static void
