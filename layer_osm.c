@@ -31,7 +31,9 @@ static GLuint texture_from_rawbits (void *rawbits);
 static void *texture_request (struct xylist_req *req);
 static void texture_destroy (void *data);
 static void zoomed_texture_cutout (int orig_x, int orig_y, int wd, int ht, struct texture *t);
+static void set_zoom_color (int zoomlevel);
 
+static int overlay_zoom = 0;
 static struct xylist *textures = NULL;
 
 static void
@@ -82,6 +84,10 @@ layer_osm_paint (void)
 
 	for (int iter = tilepicker_first(&x, &y, &tile_wd, &tile_ht, &zoom); iter; iter = tilepicker_next(&x, &y, &tile_wd, &tile_ht, &zoom))
 	{
+		// If showing the zoom colors overlay, pick proper mixin color:
+		if (overlay_zoom) {
+			set_zoom_color(zoom);
+		}
 		// The tilepicker can tell us to draw a tile at a different zoom level to the world zoom;
 		// we need to correct the geometry to reflect that:
 		req.xn = x >> (world_zoom - zoom);
@@ -268,6 +274,20 @@ zoomed_texture_cutout (int orig_x, int orig_y, int wd, int ht, struct texture *t
 	t->offset_y = (256 * yblock) >> t->zoomdiff;
 	t->wd = (256 * wd) >> t->zoomdiff;
 	t->ht = (256 * ht) >> t->zoomdiff;
+}
+
+static void
+set_zoom_color (int zoom)
+{
+	float zoomcolors[6][3] = {
+		{ 1.0, 0.2, 0.2 },
+		{ 0.2, 1.0, 0.2 },
+		{ 0.2, 0.2, 1.0 },
+		{ 0.7, 0.7, 0.2 },
+		{ 0.2, 0.7, 0.7 },
+		{ 0.7, 0.2, 0.7 }
+	};
+	glColor3f(zoomcolors[zoom % 6][0], zoomcolors[zoom % 6][1], zoomcolors[zoom % 6][2]);
 }
 
 bool
