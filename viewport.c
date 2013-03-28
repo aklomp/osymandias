@@ -706,13 +706,17 @@ point_inside_frustum (double x, double y)
 		frustum_bary_dot02[i] = frustum_bary_vx[i][0] * frustum_bary_vx[i][2] + frustum_bary_vy[i][0] * frustum_bary_vy[i][2];
 		frustum_bary_dot12[i] = frustum_bary_vx[i][1] * frustum_bary_vx[i][2] + frustum_bary_vy[i][1] * frustum_bary_vy[i][2];
 
-		if ((u = (frustum_bary_dot11[i] * frustum_bary_dot02[i] - frustum_bary_dot01[i] * frustum_bary_dot12[i]) * frustum_bary_inv[i]) < 0.0) {
+		// Use a tiny fudge facctor on the numbers, because at high zoom levels we
+		// were getting occasional dropped tiles between the "seam" in the middle.
+		// The value is experimentally determined. May lead to an occasional
+		// offscreen tile erroneously being "visible".
+		if ((u = (frustum_bary_dot11[i] * frustum_bary_dot02[i] - frustum_bary_dot01[i] * frustum_bary_dot12[i]) * frustum_bary_inv[i]) < -0.000001) {
 			continue;
 		}
-		if ((v = (frustum_bary_dot00[i] * frustum_bary_dot12[i] - frustum_bary_dot01[i] * frustum_bary_dot02[i]) * frustum_bary_inv[i]) < 0.0) {
+		if ((v = (frustum_bary_dot00[i] * frustum_bary_dot12[i] - frustum_bary_dot01[i] * frustum_bary_dot02[i]) * frustum_bary_inv[i]) < -0.000001) {
 			continue;
 		}
-		if (u + v < 1.0) {
+		if (u + v < 1.000001) {
 			return true;
 		}
 	}
