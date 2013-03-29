@@ -8,6 +8,8 @@
 #include "viewport.h"
 #include "layers.h"
 
+#define FOG_END	20.0
+
 static bool
 layer_blanktile_full_occlusion (void)
 {
@@ -19,10 +21,6 @@ layer_blanktile_full_occlusion (void)
 static void
 layer_blanktile_paint (void)
 {
-	int tile_left   = viewport_get_tile_left();
-	int tile_right  = viewport_get_tile_right() + 1;
-	int tile_top    = viewport_get_tile_top();
-	int tile_bottom = viewport_get_tile_bottom() + 1;
 	int world_size  = world_get_size();
 	double cx = -viewport_get_center_x();
 	double cy = -viewport_get_center_y();
@@ -39,29 +37,48 @@ layer_blanktile_paint (void)
 		glVertex2f(cx, cy + world_size);
 	glEnd();
 
+	// Setup fog:
+	glEnable(GL_FOG);
+	glFogfv(GL_FOG_COLOR, (float[]){ 0.12, 0.12, 0.12, 1.0 });
+	glHint(GL_FOG_HINT, GL_DONT_CARE);
+	glFogi(GL_FOG_MODE, GL_LINEAR);
+	glFogf(GL_FOG_DENSITY, 1.0);
+	glFogf(GL_FOG_START, 1.0);
+	glFogf(GL_FOG_END, FOG_END);
+
+	// Clip tile size to non-fog region:
+	int l = -cx - FOG_END - 5;
+	int r = -cx + FOG_END + 5;
+	int t = -cy + FOG_END + 5;
+	int b = -cy - FOG_END - 5;
+
+	l = (l < 0) ? 0 : (l >= world_size) ? world_size : l;
+	r = (r < 0) ? 0 : (r >= world_size) ? world_size : r;
+	t = (t < 0) ? 0 : (t >= world_size) ? world_size : t;
+	b = (b < 0) ? 0 : (b >= world_size) ? world_size : b;
+
 	glColor3f(0.20, 0.20, 0.20);
 	glBegin(GL_LINES);
 
 	// Vertical grid lines:
-	// Include some extra bounds checks to draw the bottommost line
+	// Include some extra bounds checks to draw the topmost/rightmost line
 	// *inside* the tile area instead of 1px outside it.
 	// Flip y tile coordinates: tile origin is top left, screen origin is bottom left:
-	for (int x = (tile_left < 0) ? 0 : tile_left; x <= tile_right && x <= world_size; x++) {
-		double top = (tile_top < 0) ? 0 : tile_top;
-		double btm = (tile_bottom >= world_size) ? (double)world_size - 1.0 / 256.0 : tile_bottom;
-		double scx = (x >= world_size) ? (double)x - 1.0 / 256.0 : x;
-		glVertex2f(cx + scx, cy + (world_size - btm));
-		glVertex2f(cx + scx, cy + (world_size - top));
+	for (int x = l; x <= r; x++) {
+		double scx = (x == world_size) ? (double)world_size - 1.0 / 256.0 : x;
+		double scy = (t == world_size) ? (double)world_size - 1.0 / 256.0 : t;
+		glVertex2d(cx + scx, cy + scy);
+		glVertex2d(cx + scx, cy + b);
 	}
 	// Horizontal grid lines:
-	for (int y = (tile_top < 0) ? 0 : tile_top; y <= tile_bottom && y <= world_size; y++) {
-		double lft = (tile_left < 0) ? 0 : tile_left;
-		double rgt = (tile_right >= world_size) ? (double)world_size - 1.0 / 256.0 : tile_right;
-		double scy = (y >= world_size) ? (double)y - 1.0 / 256.0 : y;
-		glVertex2f(cx + lft, cy + (world_size - scy));
-		glVertex2f(cx + rgt, cy + (world_size - scy));
+	for (int y = b; y <= t; y++) {
+		double scx = (r == world_size) ? (double)world_size - 1.0 / 256.0 : r;
+		double scy = (y == world_size) ? (double)world_size - 1.0 / 256.0 : y;
+		glVertex2d(cx + l,   cy + scy);
+		glVertex2d(cx + scx, cy + scy);
 	}
 	glEnd();
+	glDisable(GL_FOG);
 }
 
 bool
