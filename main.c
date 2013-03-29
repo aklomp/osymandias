@@ -9,6 +9,7 @@
 #include "framerate.h"
 #include "autoscroll.h"
 #include "viewport.h"
+#include "tilepicker.h"
 #include "layers.h"
 #include "layer_background.h"
 #include "layer_cursor.h"
@@ -120,6 +121,7 @@ main (int argc, char **argv)
 	framerate_destroy();
 	layers_destroy();
 	viewport_destroy();
+	tilepicker_destroy();
 
 	ret = 0;
 

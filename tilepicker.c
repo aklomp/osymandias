@@ -4,6 +4,8 @@
 #include "world.h"
 #include "viewport.h"
 
+#define MEMPOOL_BLOCK_SIZE 100
+
 struct tile {
 	int x;
 	int y;
@@ -12,6 +14,11 @@ struct tile {
 	int zoom;
 	struct tile *prev;
 	struct tile *next;
+};
+
+struct mempool_block {
+	struct tile tile[MEMPOOL_BLOCK_SIZE];
+	struct mempool_block *next;
 };
 
 static int world_size;
@@ -27,6 +34,10 @@ static struct tile *drawlist = NULL;
 static struct tile *drawlist_tail = NULL;
 static struct tile *drawlist_iter = NULL;
 
+static struct mempool_block *mempool = NULL;
+static struct mempool_block *mempool_tail = NULL;
+static int mempool_idx = 0;
+
 static int find_farthest_tile (void);
 static int tile_get_zoom (int tile_x, int tile_y);
 static void reduce_block (int real_x, int real_y, int tilesize, int maxzoom);
@@ -35,18 +46,63 @@ static void tile_get_corner_zooms (int x, int y, int wd, int ht, int *z);
 static int tile_nearest_get_zoom (int x, int y, int sz);
 static bool line_segments_intersect (double x1, double y1, double x2, double y2, double x3, double y3, double x4, double y4);
 
-static void
-drawlist_destroy (void)
+static struct tile *
+mempool_request_tile (void)
 {
-	struct tile *t = drawlist;
-	struct tile *q;
+	// This mempool just grows and grows till the program ends. Since the
+	// number of tiles on screen is sort of bounded, that doesn't cause a
+	// problem. At each recalc, we reuse the existing pool.
 
-	while (t) {
-		q = t->next;
-		free(t);
-		t = q;
+	// Reached end of current block, or no blocks yet:
+	if (mempool_idx == MEMPOOL_BLOCK_SIZE || mempool_tail == NULL)
+	{
+		// Move to next block if available:
+		if (mempool_tail != NULL && mempool_tail->next != NULL) {
+			mempool_tail = mempool_tail->next;
+			mempool_idx = 0;
+			goto out;
+		}
+		// Else, allocate new block, hang in list:
+		struct mempool_block *p;
+
+		if ((p = malloc(sizeof(*p))) == NULL) {
+			return NULL;
+		}
+		p->next = NULL;
+
+		// Is this the first block?
+		// Check of mempool_tail is to silence 'scan-build':
+		if (mempool == NULL || mempool_tail == NULL) {
+			mempool = p;
+		}
+		else {
+			mempool_tail->next = p;
+		}
+		mempool_tail = p;
+		mempool_idx = 0;
 	}
-	drawlist = drawlist_tail = NULL;
+out:	return &mempool_tail->tile[mempool_idx++];
+}
+
+static void
+mempool_reset (void)
+{
+	// Reset tail to start:
+	mempool_tail = mempool;
+	mempool_idx = 0;
+}
+
+static void
+mempool_destroy (void)
+{
+	struct mempool_block *p = mempool;
+	struct mempool_block *q;
+
+	while (p) {
+		q = p->next;
+		free(p);
+		p = q;
+	}
 }
 
 static bool
@@ -54,7 +110,7 @@ drawlist_add (int tile_x, int tile_y, int zoom, int width, int height)
 {
 	struct tile *t;
 
-	if ((t = malloc(sizeof(*t))) == NULL) {
+	if ((t = mempool_request_tile()) == NULL) {
 		return false;
 	}
 	t->x = tile_x;
@@ -92,7 +148,6 @@ drawlist_detach (struct tile *t)
 	else {
 		drawlist_tail = t->prev;
 	}
-	free(t);
 }
 
 void
@@ -113,7 +168,14 @@ tilepicker_recalc (void)
 	center_x = viewport_get_center_x();
 	center_y = viewport_get_center_y();
 
-	drawlist_destroy();
+	// Reset drawlist pointers. The drawlist consists of tiles allocated in
+	// the mempool that point to each other; the drawlist itself does not
+	// involve allocations.
+	drawlist = drawlist_tail = NULL;
+
+	// Reset tile mempool pointers. For this round, start giving out tiles
+	// from the top of the mempool again.
+	mempool_reset();
 
 	int fx, fy;
 	switch (find_farthest_tile()) {
@@ -519,4 +581,10 @@ tilepicker_first (int *x, int *y, int *wd, int *ht, int *zoom)
 	drawlist_iter = drawlist;
 
 	return tilepicker_next(x, y, wd, ht, zoom);
+}
+
+void
+tilepicker_destroy (void)
+{
+	mempool_destroy();
 }
