@@ -27,8 +27,8 @@ static int tile_top;
 static int tile_left;
 static int tile_right;
 static int tile_bottom;
-static double center_x;
-static double center_y;
+static float center_x;
+static float center_y;
 
 static struct tile *drawlist = NULL;
 static struct tile *drawlist_tail = NULL;
@@ -165,8 +165,9 @@ tilepicker_recalc (void)
 	tile_right = viewport_get_tile_right();
 	tile_bottom = viewport_get_tile_bottom();
 
+	// Convert center_y to *tile* coordinates; much easier to work with:
 	center_x = viewport_get_center_x();
-	center_y = viewport_get_center_y();
+	center_y = world_size - viewport_get_center_y();
 
 	// Reset drawlist pointers. The drawlist consists of tiles allocated in
 	// the mempool that point to each other; the drawlist itself does not
@@ -259,13 +260,10 @@ reduce_block (int x, int y, int size, int maxzoom)
 	}
 	int halfsize = size / 2;
 
-	// "Flipped" y center: the y center in tile coordinates:
-	float fcenter_y = world_size - center_y;
-
 	// Sign test of the four corner points: all x's or all y's should lie
 	// to one side of the center, else split up in four quadrants of the same zoom level:
-	int signs_x_equal = ((x < center_x) == ((x + size) < center_x));
-	int signs_y_equal = ((y < fcenter_y) == ((y + size) < fcenter_y));
+	bool signs_x_equal = ((x < center_x) == ((x + size) < center_x));
+	bool signs_y_equal = ((y < center_y) == ((y + size) < center_y));
 
 	if (!(signs_x_equal || signs_y_equal)) {
 		reduce_block(x,            y,            halfsize, maxzoom + 1);
@@ -472,23 +470,23 @@ find_farthest_tile (void)
 	int num;
 
 	// Left top:
-	dx = (float)center_x - (float)tile_left + 0.5;
-	dy = (float)center_y - world_size - ((float)tile_top + 0.5);
+	dx = center_x - (float)tile_left + 0.5;
+	dy = center_y - (float)tile_top + 0.5;
 	dist[0] = dx * dx + dy * dy;
 
 	// Right top:
-	dx = (float)center_x - (float)tile_right + 0.5;
-	dy = (float)center_y - world_size - ((float)tile_top + 0.5);
+	dx = center_x - (float)tile_right + 0.5;
+	dy = center_y - (float)tile_top + 0.5;
 	dist[1] = dx * dx + dy * dy;
 
 	// Right bottom:
-	dx = (float)center_x - (float)tile_right + 0.5;
-	dy = (float)center_y - world_size - ((float)tile_bottom + 0.5);
+	dx = center_x - (float)tile_right + 0.5;
+	dy = center_y - (float)tile_bottom + 0.5;
 	dist[2] = dx * dx + dy * dy;
 
 	// Left bottom:
-	dx = (float)center_x - (float)tile_left + 0.5;
-	dy = (float)center_y - world_size - ((float)tile_bottom + 0.5);
+	dx = center_x - (float)tile_left + 0.5;
+	dy = center_y - (float)tile_bottom + 0.5;
 	dist[3] = dx * dx + dy * dy;
 
 	for (int i = 0; i < 4; i++) {
@@ -509,11 +507,8 @@ static int
 tile_nearest_get_zoom (int x, int y, int sz)
 {
 	// For the given quad, find the tile nearest to center:
-	float cx = center_x;
-	float cy = world_size - center_y;
-
-	int rx = (cx > x + sz) ? x + sz : (cx < x) ? x : cx;
-	int ry = (cy > y + sz) ? y + sz : (cy < y) ? y : cy;
+	int rx = (center_x > x + sz) ? x + sz : (center_x < x) ? x : center_x;
+	int ry = (center_y > y + sz) ? y + sz : (center_y < y) ? y : center_y;
 
 	return tile_get_zoom(rx, ry);
 }
@@ -525,8 +520,8 @@ tile_get_zoom (int tile_x, int tile_y)
 	if (viewport_get_tilt() == 0.0) {
 		return world_zoom;
 	}
-	float tilex = tile_x - (float)center_x + 0.5;
-	float tiley = world_size - tile_y - (float)center_y + 0.5;
+	float tilex = tile_x - center_x + 0.5;
+	float tiley = tile_y - center_y + 0.5;
 
 	// Use *cubed* distance: further tiles are proportionally smaller:
 	float dist = tilex * tilex + tiley * tiley;
