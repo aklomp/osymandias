@@ -1,10 +1,15 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
+#include <xmmintrin.h>
+
 #include "world.h"
 #include "viewport.h"
 
 #define MEMPOOL_BLOCK_SIZE 100
+
+typedef float vec4f __attribute__ ((vector_size(sizeof(float) * 4)));
+#define vec4f_float(f) (vec4f)_mm_set1_ps(f)
 
 struct tile {
 	int x;
@@ -448,11 +453,24 @@ reset:	for (tile1 = drawlist; tile1 != NULL; tile1 = tile1->next)
 static void
 tile_get_corner_zooms (int x, int y, int wd, int ht, int *z)
 {
-	// Get four zooms of corner tiles of large tile:
-	z[0] = tile_get_zoom(x, y);
-	z[1] = tile_get_zoom(x + wd - 1, y);
-	z[2] = tile_get_zoom(x + wd - 1, y + ht - 1);
-	z[3] = tile_get_zoom(x, y + ht - 1);
+	vec4f vx = { x, x + wd - 1, x + wd - 1, x };
+	vec4f vy = { y, y, y + ht - 1, y + ht - 1 };
+
+	vx = vx + vec4f_float(0.5 - center_x);
+	vy = vy + vec4f_float(0.5 - center_y);
+
+	vx = vec4f_float(world_zoom + 1) - (vx * vx + vy * vy) / vec4f_float(40.0);
+
+	// Hope the compiler is smart enough:
+	z[0] = vx[0];
+	z[1] = vx[1];
+	z[2] = vx[2];
+	z[3] = vx[3];
+
+	if (z[0] < 0) z[0] = 0;
+	if (z[1] < 0) z[1] = 0;
+	if (z[2] < 0) z[2] = 0;
+	if (z[3] < 0) z[3] = 0;
 }
 
 static int

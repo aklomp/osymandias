@@ -1,4 +1,4 @@
-CFLAGS += -std=c99 -D_GNU_SOURCE -O3 -Wall -Wextra -pedantic -g
+CFLAGS += -std=c99 -D_GNU_SOURCE -O3 -msse3 -Wall -Wextra -pedantic -g
 LDFLAGS += -lm -lpng -lpthread -lrt
 
 GTK_CFLAGS = `pkg-config --cflags gtk+-2.0 glib-2.0`
