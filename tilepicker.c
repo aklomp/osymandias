@@ -9,6 +9,7 @@
 #define MEMPOOL_BLOCK_SIZE 100
 
 typedef float vec4f __attribute__ ((vector_size(sizeof(float) * 4)));
+
 #define vec4f_float(f) (vec4f)_mm_set1_ps(f)
 
 struct tile {
@@ -43,7 +44,6 @@ static struct mempool_block *mempool = NULL;
 static struct mempool_block *mempool_tail = NULL;
 static int mempool_idx = 0;
 
-static int find_farthest_tile (void);
 static int tile_get_zoom (int tile_x, int tile_y);
 static void reduce_block (int real_x, int real_y, int tilesize, int maxzoom);
 static void optimize_block (int x, int y, int relzoom);
@@ -155,9 +155,38 @@ drawlist_detach (struct tile *t)
 	}
 }
 
+static void
+tile_farthest_get_zoom (int *zoom)
+{
+	// Find the tile farthest away from the viewport.
+	// This is the smallest tile rendered, and hence must be a tile at the
+	// lowest zoom level. It must be one of the corner tiles of the
+	// bounding box. We cheat slightly by using the distance from the
+	// center point, not the actual pixel dimensions of the tile.
+
+	float min = __builtin_huge_valf();
+
+	vec4f vx = { tile_left - 1, tile_right, tile_right, tile_left - 1 };
+	vec4f vy = { tile_top, tile_top, tile_bottom - 1, tile_bottom - 1 };
+
+	vx += vec4f_float(0.5 - center_x);
+	vy += vec4f_float(0.5 - center_y);
+
+	vx = vec4f_float(world_zoom - 1) - (vx * vx + vy * vy) / vec4f_float(40.0);
+
+	for (int i = 0; i < 4; i++) {
+		if (vx[i] < min) {
+			min = vx[i];
+		}
+	}
+	*zoom = (min < 0.0) ? 0 : min;
+}
+
 void
 tilepicker_recalc (void)
 {
+	int lowzoom;
+
 	// This function first calculates values and puts them in global
 	// variables, so that the other routines in this module can use them.
 	// I'm normally not a fan of globals, but this does make the code
@@ -183,14 +212,7 @@ tilepicker_recalc (void)
 	// from the top of the mempool again.
 	mempool_reset();
 
-	int fx, fy;
-	switch (find_farthest_tile()) {
-		case 0: fx = tile_left; fy = tile_top; break;
-		case 1: fx = tile_right; fy = tile_top; break;
-		case 2: fx = tile_right; fy = tile_bottom; break;
-		case 3: fx = tile_left; fy = tile_bottom; break;
-	}
-	int lowzoom = tile_get_zoom(fx, fy);
+	tile_farthest_get_zoom(&lowzoom);
 
 	// Start with biggest block size in world; recursively cut these into smaller blocks:
 	int zoomdiff = world_zoom - lowzoom;
@@ -471,54 +493,6 @@ tile_get_corner_zooms (int x, int y, int wd, int ht, int *z)
 	if (z[1] < 0) z[1] = 0;
 	if (z[2] < 0) z[2] = 0;
 	if (z[3] < 0) z[3] = 0;
-}
-
-static int
-find_farthest_tile (void)
-{
-	// Find the tile farthest away from the viewport.
-	// This is the smallest tile rendered, and hence must be a tile at the
-	// lowest zoom level. It must be one of the corner tiles of the
-	// bounding box. We cheat slightly by using the distance from the
-	// center point, not the actual pixel dimensions of the tile.
-
-	float dx, dy;
-	float dist[4];
-	float max = 0.0;
-	int num;
-
-	// Left top:
-	dx = center_x - (float)tile_left + 0.5;
-	dy = center_y - (float)tile_top + 0.5;
-	dist[0] = dx * dx + dy * dy;
-
-	// Right top:
-	dx = center_x - (float)tile_right + 0.5;
-	dy = center_y - (float)tile_top + 0.5;
-	dist[1] = dx * dx + dy * dy;
-
-	// Right bottom:
-	dx = center_x - (float)tile_right + 0.5;
-	dy = center_y - (float)tile_bottom + 0.5;
-	dist[2] = dx * dx + dy * dy;
-
-	// Left bottom:
-	dx = center_x - (float)tile_left + 0.5;
-	dy = center_y - (float)tile_bottom + 0.5;
-	dist[3] = dx * dx + dy * dy;
-
-	for (int i = 0; i < 4; i++) {
-		if (dist[i] > max) {
-			max = dist[i];
-			num = i;
-		}
-	}
-	// 0 is top left
-	// 1 is top right
-	// 2 is bottom right
-	// 3 is bottom left
-	// (clockwise from top left)
-	return num;
 }
 
 static int
