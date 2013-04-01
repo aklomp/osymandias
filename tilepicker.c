@@ -9,6 +9,7 @@
 #define MEMPOOL_BLOCK_SIZE 100
 
 typedef float vec4f __attribute__ ((vector_size(sizeof(float) * 4)));
+typedef int vec4i __attribute__ ((vector_size(sizeof(int) * 4)));
 
 #define vec4f_float(f) (vec4f)_mm_set1_ps(f)
 
@@ -50,6 +51,7 @@ static void optimize_block (int x, int y, int relzoom);
 static void tile_get_corner_zooms (int x, int y, int wd, int ht, int *z);
 static int tile_nearest_get_zoom (int x, int y, int sz);
 static bool line_segments_intersect (double x1, double y1, double x2, double y2, double x3, double y3, double x4, double y4);
+static bool line_intersects_quad (float x1, float y1, float x2, float y2, vec4f x3, vec4f y3, vec4f x4, vec4f y4);
 
 static struct tile *
 mempool_request_tile (void)
@@ -249,17 +251,20 @@ tile_is_visible (int x, int y, int wd, int ht)
 			return true;
 		}
 	}
-	// Check frustum edges for intersection with tile edges:
-	for (int i = 0; i < 4; i++) {
-		double fx1 = fx[i];
-		double fy1 = fy[i];
-		double fx2 = fx[(i == 3) ? 0 : i + 1];
-		double fy2 = fy[(i == 3) ? 0 : i + 1];
+	// Tile edges, lines from (x3,y3) to (x4,y4):
+	vec4f x3 = { xmin, xmax, xmax, xmin };
+	vec4f y3 = { ymin, ymin, ymax, ymax };
+	vec4f x4 = { xmax, xmax, xmin, xmin };
+	vec4f y4 = { ymin, ymax, ymax, ymin };
 
-		if (line_segments_intersect(fx1, fy1, fx2, fy2, xmin, ymin, xmax, ymin)
-		 || line_segments_intersect(fx1, fy1, fx2, fy2, xmax, ymin, xmax, ymax)
-		 || line_segments_intersect(fx1, fy1, fx2, fy2, xmax, ymax, xmin, ymax)
-		 || line_segments_intersect(fx1, fy1, fx2, fy2, xmin, ymax, xmin, ymin)) {
+	// Check frustum edges one by one for intersection with tile edges:
+	for (int i = 0; i < 4; i++) {
+		float fx1 = fx[i];
+		float fy1 = fy[i];
+		float fx2 = fx[(i == 3) ? 0 : i + 1];
+		float fy2 = fy[(i == 3) ? 0 : i + 1];
+
+		if (line_intersects_quad(fx1, fy1, fx2, fy2, x3, y3, x4, y4)) {
 			return true;
 		}
 	}
@@ -478,8 +483,8 @@ tile_get_corner_zooms (int x, int y, int wd, int ht, int *z)
 	vec4f vx = { x, x + wd - 1, x + wd - 1, x };
 	vec4f vy = { y, y, y + ht - 1, y + ht - 1 };
 
-	vx = vx + vec4f_float(0.5 - center_x);
-	vy = vy + vec4f_float(0.5 - center_y);
+	vx += vec4f_float(0.5 - center_x);
+	vy += vec4f_float(0.5 - center_y);
 
 	vx = vec4f_float(world_zoom + 1) - (vx * vx + vy * vy) / vec4f_float(40.0);
 
@@ -541,6 +546,30 @@ line_segments_intersect (double x1, double y1, double x2, double y2, double x3, 
 		return false;
 	}
 	return true;
+}
+
+static bool
+line_intersects_quad (float x1, float y1, float x2, float y2, vec4f x3, vec4f y3, vec4f x4, vec4f y4)
+{
+	vec4f z = { 0.0f, 0.0f, 0.0f, 0.0f };
+	vec4f d = (y4 - y3) * vec4f_float(x2 - x1) - (x4 - x3) * vec4f_float(y2 - y1);
+	vec4f n1 = (x4 - x3) * (vec4f_float(y1) - y3) - (y4 - y3) * (vec4f_float(x1) - x3);
+	vec4f n2 = vec4f_float(x2 - x1) * (vec4f_float(y1) - y3) - vec4f_float(y2 - y1) * (vec4f_float(x1) - x3);
+
+	// We could write this out as one big expression,
+	// but that crashes GCC 4.7.1:
+	vec4i p = (d != z);
+	p &= (n1 >= z);
+	p &= (n1 <= d);
+	p &= (n2 >= z);
+	p &= (n2 <= d);
+
+	if (p[0]) return true;
+	if (p[1]) return true;
+	if (p[2]) return true;
+	if (p[3]) return true;
+
+	return false;
 }
 
 bool
