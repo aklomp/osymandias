@@ -1,17 +1,12 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
-#include <xmmintrin.h>
-
 #include "world.h"
 #include "viewport.h"
+#include "vector.h"
+#include "tile2d.h"
 
 #define MEMPOOL_BLOCK_SIZE 100
-
-typedef float vec4f __attribute__ ((vector_size(sizeof(float) * 4)));
-typedef int vec4i __attribute__ ((vector_size(sizeof(int) * 4)));
-
-#define vec4f_float(f) (vec4f)_mm_set1_ps(f)
 
 struct tile {
 	int x;
@@ -48,8 +43,6 @@ static int mempool_idx = 0;
 static int tile_get_zoom (int tile_x, int tile_y);
 static void reduce_block (int real_x, int real_y, int tilesize, int maxzoom);
 static void optimize_block (int x, int y, int relzoom);
-static void tile_get_corner_zooms (int x, int y, int wd, int ht, int *z);
-static int tile_nearest_get_zoom (int x, int y, int sz);
 static bool line_segments_intersect (double x1, double y1, double x2, double y2, double x3, double y3, double x4, double y4);
 static bool line_intersects_quad (float x1, float y1, float x2, float y2, vec4f x3, vec4f y3, vec4f x4, vec4f y4);
 
@@ -166,22 +159,11 @@ tile_farthest_get_zoom (int *zoom)
 	// bounding box. We cheat slightly by using the distance from the
 	// center point, not the actual pixel dimensions of the tile.
 
-	float min = __builtin_huge_valf();
+	vec4i vz = tile2d_get_corner_zooms_abs(tile_left, tile_top, tile_right, tile_bottom, center_x, center_y, world_zoom);
 
-	vec4f vx = { tile_left - 1, tile_right, tile_right, tile_left - 1 };
-	vec4f vy = { tile_top, tile_top, tile_bottom - 1, tile_bottom - 1 };
-
-	vx += vec4f_float(0.5 - center_x);
-	vy += vec4f_float(0.5 - center_y);
-
-	vx = vec4f_float(world_zoom - 1) - (vx * vx + vy * vy) / vec4f_float(40.0);
-
-	for (int i = 0; i < 4; i++) {
-		if (vx[i] < min) {
-			min = vx[i];
-		}
-	}
-	*zoom = (min < 0.0) ? 0 : min;
+	int min1 = (vz[0] < vz[1]) ? vz[0] : vz[1];
+	int min2 = (vz[2] < vz[3]) ? vz[2] : vz[3];
+	*zoom = (min1 < min2) ? min1 : min2;
 }
 
 void
@@ -334,7 +316,7 @@ reduce_block (int x, int y, int size, int maxzoom)
 	};
 	// Get the zoom levels for all four quads:
 	int i;
-	int z[4][4];
+	vec4i z[4];
 
 	if (halfsize == 1) {
 		for (int q = 0; q < 4; q++) {
@@ -343,7 +325,7 @@ reduce_block (int x, int y, int size, int maxzoom)
 	}
 	else {
 		for (int q = 0; q < 4; q++) {
-			tile_get_corner_zooms(corner[quad[q][0]][0], corner[quad[q][0]][1], halfsize, halfsize, &z[q][0]);
+			z[q] = tile2d_get_corner_zooms(corner[quad[q][0]][0], corner[quad[q][0]][1], halfsize, center_x, center_y, world_zoom);
 		}
 	}
 	// Does the quadrant in question have a uniform zoom level?
@@ -356,7 +338,7 @@ reduce_block (int x, int y, int size, int maxzoom)
 		}
 		// Not only must the four corner points be consistent, but so also must the closest tile:
 		// TODO: check if this is actually necessary
-		quad_consistent[q] = (i == 4 && (halfsize <= 2 || tile_nearest_get_zoom(corner[quad[q][0]][0], corner[quad[q][0]][1], halfsize) == z[q][0]));
+		quad_consistent[q] = (i == 4 && (halfsize <= 2 || tile2d_get_max_zoom(corner[quad[q][0]][0], corner[quad[q][0]][1], halfsize, center_x, center_y, world_zoom) == z[q][0]));
 	}
 	// If all zoom levels are equal, add the whole block:
 	// but only if the tile size is smaller or equal than the zoom max tile size:
@@ -477,39 +459,6 @@ reset:	for (tile1 = drawlist; tile1 != NULL; tile1 = tile1->next)
 	optimize_block(x,      y + sz, relzoom - 1);
 }
 
-static void
-tile_get_corner_zooms (int x, int y, int wd, int ht, int *z)
-{
-	vec4f vx = { x, x + wd - 1, x + wd - 1, x };
-	vec4f vy = { y, y, y + ht - 1, y + ht - 1 };
-
-	vx += vec4f_float(0.5 - center_x);
-	vy += vec4f_float(0.5 - center_y);
-
-	vx = vec4f_float(world_zoom + 1) - (vx * vx + vy * vy) / vec4f_float(40.0);
-
-	// Hope the compiler is smart enough:
-	z[0] = vx[0];
-	z[1] = vx[1];
-	z[2] = vx[2];
-	z[3] = vx[3];
-
-	if (z[0] < 0) z[0] = 0;
-	if (z[1] < 0) z[1] = 0;
-	if (z[2] < 0) z[2] = 0;
-	if (z[3] < 0) z[3] = 0;
-}
-
-static int
-tile_nearest_get_zoom (int x, int y, int sz)
-{
-	// For the given quad, find the tile nearest to center:
-	int rx = (center_x > x + sz) ? x + sz : (center_x < x) ? x : center_x;
-	int ry = (center_y > y + sz) ? y + sz : (center_y < y) ? y : center_y;
-
-	return tile_get_zoom(rx, ry);
-}
-
 static int
 tile_get_zoom (int tile_x, int tile_y)
 {
@@ -517,16 +466,7 @@ tile_get_zoom (int tile_x, int tile_y)
 	if (viewport_get_tilt() == 0.0) {
 		return world_zoom;
 	}
-	float tilex = tile_x - center_x + 0.5;
-	float tiley = tile_y - center_y + 0.5;
-
-	// Use *cubed* distance: further tiles are proportionally smaller:
-	float dist = tilex * tilex + tiley * tiley;
-
-	// The 40.0 is a fudge factor for the size of the "zoom horizon":
-	int zoom = (float)(world_zoom + 1) - dist / 40.0;
-
-	return (zoom < 0) ? 0 : zoom;
+	return tile2d_get_zoom(tile_x, tile_y, center_x, center_y, world_zoom);
 }
 
 static bool
