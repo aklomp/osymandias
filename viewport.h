@@ -14,6 +14,7 @@ void viewport_rotate (const int dx);
 void viewport_reshape (const unsigned int width, const unsigned int height);
 void viewport_render (void);
 void viewport_gl_setup_screen (void);
+void viewport_gl_setup_overview (int sz, int margin);
 void viewport_gl_setup_world (void);
 bool viewport_within_world_bounds (void);
 void viewport_screen_to_world (double sx, double sy, double *wx, double *wy);

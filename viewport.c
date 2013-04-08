@@ -442,6 +442,27 @@ viewport_gl_setup_screen (void)
 }
 
 void
+viewport_gl_setup_overview (int sz, int margin)
+{
+	float one_pixel_at_scale = (1 << world_get_zoom()) / (float)sz;
+	float world_size = world_get_size() + one_pixel_at_scale;
+
+	// As above, but setup the small square map at top right:
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
+	glLineWidth(1.0);
+	glOrtho(0, world_size, 0, world_size, 0, 1);
+	glViewport(screen_wd - sz - margin, screen_ht - margin - sz, sz, sz);
+
+	glMatrixMode(GL_MODELVIEW);
+	glLoadIdentity();
+
+	glDisable(GL_BLEND);
+	glDisable(GL_DEPTH_TEST);
+	glDepthMask(GL_FALSE);
+}
+
+void
 viewport_gl_setup_world (void)
 {
 	// Setup the OpenGL frustrum to map screen to world coordinates,
