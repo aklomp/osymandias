@@ -7,6 +7,7 @@
 #include <GL/gl.h>
 #include <GL/glu.h>
 
+#include "vector.h"
 #include "shaders.h"
 #include "autoscroll.h"
 #include "world.h"
@@ -37,21 +38,18 @@ static int tile_last;
 static double modelview[16];	// OpenGL projection matrices
 static double projection[16];
 
-// Precalculated vectors for checking if a point is inside the frustum:
-static double frustum_bary_vx[2][3];
-static double frustum_bary_vy[2][3];
-static double frustum_bary_dot00[2];
-static double frustum_bary_dot01[2];
-static double frustum_bary_dot02[2];
-static double frustum_bary_dot11[2];
-static double frustum_bary_dot12[2];
-static double frustum_bary_inv[2];
-static int frustum_bary_need_recalc = 1;
+static int frustum_inside_need_recalc = 1;
 static int frustum_coords_need_recalc = 1;
+
+static vec4f frustum_x1;
+static vec4f frustum_y1;
+static vec4f frustum_x2;
+static vec4f frustum_y2;
+static vec4f frustum_dvx;
+static vec4f frustum_dvy;
 
 static void intersect_lines (double x0, double y0, double x1, double y1, double x2, double y2, double x3, double y3, double *px, double *py);
 static bool point_inside_triangle (double tax, double tay, double tbx, double tby, double tcx, double tcy, double ax, double ay);
-static void frustum_calc_barycentric (void);
 
 static void
 frustum_changed_location (void)
@@ -65,10 +63,27 @@ static void
 frustum_changed_shape (void)
 {
 	// Called once whenever the frustum changes shape or dimensions.
-	frustum_bary_need_recalc = 1;
+	frustum_inside_need_recalc = 1;
 
 	// Shape change implies changes in location:
 	frustum_changed_location();
+}
+
+static void
+frustum_inside_recalc (void)
+{
+	// Pre-calculate some of the common factors for the
+	// point_inside_frustum() function. These factors only change when the
+	// frustum changes, so for each frame, we only have to calculate them
+	// once:
+
+	// The end points of the edge line segments are the start points,
+	// shifted by one lane:
+	frustum_x2 = vec4f_shuffle(frustum_x1, 1, 2, 3, 0);
+	frustum_y2 = vec4f_shuffle(frustum_y1, 1, 2, 3, 0);
+
+	frustum_dvx = frustum_x2 - frustum_x1;
+	frustum_dvy = frustum_y2 - frustum_y1;
 }
 
 static void
@@ -475,12 +490,18 @@ viewport_gl_setup_world (void)
 	// called multiple times per frame.
 	if (frustum_coords_need_recalc) {
 		viewport_calc_frustum();
-		if (frustum_bary_need_recalc) {
+
+		// Floating-point vector versions of above:
+		frustum_x1 = (vec4f){ frustum_x[0], frustum_x[1], frustum_x[2], frustum_x[3] };
+		frustum_y1 = (vec4f){ frustum_y[0], frustum_y[1], frustum_y[2], frustum_y[3] };
+
+		if (frustum_inside_need_recalc)
+		{
 			// Relies on the frustum points:
-			frustum_calc_barycentric();
-			frustum_bary_need_recalc = 0;
+			frustum_inside_recalc();
+			frustum_inside_need_recalc = 0;
 		}
-		// Relies on the barycentric coordinates:
+		// Relies on the precalculations:
 		viewport_calc_bbox();
 		recalc_tile_extents();
 		tilepicker_recalc();
@@ -649,76 +670,26 @@ point_inside_triangle (double tax, double tay, double tbx, double tby, double tc
 	return (u + v < 1.0);
 }
 
-static void
-frustum_calc_barycentric (void)
-{
-	// Precalculate as much data as possible for checking later on whether
-	// a point is inside the frustum. These calculations only need to be done once
-	// when the frustum changes.
-	//
-	// Frustum points are numbered like this:
-	//
-	//  0-----------1
-	//   \         /
-	//    \       /
-	//     3-----2
-	//
-	// 3 and 2 are always the near points, regardless of orientation.
-
-	for (int i = 0; i < 2; i++)
-	{
-		// First triangle:  frustum points (0, 1, 3) = (a, b, c),
-		// second triangle: frustum points (1, 2, 3) = (a, b, c):
-		if (i == 0) {
-			frustum_bary_vx[i][0] = frustum_x[3] - frustum_x[0];	// c - a
-			frustum_bary_vy[i][0] = frustum_y[3] - frustum_y[0];
-			frustum_bary_vx[i][1] = frustum_x[1] - frustum_x[0];	// b - a
-			frustum_bary_vy[i][1] = frustum_y[1] - frustum_y[0];
-		}
-		else {
-			frustum_bary_vx[i][0] = frustum_x[3] - frustum_x[1];	// c - a
-			frustum_bary_vy[i][0] = frustum_y[3] - frustum_y[1];
-			frustum_bary_vx[i][1] = frustum_x[2] - frustum_x[1];	// b - a
-			frustum_bary_vy[i][1] = frustum_y[2] - frustum_y[1];
-		}
-		frustum_bary_dot00[i] = frustum_bary_vx[i][0] * frustum_bary_vx[i][0] + frustum_bary_vy[i][0] * frustum_bary_vy[i][0];	// v0 . v0
-		frustum_bary_dot01[i] = frustum_bary_vx[i][0] * frustum_bary_vx[i][1] + frustum_bary_vy[i][0] * frustum_bary_vy[i][1];	// v0 . v1
-		frustum_bary_dot11[i] = frustum_bary_vx[i][1] * frustum_bary_vx[i][1] + frustum_bary_vy[i][1] * frustum_bary_vy[i][1];	// v1 . v1
-
-		frustum_bary_inv[i] = 1.0 / (frustum_bary_dot00[i] * frustum_bary_dot11[i] - frustum_bary_dot01[i] * frustum_bary_dot01[i]);
-	}
-}
-
 bool
-point_inside_frustum (double x, double y)
+point_inside_frustum (float x, float y)
 {
-	// Use precomputed barycentric vectors to quickly determine whether a
-	// point is inside the frustum. Divide the frustum into two triangles
-	// and use a variation of point_inside_triangle() on both triangles.
+	// Use precomputed vectors to quickly determine whether a point is
+	// inside the frustum. For all edges of the frustum, calculate the
+	// cross product in parallel and check the resulting signs.
 
-	double u, v;
+	vec4f pvx = vec4f_float(x) - frustum_x1;
+	vec4f pvy = vec4f_float(y) - frustum_y1;
 
-	for (int i = 0; i < 2; i++)
-	{
-		frustum_bary_vx[i][2] = x - frustum_x[i];
-		frustum_bary_vy[i][2] = y - frustum_y[i];
+	// Calculate cross products:
+	vec4f cross = frustum_dvx * pvy - frustum_dvy * pvx;
 
-		frustum_bary_dot02[i] = frustum_bary_vx[i][0] * frustum_bary_vx[i][2] + frustum_bary_vy[i][0] * frustum_bary_vy[i][2];
-		frustum_bary_dot12[i] = frustum_bary_vx[i][1] * frustum_bary_vx[i][2] + frustum_bary_vy[i][1] * frustum_bary_vy[i][2];
+	// Check if their sign is uniform (assuming clockwise quad):
+	vec4i r = (cross >= vec4f_zero());
 
-		// Use a tiny fudge facctor on the numbers, because at high zoom levels we
-		// were getting occasional dropped tiles between the "seam" in the middle.
-		// The value is experimentally determined. May lead to an occasional
-		// offscreen tile erroneously being "visible".
-		if ((u = (frustum_bary_dot11[i] * frustum_bary_dot02[i] - frustum_bary_dot01[i] * frustum_bary_dot12[i]) * frustum_bary_inv[i]) < -0.000001) {
-			continue;
-		}
-		if ((v = (frustum_bary_dot00[i] * frustum_bary_dot12[i] - frustum_bary_dot01[i] * frustum_bary_dot02[i]) * frustum_bary_inv[i]) < -0.000001) {
-			continue;
-		}
-		if (u + v < 1.000001) {
-			return true;
-		}
-	}
-	return false;
+	if (r[0]) return false;
+	if (r[1]) return false;
+	if (r[2]) return false;
+	if (r[3]) return false;
+
+	return true;
 }
