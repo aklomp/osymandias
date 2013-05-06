@@ -7,11 +7,14 @@ struct xylist_req {
 	unsigned int xn;		// x index of requested tile
 	unsigned int yn;		// y index of requested tile
 	unsigned int zoom;		// zoom level of requested tile
-	unsigned int xmin;		// leftmost column on viewport
-	unsigned int ymin;		// topmost row on viewport
-	unsigned int xmax;		// rightmost column on viewport
-	unsigned int ymax;		// bottommost row on viewport
+	unsigned int world_zoom;	// zoom level of current world
+	unsigned int world_xmin;	// leftmost column on viewport
+	unsigned int world_ymin;	// topmost row on viewport
+	unsigned int world_xmax;	// rightmost column on viewport
+	unsigned int world_ymax;	// bottommost row on viewport
 	unsigned int search_depth;	// how far down to propagate the request
+	float cx;			// center x, of view center
+	float cy;			// center y, of view center
 };
 
 struct xylist *

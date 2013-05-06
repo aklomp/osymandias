@@ -93,11 +93,14 @@ layer_osm_paint (void)
 		req.xn = x >> (world_zoom - zoom);
 		req.yn = y >> (world_zoom - zoom);
 		req.zoom = zoom;
-		req.xmin = tile_left >> (world_zoom - zoom);
-		req.ymin = tile_top >> (world_zoom - zoom);
-		req.xmax = tile_right >> (world_zoom - zoom);
-		req.ymax = tile_bottom >> (world_zoom - zoom);
+		req.world_zoom = world_zoom;
+		req.world_xmin = tile_left;
+		req.world_ymin = tile_top;
+		req.world_xmax = tile_right;
+		req.world_ymax = tile_bottom;
 		req.search_depth = 9;
+		req.cx = -cx;
+		req.cy = world_get_size() + cy;
 
 		// Is the texture already cached in OpenGL?
 		if (textures && (txtdata = xylist_deep_search(texture_request, &req, &t)) != NULL) {
@@ -176,10 +179,11 @@ xylist_deep_search (void *(*xylist_req)(struct xylist_req *), struct xylist_req 
 		zoomed_req.xn = req->xn >> zoomdiff;
 		zoomed_req.yn = req->yn >> zoomdiff;
 		zoomed_req.zoom = (unsigned int)z;
-		zoomed_req.xmin = req->xmin >> zoomdiff;
-		zoomed_req.ymin = req->ymin >> zoomdiff;
-		zoomed_req.xmax = req->xmax >> zoomdiff;
-		zoomed_req.ymax = req->ymax >> zoomdiff;
+		zoomed_req.world_zoom = req->world_zoom;
+		zoomed_req.world_xmin = req->world_xmin;
+		zoomed_req.world_ymin = req->world_ymin;
+		zoomed_req.world_xmax = req->world_xmax;
+		zoomed_req.world_ymax = req->world_ymax;
 
 		// Don't go on a procure binge, just search current tiles in the xylist:
 		zoomed_req.search_depth = 0;

@@ -2,6 +2,8 @@
 #include <stdlib.h>
 
 #include "llist.h"
+#include "vector.h"
+#include "tile2d.h"
 #include "xylist.h"
 
 // An xylist is a kind of doubly linked list that looks like this:
@@ -73,6 +75,8 @@ struct xylist {
 	void *(*tile_procure)(struct xylist_req *req);
 	void  (*tile_destroy)(void *data);
 };
+
+static void zoomlevel_purge_invisible (struct xylist *l, struct zoomlevel *z, struct xylist_req *req, int leniency);
 
 static void
 ytile_destroy (struct xylist *l, struct zoomlevel *z, struct ytile **yy, const unsigned int xn)
@@ -468,8 +472,8 @@ xylist_area_is_covered (struct xylist *l, const struct xylist_req *const req)
 	// Return true if we can guarantee coverage of the area given by the tile
 	// coordinates, and false if we're not positive. Store the cached pointers
 	// and restore them at the end, ready for the next walk over the area.
-	for (unsigned int xn = req->xmin; xn <= req->xmax; xn++) {
-		for (unsigned int yn = req->ymin; yn <= req->ymax; yn++) {
+	for (unsigned int xn = req->world_xmin; xn <= req->world_xmax; xn++) {
+		for (unsigned int yn = req->world_ymin; yn <= req->world_ymax; yn++) {
 			if (tile_find_cached(z, xn, yn, &xclosest, &yclosest) == NULL) {
 				goto out;
 			}
@@ -650,74 +654,109 @@ cache_purge_y_rows (struct xylist *l, struct zoomlevel *z, const unsigned int ym
 static void
 cache_purge (struct xylist *l, struct xylist_req *req)
 {
-	unsigned int z;
+	int z;
+	int leniency;
 
 	// Purge items from the cache till only l->purge_to tiles left.
 	// Use a heuristic method to remove "unimportant" tiles first.
 
-	// First, they came for the far higher zoom levels:
-	for (z = l->zoom_max; z > req->zoom + 2; z--) {
+	// First, they came for the higher zoom levels,
+	// none of which are currently visible:
+	for (z = l->zoom_max; z > (int)req->world_zoom; z--) {
 		cache_purge_zoomlevel(l, l->zoom[z]);
 		if (l->ntiles <= l->purge_to) {
 			return;
 		}
 	}
-	// Then, they came for the far lower zoom levels:
-	if (req->zoom > l->zoom_min + 2) {
-		for (z = l->zoom_min; z < req->zoom - 2; z++) {
-			cache_purge_zoomlevel(l, l->zoom[z]);
+	// Then, they came for the nonvisible tiles in the current zoom level, with a large leniency:
+	zoomlevel_purge_invisible(l, l->zoom[z], req, 4);
+	if (l->ntiles <= l->purge_to) {
+		return;
+	}
+	// Then, they came for the non-visible tiles in the lower active zoom levels,
+	// starting with the current zoom level (which has the largest "world"):
+
+	// TODO: optimization possibility: calculate tile distances just once per cache-cleaning iteration...
+	for (leniency = 4; leniency >= 0; leniency--) {
+		for (z = req->world_zoom - 1; z >= (int)l->zoom_min; z--) {
+			zoomlevel_purge_invisible(l, l->zoom[z], req, leniency);
 			if (l->ntiles <= l->purge_to) {
 				return;
 			}
 		}
 	}
-	// Then, they came for the directly higher zoom levels:
-	for (z = l->zoom_max; z > req->zoom; z--) {
+	// Then, they came for the lower zoom levels, killing them off one by one:
+	for (z = req->world_zoom - 1; z >= (int)l->zoom_min; z--) {
 		cache_purge_zoomlevel(l, l->zoom[z]);
 		if (l->ntiles <= l->purge_to) {
 			return;
 		}
 	}
-	// Then, they came for the directly lower zoom levels,
-	// but they left the viewport area alone for now:
-	for (z = l->zoom_min; z < req->zoom; z++) {
-		unsigned int zoomdiff = req->zoom - z;
-
-		cache_purge_x_cols(l, l->zoom[z], req->xmin >> zoomdiff, req->xmax >> zoomdiff);
+	// Then, they came for the active zoom level, first killing off the invisible tiles:
+	for (leniency = 4; leniency >= 0; leniency--) {
+		zoomlevel_purge_invisible(l, l->zoom[req->world_zoom], req, leniency);
 		if (l->ntiles <= l->purge_to) {
 			return;
 		}
-		cache_purge_y_rows(l, l->zoom[z], req->ymin >> zoomdiff, req->ymax >> zoomdiff);
+	}
+
+
+
+#if 0
+	// Then, they came for the far lower zoom levels:
+	if (req->zoom > l->zoom_min + 2) {
+		for (z = l->zoom_min; z < req->zoom - 2; z++) {
+			zoomlevel_purge_invisible(l, l->zoom[z], req);
+	//		cache_purge_zoomlevel(l, l->zoom[z]);
+			if (l->ntiles <= l->purge_to) {
+				return;
+			}
+		}
+	}
+	// Then, they came for the directly lower zoom levels,
+	// but they left the viewport area alone for now:
+	for (z = l->zoom_min; z < req->zoom; z++) {
+	//	unsigned int zoomdiff = req->zoom - z;
+
+		zoomlevel_purge_invisible(l, l->zoom[z], req);
+
+	//	cache_purge_x_cols(l, l->zoom[z], req->xmin >> zoomdiff, req->xmax >> zoomdiff);
+	//	if (l->ntiles <= l->purge_to) {
+	//		return;
+	//	}
+	//	cache_purge_y_rows(l, l->zoom[z], req->ymin >> zoomdiff, req->ymax >> zoomdiff);
 		if (l->ntiles <= l->purge_to) {
 			return;
 		}
 	}
 	// Then, they got the start and end of the x columns,
 	// and deleted the furthest columns:
-	cache_purge_x_cols(l, l->zoom[req->zoom], req->xmin, req->xmax);
+//	cache_purge_x_cols(l, l->zoom[req->zoom], req->xmin, req->xmax);
+	zoomlevel_purge_invisible(l, l->zoom[req->zoom], req);
 	if (l->ntiles <= l->purge_to) {
 		return;
 	}
 	// Then they went for the y columns:
-	cache_purge_y_rows(l, l->zoom[req->zoom], req->ymin, req->ymax);
-	if (l->ntiles <= l->purge_to) {
-		return;
-	}
+//	cache_purge_y_rows(l, l->zoom[req->zoom], req->ymin, req->ymax);
+//	if (l->ntiles <= l->purge_to) {
+//		return;
+//	}
 	// Then they took out the lower zoomlevels entirely:
 	for (z = l->zoom_min; z < req->zoom; z++) {
 		cache_purge_zoomlevel(l, l->zoom[z]);
 	}
 	// Then they purged all but the center tile in the current level:
-	cache_purge_x_cols(l, l->zoom[req->zoom], (req->xmax - req->xmin) / 2, (req->xmax - req->xmin) / 2);
+	cache_purge_x_cols(l, l->zoom[req->world_zoom], (req->xmax - req->xmin) / 2, (req->xmax - req->xmin) / 2);
 	if (l->ntiles <= l->purge_to) {
 		return;
 	}
-	cache_purge_y_rows(l, l->zoom[req->zoom], (req->ymax - req->ymin) / 2, (req->ymax - req->ymin) / 2);
+	cache_purge_y_rows(l, l->zoom[req->world_zoom], (req->ymax - req->ymin) / 2, (req->ymax - req->ymin) / 2);
 	if (l->ntiles <= l->purge_to) {
 		return;
 	}
 	// Then, finally, they got the center tile too:
-	cache_purge_zoomlevel(l, l->zoom[req->zoom]);
+	cache_purge_zoomlevel(l, l->zoom[req->world_zoom]);
+#endif
 
 	// And then there was nothing more to come for...
 }
@@ -861,4 +900,103 @@ start:	if ((data = tile_find_cached(z, req->xn, req->yn, &xclosest, &yclosest)) 
 	z->saved_x = xmatch;
 	z->saved_y = ymatch;
 	return data;
+}
+
+static inline void
+tile_get_zoomfactors (int tx, int ty, float cx, float cy, int world_zoom, int zoomdiff, int *min, int *max)
+{
+	// Zoom factor varies with distance from center point.
+	// Calculate zoom factors of all four corner tiles in parallel, then
+	// pick the smallest zoom factor.
+	// tx and ty and "unzoomed" tile coordinates, we do the zooming.
+	// Zoomdiff must be positive! Lower zooms only.
+
+	// Scale tile size and location to "viewing" world:
+	int sz = 1 << zoomdiff;
+	tx <<= zoomdiff;
+	ty <<= zoomdiff;
+
+	// Get the zoom level of the *closest unit-tile* of the enlarged tile;
+	// this deals with the case where the center point is *inside* the tile:
+	*min = *max = tile2d_get_max_zoom(tx, ty, sz, cx, cy, world_zoom);
+
+	// No zoom difference? The unit tile data is sufficient:
+	if (zoomdiff == 0) {
+		return;
+	}
+	vec4i vz = tile2d_get_corner_zooms(tx, ty, sz, cx, cy, world_zoom);
+
+	for (int i = 0; i < 4; i++) {
+		if (vz[i] < *min) *min = vz[i];
+		if (vz[i] > *max) *max = vz[i];
+	}
+}
+
+static void
+zoomlevel_purge_invisible (struct xylist *l, struct zoomlevel *z, struct xylist_req *req, int leniency)
+{
+	// Remove tiles that are not currently displayed at zoomlevel
+	// 'zoomdiff', because they're not visible in the viewport:
+
+	int zoomdiff = req->world_zoom - z->n;
+
+	// Dealing with a higher zoom level than currently viewing; nothing is visible:
+	if (zoomdiff < 0) {
+		cache_purge_zoomlevel(l, z);
+		return;
+	}
+	struct xlist *x = z->xs;
+
+	while (x)
+	{
+		struct xlist *xt = list_next(x);
+		struct ytile *y = x->ys;
+
+		// Fast check against bounding box; perhaps we can purge the entire row:
+		if ((x->n << zoomdiff) > req->world_xmax || ((x->n + 1) << zoomdiff) < req->world_xmin) {
+			list_detach(z->xs, z->xe, x);
+			xlist_destroy(l, z, &x);
+			x = xt;
+			continue;
+		}
+		while (y)
+		{
+			// If tile is inside bounding box, do further visibility checks; else purge:
+			if (!((y->n << zoomdiff) > req->world_ymax || ((y->n + 1) << zoomdiff) < req->world_ymin))
+			{
+				// Get min and max zoom factors within this larger tile:
+				int zmin, zmax;
+				tile_get_zoomfactors(x->n, y->n, req->cx, req->cy, req->world_zoom, zoomdiff, &zmin, &zmax);
+
+				// If their zoom level is the same as their absolute zoom value
+				// their "band" is visible and they can stay;
+				// involve "leniency", which is the difference from the tile with
+				// its zoom difference; a tile "close to" the zoom level where it
+				// should be is treated leniently, so that it's still available in
+				// the cache if we need it soon:
+				if ((int)z->n + leniency >= zmin && (int)z->n - leniency <= zmax) {
+					y = list_next(y);
+					continue;
+				}
+			}
+			// Purge tile:
+			struct ytile *yt = list_next(y);
+			list_detach(x->ys, x->ye, y);
+			ytile_destroy(l, z, &y, x->n);
+			if ((y = yt) == NULL) {
+				break;
+			}
+			if (l->ntiles <= l->purge_to) {
+				break;
+			}
+		}
+		if (l->ntiles <= l->purge_to) {
+			break;
+		}
+		if (x->ys == NULL) {
+			list_detach(z->xs, z->xe, x);
+			xlist_destroy(l, z, &x);
+		}
+		x = xt;
+	}
 }
