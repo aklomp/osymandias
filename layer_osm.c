@@ -5,7 +5,7 @@
 
 #include <GL/gl.h>
 
-#include "xylist.h"
+#include "quadtree.h"
 #include "bitmap_mgr.h"
 #include "shaders.h"
 #include "world.h"
@@ -25,23 +25,22 @@ struct texture {
 	unsigned int zoomdiff;
 };
 
-static void *xylist_deep_search (void *(*xylist_req)(struct xylist_req *), struct xylist_req *req, struct texture *tex);
 static void draw_tile (int tile_x, int tile_y, int tile_wd, int tile_ht, GLuint texture_id, struct texture *t, double cx, double cy);
 static GLuint texture_from_rawbits (void *rawbits);
-static void *texture_request (struct xylist_req *req);
 static void texture_destroy (void *data);
 static void zoomed_texture_cutout (int orig_x, int orig_y, int wd, int ht, struct texture *t);
 static void set_zoom_color (int zoomlevel);
 
 static int overlay_zoom = 0;
-static struct xylist *textures = NULL;
+static int colorize_cache = 0;
+static struct quadtree *textures = NULL;
 
 static void
 layer_osm_destroy (void *data)
 {
 	(void)data;
 
-	xylist_destroy(&textures);
+	quadtree_destroy(&textures);
 	bitmap_mgr_destroy();
 }
 
@@ -58,15 +57,9 @@ layer_osm_paint (void)
 	int y;
 	int tile_wd, tile_ht;
 	int zoom;
-	void *txtdata = NULL;
-	void *bmpdata = NULL;
 	struct texture t;
-	struct xylist_req req;
+	struct quadtree_req req;
 	int world_zoom = world_get_zoom();
-	int tile_top = viewport_get_tile_top();
-	int tile_left = viewport_get_tile_left();
-	int tile_right = viewport_get_tile_right();
-	int tile_bottom = viewport_get_tile_bottom();
 
 	// Draw to world coordinates:
 	viewport_gl_setup_world();
@@ -90,40 +83,57 @@ layer_osm_paint (void)
 		}
 		// The tilepicker can tell us to draw a tile at a different zoom level to the world zoom;
 		// we need to correct the geometry to reflect that:
-		req.xn = x >> (world_zoom - zoom);
-		req.yn = y >> (world_zoom - zoom);
+		req.x = x >> (world_zoom - zoom);
+		req.y = y >> (world_zoom - zoom);
 		req.zoom = zoom;
 		req.world_zoom = world_zoom;
-		req.world_xmin = tile_left;
-		req.world_ymin = tile_top;
-		req.world_xmax = tile_right;
-		req.world_ymax = tile_bottom;
-		req.search_depth = 9;
 		req.cx = -cx;
 		req.cy = world_get_size() + cy;
 
 		// Is the texture already cached in OpenGL?
-		if (textures && (txtdata = xylist_deep_search(texture_request, &req, &t)) != NULL) {
+		if (quadtree_request(textures, &req)) {
 			// If the texture is already cached at native resolution,
 			// then we're done; else still try to get the native bitmap:
-			if (t.zoom == zoom) {
-				t.zoomdiff = world_zoom - t.zoom;
+			if (req.found_zoom == zoom) {
+				t.zoomdiff = world_zoom - req.found_zoom;
+				t.zoom = req.found_zoom;
+				t.tile_x = req.found_x;
+				t.tile_y = req.found_y;
+
 				zoomed_texture_cutout(x, y, tile_wd, tile_ht, &t);
-				draw_tile(x, y, tile_wd, tile_ht, (GLuint)txtdata, &t, cx, cy);
+				if (colorize_cache) glColor3f(0.3, 1.0, 0.3);
+				draw_tile(x, y, tile_wd, tile_ht, (GLuint)req.found_data, &t, cx, cy);
+				if (colorize_cache) glColor3f(1.0, 1.0, 1.0);
 				continue;
 			}
 		}
 		// Try to load the bitmap and turn it into an OpenGL texture:
-		if ((bmpdata = xylist_deep_search(bitmap_request, &req, &t)) == NULL) {
-			if (txtdata) {
-				t.zoomdiff = world_zoom - t.zoom;
-				zoomed_texture_cutout(x, y, tile_wd, tile_ht, &t);
-				draw_tile(x, y, tile_wd, tile_ht, (GLuint)txtdata, &t, cx, cy);
+		if (bitmap_request(&req)) {
+			t.zoomdiff = world_zoom - req.found_zoom;
+			t.zoom = req.found_zoom;
+			t.tile_x = req.found_x;
+			t.tile_y = req.found_y;
+
+			zoomed_texture_cutout(x, y, tile_wd, tile_ht, &t);
+			if (colorize_cache) glColor3f(0.8, 0.0, 0.0);
+			GLuint id = texture_from_rawbits(req.found_data);
+			draw_tile(x, y, tile_wd, tile_ht, id, &t, cx, cy);
+			if (colorize_cache) glColor3f(1.0, 1.0, 1.0);
+
+			req.zoom = req.found_zoom;
+			req.x = req.found_x;
+			req.y = req.found_y;
+
+			if (!quadtree_data_insert(textures, &req, (void *)id)) {
+				texture_destroy((void *)id);
 			}
 			continue;
 		}
-		GLuint id = texture_from_rawbits(bmpdata);
+		GLuint id = texture_from_rawbits(req.found_data);
 		t.zoomdiff = world_zoom - t.zoom;
+		t.zoom = req.found_zoom;
+		t.tile_x = req.found_x;
+		t.tile_y = req.found_y;
 		zoomed_texture_cutout(x, y, tile_wd, tile_ht, &t);
 		draw_tile(x, y, tile_wd, tile_ht, id, &t, cx, cy);
 
@@ -131,12 +141,12 @@ layer_osm_paint (void)
 		// we do so under its native zoom level, not the zoom level
 		// of the current viewport:
 		req.zoom = t.zoom;
-		req.xn = t.tile_x;
-		req.yn = t.tile_y;
+		req.x = t.tile_x;
+		req.y = t.tile_y;
 
 		// Store the identifier in the textures cache, else delete;
 		// HACK: dirty int-to-pointer conversion:
-		if (!textures || !xylist_insert_tile(textures, &req, (void *)id)) {
+		if (!textures || !quadtree_data_insert(textures, &req, (void *)id)) {
 			glDeleteTextures(1, &id);
 		}
 	}
@@ -149,56 +159,6 @@ static void
 layer_osm_zoom (void)
 {
 	bitmap_zoom_change(world_get_zoom());
-}
-
-static void *
-xylist_deep_search (void *(*xylist_req)(struct xylist_req *), struct xylist_req *req, struct texture *t)
-{
-	void *data;
-
-	// Traverse all zoom levels of the given xylist from current
-	// to lowest, looking for a tile that matches the request.
-
-	// First, try the callback at the current zoom level:
-	if ((data = xylist_req(req)) != NULL) {
-		t->offset_x = 0;
-		t->offset_y = 0;
-		t->zoom = req->zoom;
-		t->zoomdiff = 0;
-		t->tile_x = req->xn;
-		t->tile_y = req->yn;
-		return data;
-	}
-	// Didn't work, now try deeper zoom levels:
-	for (int z = (int)req->zoom - 1; z >= 0; z--)
-	{
-		unsigned int zoomdiff = (req->zoom - z);
-		struct xylist_req zoomed_req;
-
-		// Create our own request, based on the one we have, but zoomed:
-		zoomed_req.xn = req->xn >> zoomdiff;
-		zoomed_req.yn = req->yn >> zoomdiff;
-		zoomed_req.zoom = (unsigned int)z;
-		zoomed_req.world_zoom = req->world_zoom;
-		zoomed_req.world_xmin = req->world_xmin;
-		zoomed_req.world_ymin = req->world_ymin;
-		zoomed_req.world_xmax = req->world_xmax;
-		zoomed_req.world_ymax = req->world_ymax;
-
-		// Don't go on a procure binge, just search current tiles in the xylist:
-		zoomed_req.search_depth = 0;
-
-		if ((data = xylist_req(&zoomed_req)) == NULL) {
-			continue;
-		}
-		t->zoom = z;
-		t->zoomdiff = zoomdiff;
-		t->tile_x = zoomed_req.xn;
-		t->tile_y = zoomed_req.yn;
-
-		return data;
-	}
-	return NULL;
 }
 
 static GLuint
@@ -239,15 +199,6 @@ draw_tile (int tile_x, int tile_y, int tile_wd, int tile_ht, GLuint texture_id, 
 		glTexCoord2f(txoffs + twd, tyoffs + tht); glVertex2f(cx + (double)tile_x + (double)tile_wd, cy + (double)tile_y);
 		glTexCoord2f(txoffs,       tyoffs + tht); glVertex2f(cx + (double)tile_x,                   cy + (double)tile_y);
 	glEnd();
-}
-
-static void *
-texture_request (struct xylist_req *req)
-{
-	// Helper function to provide the function signature needed by
-	// xylist_deep_search.
-
-	return xylist_request(textures, req);
 }
 
 static void
@@ -300,8 +251,8 @@ layer_osm_create (void)
 	if (bitmap_mgr_init() == 0) {
 		return 0;
 	}
-	// OpenGL texture cache, NULL is also acceptable:
-	textures = xylist_create(0, 18, 50, NULL, &texture_destroy);
+	// OpenGL texture cache:
+	textures = quadtree_create(50, NULL, &texture_destroy);
 
 	return layer_register(layer_create(layer_osm_full_occlusion, layer_osm_paint, layer_osm_zoom, layer_osm_destroy, NULL), 100);
 }

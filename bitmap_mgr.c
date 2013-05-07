@@ -5,37 +5,36 @@
 #include <pthread.h>
 
 #include "framerate.h"
-#include "xylist.h"
+#include "quadtree.h"
 #include "pngloader.h"
 
 #define ZOOM_MAX	18
 #define MAX_BITMAPS	1000			// Keep at most this many bitmaps in the cache
 
-static struct xylist *bitmaps = NULL;
-static struct xylist *threadlist = NULL;
+static struct quadtree *bitmaps = NULL;
+static struct quadtree *threadlist = NULL;
 static pthread_mutex_t bitmaps_mutex;
 static pthread_mutex_t running_mutex;
 static pthread_attr_t attr_detached;
 
-void *
-bitmap_request (struct xylist_req *req)
+int
+bitmap_request (struct quadtree_req *req)
 {
-	void *data;
-
 	pthread_mutex_lock(&bitmaps_mutex);
-	data = xylist_request(bitmaps, req);
+	int ret = quadtree_request(bitmaps, req);
 	pthread_mutex_unlock(&bitmaps_mutex);
-	return data;
+	return ret;
 }
 
 void
 bitmap_zoom_change (const int zoomlevel)
 {
-	xylist_purge_other_zoomlevels(threadlist, zoomlevel);
+	(void)zoomlevel;
+//	xylist_purge_other_zoomlevels(threadlist, zoomlevel);
 }
 
 static void *
-bitmap_procure (struct xylist_req *req)
+bitmap_procure (struct quadtree_req *req)
 {
 	// We have been asked to procure a bitmap. We can't do this fast enough
 	// for this refresh, so we return NULL and shoot off a thread.
@@ -46,7 +45,7 @@ bitmap_procure (struct xylist_req *req)
 	// it will be procured by xylist_request by indirectly calling back on
 	// thread_procure(). Our work here is done.
 
-	xylist_request(threadlist, req);
+	quadtree_request(threadlist, req);
 	return NULL;
 }
 
@@ -57,13 +56,13 @@ bitmap_destroy (void *data)
 }
 
 static void *
-thread_procure (struct xylist_req *req)
+thread_procure (struct quadtree_req *req)
 {
 	struct pngloader *p;
 	struct pngloader_node *n;
 
 	// We have been asked to create a thread that loads the given bitmap
-	// from disk and puts it in the bitmaps xylist.
+	// from disk and puts it in the bitmaps quadtree.
 
 	if ((p = malloc(sizeof(*p))) == NULL) {
 		return NULL;
@@ -89,7 +88,7 @@ thread_procure (struct xylist_req *req)
 	// Start thread:
 	pthread_create(&p->thread, &attr_detached, &pngloader_main, p);
 
-	// Store node in xylist:
+	// Store node in quadtree:
 	return n;
 }
 
@@ -113,11 +112,11 @@ thread_destroy (void *data)
 bool
 bitmap_mgr_init (void)
 {
-	if ((bitmaps = xylist_create(0, ZOOM_MAX, MAX_BITMAPS, &bitmap_procure, &bitmap_destroy)) == NULL) {
+	if ((bitmaps = quadtree_create(MAX_BITMAPS, &bitmap_procure, &bitmap_destroy)) == NULL) {
 		return false;
 	}
-	if ((threadlist = xylist_create(0, ZOOM_MAX, 200, &thread_procure, &thread_destroy)) == NULL) {
-		xylist_destroy(&bitmaps);
+	if ((threadlist = quadtree_create(200, &thread_procure, &thread_destroy)) == NULL) {
+		quadtree_destroy(&bitmaps);
 		return false;
 	}
 	pthread_mutex_init(&bitmaps_mutex, NULL);
@@ -131,10 +130,10 @@ bitmap_mgr_init (void)
 void
 bitmap_mgr_destroy (void)
 {
-	xylist_destroy(&threadlist);
+	quadtree_destroy(&threadlist);
 
 	pthread_mutex_lock(&bitmaps_mutex);
-	xylist_destroy(&bitmaps);
+	quadtree_destroy(&bitmaps);
 	pthread_mutex_unlock(&bitmaps_mutex);
 
 	pthread_attr_destroy(&attr_detached);

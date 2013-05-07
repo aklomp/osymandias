@@ -13,10 +13,10 @@ struct pngloader
 	void (*completed_callback)(void);
 	pthread_mutex_t *running_mutex;
 
-	struct xylist **bitmaps;
+	struct quadtree **bitmaps;
 	pthread_mutex_t *bitmaps_mutex;
 
-	struct xylist_req req;
+	struct quadtree_req req;
 	struct pngloader_node *n;
 
 	char *filename;

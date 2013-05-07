@@ -8,7 +8,7 @@
 #include <pthread.h>
 #include <png.h>
 
-#include "xylist.h"
+#include "quadtree.h"
 #include "diskcache.h"
 #include "pngloader.h"
 
@@ -144,7 +144,7 @@ pngloader_main (void *data)
 
 	p = data;
 
-	if ((p->filename = tile_filename(p->req.zoom, p->req.xn, p->req.yn)) == NULL) {
+	if ((p->filename = tile_filename(p->req.zoom, p->req.x, p->req.y)) == NULL) {
 		goto exit;
 	}
 	// Get a file descriptor to the file. We just want a file descriptor to
@@ -185,7 +185,7 @@ pngloader_main (void *data)
 	// suddenly shutting down on us:
 	pthread_mutex_lock(p->bitmaps_mutex);
 	if (p->bitmaps != NULL) {
-		ret = xylist_insert_tile(*(p->bitmaps), &p->req, rawbits);
+		ret = quadtree_data_insert(*(p->bitmaps), &p->req, rawbits);
 	}
 	pthread_mutex_unlock(p->bitmaps_mutex);
 	if (!ret) {

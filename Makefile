@@ -12,7 +12,7 @@ PROG = osymandias
 OBJS = \
   world.o \
   layers.o \
-  xylist.o \
+  quadtree.o \
   diskcache.o \
   pngloader.o \
   autoscroll.o \
