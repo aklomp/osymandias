@@ -11,6 +11,7 @@ struct node {
 	int zoom;
 	int x;
 	int y;
+	int view_zoom;
 };
 
 struct quadtree {
@@ -100,6 +101,41 @@ purge_node_if_obsolete (struct quadtree *t, struct node *n)
 	// We found that this node's data can be replaced by the four child
 	// quads, so delete the data to leave this node empty (we know it has children):
 	node_data_destroy(t, n);
+}
+
+static void
+node_destroy_self (struct quadtree *t, struct node *n)
+{
+	if (n == NULL) return;
+
+	int qx = n->x & 1;
+	int qy = n->y & 1;
+	struct node *parent = n->parent;
+
+	node_destroy_recursive(t, n);
+
+	if (parent) parent->q[qx][qy] = NULL;
+}
+
+static void
+purge_below (struct quadtree *t, struct node *n, int zoom, int prune_target)
+{
+	// If at given zoom, leave this node alone but destroy its children:
+	if (n->zoom > zoom) {
+		node_destroy_self(t, n);
+		return;
+	}
+	if (n->q[0][0]) { purge_below(t, n->q[0][0], zoom, prune_target); if (t->num_data <= prune_target) return; }
+	if (n->q[0][1]) { purge_below(t, n->q[0][1], zoom, prune_target); if (t->num_data <= prune_target) return; }
+	if (n->q[1][0]) { purge_below(t, n->q[1][0], zoom, prune_target); if (t->num_data <= prune_target) return; }
+	if (n->q[1][1]) { purge_below(t, n->q[1][1], zoom, prune_target); }
+}
+
+static void
+quadtree_prune (struct quadtree *t, struct node *n, int prune_target)
+{
+	// Purge all tiles below current zoom level:
+	purge_below(t, n, t->world_zoom, prune_target);
 }
 
 static struct node *
@@ -212,12 +248,18 @@ node_data_update (struct quadtree *t, struct node *n, void *data)
 	if (n->data != NULL) {
 		node_data_destroy(t, n);
 	}
-	if ((n->data = data) != NULL) {
-		t->num_data++;
-
+	if ((n->data = data) != NULL)
+	{
 		// Maybe the parent is now made obsolete by this new data:
 		// TODO: we don't always want to delete the parent straight away.
 		purge_node_if_obsolete(t, n->parent);
+
+		// Went over capacity? Purge:
+		if (++t->num_data > t->capacity)
+		{
+			// Amount of filled nodes to purge down to:
+			quadtree_prune(t, t->root, (t->capacity * 3) / 4);
+		}
 	}
 }
 
