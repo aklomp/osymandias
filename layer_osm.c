@@ -148,26 +148,6 @@ layer_osm_paint (void)
 			}
 			continue;
 		}
-		GLuint id = texture_from_rawbits(req.found_data);
-		t.zoomdiff = world_zoom - t.zoom;
-		t.zoom = req.found_zoom;
-		t.tile_x = req.found_x;
-		t.tile_y = req.found_y;
-		zoomed_texture_cutout(x, y, tile_wd, tile_ht, &t);
-		draw_tile(x, y, tile_wd, tile_ht, id, &t, cx, cy);
-
-		// When we insert this texture id in the texture cache,
-		// we do so under its native zoom level, not the zoom level
-		// of the current viewport:
-		req.zoom = t.zoom;
-		req.x = t.tile_x;
-		req.y = t.tile_y;
-
-		// Store the identifier in the textures cache, else delete;
-		// HACK: dirty int-to-pointer conversion:
-		if (!textures || !quadtree_data_insert(textures, &req, (void *)id)) {
-			glDeleteTextures(1, &id);
-		}
 	}
 	glDisable(GL_BLEND);
 	glDisable(GL_TEXTURE_2D);
