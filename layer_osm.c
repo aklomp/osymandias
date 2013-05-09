@@ -59,6 +59,7 @@ layer_osm_paint (void)
 	int zoom;
 	struct texture t;
 	struct quadtree_req req;
+	struct quadtree_req req_tex;
 	int world_zoom = world_get_zoom();
 
 	// Draw to world coordinates:
@@ -90,6 +91,8 @@ layer_osm_paint (void)
 		req.cx = -cx;
 		req.cy = world_get_size() + cy;
 
+		req_tex.found_data = NULL;
+
 		// Is the texture already cached in OpenGL?
 		if (quadtree_request(textures, &req)) {
 			// If the texture is already cached at native resolution,
@@ -106,9 +109,25 @@ layer_osm_paint (void)
 				if (colorize_cache) glColor3f(1.0, 1.0, 1.0);
 				continue;
 			}
+			// Save found texture:
+			memcpy(&req_tex, &req, sizeof(req));
 		}
 		// Try to load the bitmap and turn it into an OpenGL texture:
 		if (bitmap_request(&req)) {
+			// If we found a texture, and it's better or equal than
+			// the bitmap we came back with, use that instead:
+			if (req_tex.found_data != NULL && req_tex.found_zoom >= req.found_zoom) {
+				t.zoomdiff = world_zoom - req_tex.found_zoom;
+				t.zoom = req_tex.found_zoom;
+				t.tile_x = req_tex.found_x;
+				t.tile_y = req_tex.found_y;
+
+				zoomed_texture_cutout(x, y, tile_wd, tile_ht, &t);
+				if (colorize_cache) glColor3f(0.3, 1.0, 0.3);
+				draw_tile(x, y, tile_wd, tile_ht, (GLuint)req_tex.found_data, &t, cx, cy);
+				if (colorize_cache) glColor3f(1.0, 1.0, 1.0);
+				continue;
+			}
 			t.zoomdiff = world_zoom - req.found_zoom;
 			t.zoom = req.found_zoom;
 			t.tile_x = req.found_x;
