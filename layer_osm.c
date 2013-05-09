@@ -15,7 +15,6 @@
 #include "layer_osm.h"
 
 struct texture {
-	int zoom;
 	unsigned int tile_x;
 	unsigned int tile_y;
 	unsigned int wd;
@@ -28,7 +27,7 @@ struct texture {
 static void draw_tile (int tile_x, int tile_y, int tile_wd, int tile_ht, GLuint texture_id, struct texture *t, double cx, double cy);
 static GLuint texture_from_rawbits (void *rawbits);
 static void texture_destroy (void *data);
-static void zoomed_texture_cutout (int orig_x, int orig_y, int wd, int ht, struct texture *t);
+static void zoomed_texture_cutout (int orig_x, int orig_y, int wd, int ht, int world_zoom, struct quadtree_req *req, struct texture *t);
 static void set_zoom_color (int zoomlevel);
 
 static int overlay_zoom = 0;
@@ -98,12 +97,7 @@ layer_osm_paint (void)
 			// If the texture is already cached at native resolution,
 			// then we're done; else still try to get the native bitmap:
 			if (req.found_zoom == zoom) {
-				t.zoomdiff = world_zoom - req.found_zoom;
-				t.zoom = req.found_zoom;
-				t.tile_x = req.found_x;
-				t.tile_y = req.found_y;
-
-				zoomed_texture_cutout(x, y, tile_wd, tile_ht, &t);
+				zoomed_texture_cutout(x, y, tile_wd, tile_ht, world_zoom, &req, &t);
 				if (colorize_cache) glColor3f(0.3, 1.0, 0.3);
 				draw_tile(x, y, tile_wd, tile_ht, (GLuint)req.found_data, &t, cx, cy);
 				if (colorize_cache) glColor3f(1.0, 1.0, 1.0);
@@ -117,23 +111,13 @@ layer_osm_paint (void)
 			// If we found a texture, and it's better or equal than
 			// the bitmap we came back with, use that instead:
 			if (req_tex.found_data != NULL && req_tex.found_zoom >= req.found_zoom) {
-				t.zoomdiff = world_zoom - req_tex.found_zoom;
-				t.zoom = req_tex.found_zoom;
-				t.tile_x = req_tex.found_x;
-				t.tile_y = req_tex.found_y;
-
-				zoomed_texture_cutout(x, y, tile_wd, tile_ht, &t);
+				zoomed_texture_cutout(x, y, tile_wd, tile_ht, world_zoom, &req_tex, &t);
 				if (colorize_cache) glColor3f(0.3, 1.0, 0.3);
 				draw_tile(x, y, tile_wd, tile_ht, (GLuint)req_tex.found_data, &t, cx, cy);
 				if (colorize_cache) glColor3f(1.0, 1.0, 1.0);
 				continue;
 			}
-			t.zoomdiff = world_zoom - req.found_zoom;
-			t.zoom = req.found_zoom;
-			t.tile_x = req.found_x;
-			t.tile_y = req.found_y;
-
-			zoomed_texture_cutout(x, y, tile_wd, tile_ht, &t);
+			zoomed_texture_cutout(x, y, tile_wd, tile_ht, world_zoom, &req, &t);
 			if (colorize_cache) glColor3f(0.8, 0.0, 0.0);
 			GLuint id = texture_from_rawbits(req.found_data);
 			draw_tile(x, y, tile_wd, tile_ht, id, &t, cx, cy);
@@ -210,8 +194,12 @@ texture_destroy (void *data)
 }
 
 static void
-zoomed_texture_cutout (int orig_x, int orig_y, int wd, int ht, struct texture *t)
+zoomed_texture_cutout (int orig_x, int orig_y, int wd, int ht, int world_zoom, struct quadtree_req *req, struct texture *t)
 {
+	t->zoomdiff = world_zoom - req->found_zoom;
+	t->tile_x = req->found_x;
+	t->tile_y = req->found_y;
+
 	// This is the nth block out of parent, counting from top left:
 	int xblock = orig_x & ((1 << t->zoomdiff) - 1);
 	int yblock = orig_y & ((1 << t->zoomdiff) - 1);
