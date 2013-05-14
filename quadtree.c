@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#include "vector.h"
+#include "tile2d.h"
 #include "quadtree.h"
 
 struct node {
@@ -12,6 +14,7 @@ struct node {
 	int x;
 	int y;
 	int view_zoom;
+	int stamp;
 };
 
 struct quadtree {
@@ -26,6 +29,7 @@ struct quadtree {
 	int world_zoom;
 	float cx;
 	float cy;
+	int stamp;
 };
 
 static struct node *
@@ -40,6 +44,7 @@ node_create (struct quadtree *t, struct node *parent, int x, int y)
 	n->y = y;
 	n->data = NULL;
 	n->parent = parent;
+	n->stamp = -1;
 	n->zoom = (parent) ? parent->zoom + 1 : 0;
 	n->q[0][0] = n->q[0][1] = n->q[1][0] = n->q[1][1] = NULL;
 	t->num_nodes++;
@@ -132,10 +137,58 @@ purge_below (struct quadtree *t, struct node *n, int zoom, int prune_target)
 }
 
 static void
+node_update_viewzoom (struct quadtree *t, struct node *n)
+{
+	// If tree and node have the same "stamp", we already did this
+	// expensive calculation for this round:
+	if (n->stamp == t->stamp) {
+		return;
+	}
+	// Calculate zoom levels for the four quads of this node:
+	int zoomdiff = t->world_zoom - n->zoom;
+
+	// Zoom of this tile, as viewed in current world:
+	n->view_zoom = tile2d_get_max_zoom
+	(
+		// Coordinate of this tile at current world zoom:
+		n->x << zoomdiff,
+		n->y << zoomdiff,
+
+		// Width of the tile at current world zoom:
+		1 << zoomdiff,
+
+		// Current view data:
+		t->cx, t->cy, t->world_zoom
+	);
+	n->stamp = t->stamp;
+}
+
+static void
+purge_below_visibility (struct quadtree *t, struct node *n, int prune_target)
+{
+	node_update_viewzoom(t, n);
+
+	// Should this tile already not be visible? Destroy:
+	if (n->view_zoom < n->zoom) {
+		node_destroy_self(t, n);
+		return;
+	}
+	if (n->q[0][0]) { purge_below_visibility(t, n->q[0][0], prune_target); if (t->num_data <= prune_target) return; }
+	if (n->q[0][1]) { purge_below_visibility(t, n->q[0][1], prune_target); if (t->num_data <= prune_target) return; }
+	if (n->q[1][0]) { purge_below_visibility(t, n->q[1][0], prune_target); if (t->num_data <= prune_target) return; }
+	if (n->q[1][1]) { purge_below_visibility(t, n->q[1][1], prune_target); }
+}
+
+static void
 quadtree_prune (struct quadtree *t, struct node *n, int prune_target)
 {
 	// Purge all tiles below current zoom level:
-	purge_below(t, n, t->world_zoom, prune_target);
+	purge_below(t, t->root, t->world_zoom, prune_target);
+	if (t->num_data <= prune_target) return;
+
+	// Calculate visible zoom level (a function of distance) for
+	// all tiles, delete those that are "too high-res":
+	purge_below_visibility(t, n, prune_target);
 }
 
 static struct node *
@@ -172,6 +225,7 @@ quadtree_create (int capacity,
 	}
 	t->num_data = 0;
 	t->num_nodes = 0;
+	t->stamp = 0;
 	t->capacity = capacity;
 	t->tile_procure = callback_procure;
 	t->tile_destroy = callback_destroy;
@@ -294,6 +348,7 @@ quadtree_data_insert (struct quadtree *t, struct quadtree_req *req, void *data)
 	t->world_zoom = req->world_zoom;
 	t->cx = req->cx;
 	t->cy = req->cy;
+	t->stamp++;
 	node_data_update(t, n, data);
 
 	return true;
