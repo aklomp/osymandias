@@ -491,7 +491,7 @@ line_segments_intersect (double x1, double y1, double x2, double y2, double x3, 
 static bool
 line_intersects_quad (float x1, float y1, float x2, float y2, vec4f x3, vec4f y3, vec4f x4, vec4f y4)
 {
-	vec4f z = { 0.0f, 0.0f, 0.0f, 0.0f };
+	vec4f z = vec4f_zero();
 	vec4f d = (y4 - y3) * vec4f_float(x2 - x1) - (x4 - x3) * vec4f_float(y2 - y1);
 	vec4f n1 = (x4 - x3) * (vec4f_float(y1) - y3) - (y4 - y3) * (vec4f_float(x1) - x3);
 	vec4f n2 = vec4f_float(x2 - x1) * (vec4f_float(y1) - y3) - vec4f_float(y2 - y1) * (vec4f_float(x1) - x3);
