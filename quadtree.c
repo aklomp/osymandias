@@ -13,7 +13,8 @@ struct node {
 	int zoom;
 	int x;
 	int y;
-	int view_zoom;
+	int viewzoom_min;
+	int viewzoom_max;
 	int stamp;
 };
 
@@ -147,8 +148,10 @@ node_update_viewzoom (struct quadtree *t, struct node *n)
 	// Calculate zoom levels for the four quads of this node:
 	int zoomdiff = t->world_zoom - n->zoom;
 
-	// Zoom of this tile, as viewed in current world:
-	n->view_zoom = tile2d_get_max_zoom
+	// Get max zoom with this special function, that not only takes into
+	// account the corner tiles, but also the tile directly under the
+	// cursor:
+	n->viewzoom_max = tile2d_get_max_zoom
 	(
 		// Coordinate of this tile at current world zoom:
 		n->x << zoomdiff,
@@ -160,6 +163,23 @@ node_update_viewzoom (struct quadtree *t, struct node *n)
 		// Current view data:
 		t->cx, t->cy, t->world_zoom
 	);
+	// Get min zoom by getting the corner zooms of the tile:
+	vec4i zooms = tile2d_get_corner_zooms
+	(
+		// Coordinate of this tile at current world zoom:
+		n->x << zoomdiff,
+		n->y << zoomdiff,
+
+		// Width of the tile at current world zoom:
+		1 << zoomdiff,
+
+		// Current view data:
+		t->cx, t->cy, t->world_zoom
+	);
+	int m1 = (zooms[0] < zooms[1]) ? zooms[0] : zooms[1];
+	int m2 = (zooms[2] < zooms[3]) ? zooms[2] : zooms[3];
+	n->viewzoom_min = (m1 < m2) ? m1 : m2;
+
 	n->stamp = t->stamp;
 }
 
@@ -168,8 +188,8 @@ purge_below_visibility (struct quadtree *t, struct node *n, int prune_target)
 {
 	node_update_viewzoom(t, n);
 
-	// Should this tile already not be visible? Destroy:
-	if (n->view_zoom < n->zoom) {
+	// Should this tile already not be visible? Destroy children:
+	if (n->zoom > n->viewzoom_max) {
 		node_destroy_self(t, n);
 		return;
 	}
