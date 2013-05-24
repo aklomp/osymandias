@@ -1,6 +1,9 @@
 #ifndef VIEWPORT_H
 #define VIEWPORT_H
 
+#define VIEWPORT_MODE_PLANAR	1
+#define VIEWPORT_MODE_SPHERICAL	2
+
 bool viewport_init (void);
 void viewport_destroy (void);
 void viewport_zoom_in (const int screen_x, const int screen_y);
@@ -16,11 +19,14 @@ void viewport_render (void);
 void viewport_gl_setup_screen (void);
 void viewport_gl_setup_overview (int sz, int margin);
 void viewport_gl_setup_world (void);
+void viewport_gl_setup_world_planar (void);
 bool viewport_within_world_bounds (void);
 void viewport_screen_to_world (double sx, double sy, double *wx, double *wy);
 void viewport_world_to_screen (double wx, double wy, double *sx, double *sy);
 void viewport_get_frustum (double **wx, double **wy);
 void viewport_get_bbox (double **bx, double **by);
+void viewport_mode_set (int mode);
+int viewport_mode_get (void);
 bool point_inside_frustum (float x, float y);
 
 unsigned int viewport_get_ht (void);

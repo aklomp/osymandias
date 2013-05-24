@@ -21,12 +21,15 @@ layer_blanktile_full_occlusion (void)
 static void
 layer_blanktile_paint (void)
 {
+	if (viewport_mode_get() != VIEWPORT_MODE_PLANAR) {
+		return;
+	}
 	int world_size  = world_get_size();
 	double cx = -viewport_get_center_x();
 	double cy = -viewport_get_center_y();
 
 	// Draw to world coordinates:
-	viewport_gl_setup_world();
+	viewport_gl_setup_world_planar();
 
 	// Draw a giant quad to the current world size:
 	glColor3f(0.12, 0.12, 0.12);

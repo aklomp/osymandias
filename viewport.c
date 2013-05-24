@@ -38,6 +38,8 @@ static int tile_last;
 static double modelview[16];	// OpenGL projection matrices
 static double projection[16];
 
+static int viewport_mode;	// see VIEWPORT_MODE_* constants
+
 static int frustum_inside_need_recalc = 1;
 static int frustum_coords_need_recalc = 1;
 
@@ -126,6 +128,7 @@ center_set (const double world_x, const double world_y)
 bool
 viewport_init (void)
 {
+	viewport_mode_set(VIEWPORT_MODE_PLANAR);
 	center_x = center_y = (double)world_get_size() / 2.0;
 	view_tilt = 0.0;
 	view_rot = 0.0;
@@ -463,7 +466,7 @@ viewport_gl_setup_overview (int sz, int margin)
 }
 
 void
-viewport_gl_setup_world (void)
+viewport_gl_setup_world_planar (void)
 {
 	// Setup the OpenGL frustrum to map screen to world coordinates,
 	// with the origin at left bottom. This is a different convention
@@ -533,6 +536,17 @@ viewport_gl_setup_world (void)
 	glDepthMask(GL_FALSE);
 }
 
+void
+viewport_gl_setup_world (void)
+{
+	if (viewport_mode == VIEWPORT_MODE_PLANAR) {
+		viewport_gl_setup_world_planar();
+	}
+	if (viewport_mode == VIEWPORT_MODE_SPHERICAL) {
+	//	viewport_gl_setup_world_spherical();
+	}
+}
+
 bool
 viewport_within_world_bounds (void)
 {
@@ -586,6 +600,17 @@ int viewport_get_tile_left (void) { return tile_left; }
 int viewport_get_tile_right (void) { return tile_right; }
 int viewport_get_tile_bottom (void) { return tile_bottom; }
 
+void
+viewport_mode_set (int mode)
+{
+	viewport_mode = mode;
+}
+
+int
+viewport_mode_get (void)
+{
+	return viewport_mode;
+}
 
 void
 viewport_screen_to_world (double sx, double sy, double *wx, double *wy)
