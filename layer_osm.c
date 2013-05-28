@@ -11,23 +11,12 @@
 #include "world.h"
 #include "viewport.h"
 #include "tilepicker.h"
+#include "tiledrawer.h"
 #include "layers.h"
 #include "layer_osm.h"
 
-struct texture {
-	unsigned int tile_x;
-	unsigned int tile_y;
-	unsigned int wd;
-	unsigned int ht;
-	unsigned int offset_x;
-	unsigned int offset_y;
-	unsigned int zoomdiff;
-};
-
-static void draw_tile (int tile_x, int tile_y, int tile_wd, int tile_ht, GLuint texture_id, struct texture *t, double cx, double cy);
 static GLuint texture_from_rawbits (void *rawbits);
 static void texture_destroy (void *data);
-static void zoomed_texture_cutout (int orig_x, int orig_y, int wd, int ht, int world_zoom, struct quadtree_req *req, struct texture *t);
 static void set_zoom_color (int zoomlevel);
 
 static int overlay_zoom = 0;
@@ -56,7 +45,6 @@ layer_osm_paint (void)
 	int y;
 	int tile_wd, tile_ht;
 	int zoom;
-	struct texture t;
 	struct quadtree_req req;
 	struct quadtree_req req_tex;
 	int world_zoom = world_get_zoom();
@@ -65,8 +53,8 @@ layer_osm_paint (void)
 	viewport_gl_setup_world();
 
 	glEnable(GL_TEXTURE_2D);
-	double cx = -viewport_get_center_x();
-	double cy = -viewport_get_center_y();
+	double cx = viewport_get_center_x();
+	double cy = viewport_get_center_y();
 
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -87,8 +75,8 @@ layer_osm_paint (void)
 		req.y = y >> (world_zoom - zoom);
 		req.zoom = zoom;
 		req.world_zoom = world_zoom;
-		req.cx = -cx;
-		req.cy = world_get_size() + cy;
+		req.cx = cx;
+		req.cy = world_get_size() - cy;
 
 		req_tex.found_data = NULL;
 
@@ -97,9 +85,8 @@ layer_osm_paint (void)
 			// If the texture is already cached at native resolution,
 			// then we're done; else still try to get the native bitmap:
 			if (req.found_zoom == zoom) {
-				zoomed_texture_cutout(x, y, tile_wd, tile_ht, world_zoom, &req, &t);
 				if (colorize_cache) glColor3f(0.3, 1.0, 0.3);
-				draw_tile(x, y, tile_wd, tile_ht, (GLuint)req.found_data, &t, cx, cy);
+				tiledrawer(x, y, tile_wd, tile_ht, cx, cy, (GLuint)req.found_data, &req);
 				if (colorize_cache) glColor3f(1.0, 1.0, 1.0);
 				continue;
 			}
@@ -111,16 +98,14 @@ layer_osm_paint (void)
 			// If we found a texture, and it's better or equal than
 			// the bitmap we came back with, use that instead:
 			if (req_tex.found_data != NULL && req_tex.found_zoom >= req.found_zoom) {
-				zoomed_texture_cutout(x, y, tile_wd, tile_ht, world_zoom, &req_tex, &t);
 				if (colorize_cache) glColor3f(0.3, 1.0, 0.3);
-				draw_tile(x, y, tile_wd, tile_ht, (GLuint)req_tex.found_data, &t, cx, cy);
+				tiledrawer(x, y, tile_wd, tile_ht, cx, cy, (GLuint)req_tex.found_data, &req_tex);
 				if (colorize_cache) glColor3f(1.0, 1.0, 1.0);
 				continue;
 			}
-			zoomed_texture_cutout(x, y, tile_wd, tile_ht, world_zoom, &req, &t);
-			if (colorize_cache) glColor3f(0.8, 0.0, 0.0);
 			GLuint id = texture_from_rawbits(req.found_data);
-			draw_tile(x, y, tile_wd, tile_ht, id, &t, cx, cy);
+			if (colorize_cache) glColor3f(0.8, 0.0, 0.0);
+			tiledrawer(x, y, tile_wd, tile_ht, cx, cy, id, &req);
 			if (colorize_cache) glColor3f(1.0, 1.0, 1.0);
 
 			req.zoom = req.found_zoom;
@@ -157,65 +142,12 @@ texture_from_rawbits (void *rawbits)
 }
 
 static void
-draw_tile (int tile_x, int tile_y, int tile_wd, int tile_ht, GLuint texture_id, struct texture *t, double cx, double cy)
-{
-	GLdouble txoffs = (GLdouble)t->offset_x / 256.0;
-	GLdouble tyoffs = (GLdouble)t->offset_y / 256.0;
-	GLdouble twd = (GLdouble)t->wd / 256.0;
-	GLdouble tht = (GLdouble)t->ht / 256.0;
-
-	glBindTexture(GL_TEXTURE_2D, texture_id);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-
-	// Flip tile y coordinates: tile origin is top left, world origin is bottom left:
-	tile_y = world_get_size() - tile_y - tile_ht;
-
-	// Need to calculate the world coordinates of our tile in double
-	// precision, then translate the coordinates to the center ourselves.
-	// OpenGL uses floats to represent the world, which lack the precision
-	// to represent individual pixels at the max zoom level.
-
-	glBegin(GL_QUADS);
-		glTexCoord2f(txoffs,       tyoffs);       glVertex2f(cx + (double)tile_x,                   cy + (double)tile_y + (double)tile_ht);
-		glTexCoord2f(txoffs + twd, tyoffs);       glVertex2f(cx + (double)tile_x + (double)tile_wd, cy + (double)tile_y + (double)tile_ht);
-		glTexCoord2f(txoffs + twd, tyoffs + tht); glVertex2f(cx + (double)tile_x + (double)tile_wd, cy + (double)tile_y);
-		glTexCoord2f(txoffs,       tyoffs + tht); glVertex2f(cx + (double)tile_x,                   cy + (double)tile_y);
-	glEnd();
-}
-
-static void
 texture_destroy (void *data)
 {
 	// HACK: dirty cast from pointer to int:
 	GLuint id = (GLuint)data;
 
 	glDeleteTextures(1, &id);
-}
-
-static void
-zoomed_texture_cutout (int orig_x, int orig_y, int wd, int ht, int world_zoom, struct quadtree_req *req, struct texture *t)
-{
-	t->zoomdiff = world_zoom - req->found_zoom;
-	t->tile_x = req->found_x;
-	t->tile_y = req->found_y;
-
-	// This is the nth block out of parent, counting from top left:
-	int xblock = orig_x & ((1 << t->zoomdiff) - 1);
-	int yblock = orig_y & ((1 << t->zoomdiff) - 1);
-
-	if (t->zoomdiff >= 8) {
-		t->offset_x = xblock >> (t->zoomdiff - 8);
-		t->offset_y = yblock >> (t->zoomdiff - 8);
-		t->wd = wd >> (t->zoomdiff - 8);
-		t->ht = ht >> (t->zoomdiff - 8);
-		return;
-	}
-	// Multiplication before division, avoid clipping:
-	t->offset_x = (256 * xblock) >> t->zoomdiff;
-	t->offset_y = (256 * yblock) >> t->zoomdiff;
-	t->wd = (256 * wd) >> t->zoomdiff;
-	t->ht = (256 * ht) >> t->zoomdiff;
 }
 
 static void
