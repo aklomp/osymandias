@@ -20,6 +20,7 @@ void viewport_gl_setup_screen (void);
 void viewport_gl_setup_overview (int sz, int margin);
 void viewport_gl_setup_world (void);
 void viewport_gl_setup_world_planar (void);
+void viewport_gl_setup_world_spherical (void);
 bool viewport_within_world_bounds (void);
 void viewport_screen_to_world (double sx, double sy, double *wx, double *wy);
 void viewport_world_to_screen (double wx, double wy, double *sx, double *sy);

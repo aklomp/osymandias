@@ -8,6 +8,7 @@
 #include <GL/glu.h>
 
 #include "vector.h"
+#include "coord3d.h"
 #include "shaders.h"
 #include "autoscroll.h"
 #include "world.h"
@@ -150,10 +151,11 @@ viewport_zoom_in (const int screen_x, const int screen_y)
 		layers_zoom();
 	}
 	// Keep same point under mouse cursor:
-	int dx = screen_x - screen_wd / 2;
-	int dy = screen_y - screen_ht / 2;
-	viewport_scroll(dx, dy);
-
+	if (viewport_mode == VIEWPORT_MODE_PLANAR) {
+		int dx = screen_x - screen_wd / 2;
+		int dy = screen_y - screen_ht / 2;
+		viewport_scroll(dx, dy);
+	}
 	// Frustum got smaller:
 	frustum_changed_shape();
 }
@@ -166,10 +168,11 @@ viewport_zoom_out (const int screen_x, const int screen_y)
 		center_y /= 2;
 		layers_zoom();
 	}
-	int dx = screen_x - screen_wd / 2;
-	int dy = screen_y - screen_ht / 2;
-	viewport_scroll(-dx / 2, -dy / 2);
-
+	if (viewport_mode == VIEWPORT_MODE_PLANAR) {
+		int dx = screen_x - screen_wd / 2;
+		int dy = screen_y - screen_ht / 2;
+		viewport_scroll(-dx / 2, -dy / 2);
+	}
 	// Frustum got larger:
 	frustum_changed_shape();
 }
@@ -537,13 +540,95 @@ viewport_gl_setup_world_planar (void)
 }
 
 void
+viewport_gl_setup_world_spherical (void)
+{
+	// Setup the OpenGL frustrum to map screen to world coordinates,
+	// with the origin at left bottom. This is a different convention
+	// from the one OSM uses for its tiles: origin at left top. But it
+	// makes tile and texture handling much easier (no vertical flips).
+
+	double halfwd = (double)screen_wd / 512.0;
+	double halfht = (double)screen_ht / 512.0;
+
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
+	glViewport(0, 0, screen_wd, screen_ht);
+
+	// Pixel snap offset, ensures proper pixel rounding:
+	glTranslatef(0.375 / 256.0, 0.375 / 256.0, 0.0);
+
+	// This is built around the idea that the screen center is at (0,0) and
+	// that 1 pixel of the screen should correspond with 1 texture pixel at
+	// 0 degrees tilt angle:
+	glFrustum(-halfwd / view_zdist, halfwd / view_zdist, -halfht / view_zdist, halfht / view_zdist, 1.0, 100.0);
+
+	// NB: layers that use this projection need to MANUALLY offset all
+	// coordinates with (-center_x, -center_y)! This is necessary because
+	// OpenGL uses floats internally, and their precision is not high
+	// enough for pixel-perfect placement in far corners of a giant world.
+	// So we keep the ortho window close around the origin, where floats
+	// are still precise enough, and apply the transformation *manually* in
+	// software.
+	// Yes, even glTranslated() does not work at the required precision.
+	// Yes, even when used on the MODELVIEW matrix.
+
+	glMatrixMode(GL_MODELVIEW);
+	glLoadIdentity();
+
+	glTranslatef(0.0, 0.0, -view_zdist * 4 - world_get_size());
+
+	glGetDoublev(GL_MODELVIEW_MATRIX, modelview);
+	glGetDoublev(GL_PROJECTION_MATRIX, projection);
+
+	// Must put this logic here because these recalc functions rely on the
+	// projection matrices that have just been set up; use control
+	// variables to run them only when needed, since this function can be
+	// called multiple times per frame.
+	if (frustum_coords_need_recalc) {
+		viewport_calc_frustum();
+
+		// Floating-point vector versions of above:
+		frustum_x1 = (vec4f){ frustum_x[0], frustum_x[1], frustum_x[2], frustum_x[3] };
+		frustum_y1 = (vec4f){ frustum_y[0], frustum_y[1], frustum_y[2], frustum_y[3] };
+
+		if (frustum_inside_need_recalc)
+		{
+			// Relies on the frustum points:
+			frustum_inside_recalc();
+			frustum_inside_need_recalc = 0;
+		}
+		// Relies on the precalculations:
+		viewport_calc_bbox();
+		recalc_tile_extents();
+		tilepicker_recalc();
+		frustum_coords_need_recalc = 0;
+	}
+
+	// Calculate tilt angle in radians:
+	float lon = world_x_to_lon(center_x, world_get_size()) * (180.0f / M_PI);
+	float lat = world_y_to_lat(center_y, world_get_size()) * (180.0f / M_PI);
+
+	glRotatef(lat, 1.0, 0.0, 0.0);
+	glRotatef(-lon, 0.0, 1.0, 0.0);
+
+	glMatrixMode(GL_PROJECTION);
+	glRotatef(-view_tilt, 1.0, 0.0, 0.0);
+	glRotatef(view_rot, 0.0, 0.0, 1.0);
+
+	glDisable(GL_BLEND);
+	glEnable(GL_DEPTH_TEST);
+	glDepthMask(GL_TRUE);
+	glClear(GL_DEPTH_BUFFER_BIT);
+}
+
+void
 viewport_gl_setup_world (void)
 {
 	if (viewport_mode == VIEWPORT_MODE_PLANAR) {
 		viewport_gl_setup_world_planar();
 	}
 	if (viewport_mode == VIEWPORT_MODE_SPHERICAL) {
-	//	viewport_gl_setup_world_spherical();
+		viewport_gl_setup_world_spherical();
 	}
 }
 
