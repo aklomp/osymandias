@@ -65,16 +65,6 @@ main (int argc, char **argv)
 {
 	int ret = 1;
 
-	int config_attributes[] = {
-		GDK_GL_DOUBLEBUFFER,
-		GDK_GL_RGBA,
-		GDK_GL_RED_SIZE,	1,
-		GDK_GL_GREEN_SIZE,	1,
-		GDK_GL_BLUE_SIZE,	1,
-		GDK_GL_DEPTH_SIZE,	12,
-		GDK_GL_ATTRIB_LIST_NONE
-	};
-
 	gtk_init(&argc, &argv);
 
 	if (!gdkgl_check(argc, argv)) {
@@ -101,7 +91,7 @@ main (int argc, char **argv)
 	gtk_widget_set_double_buffered(canvas, FALSE);
 	gtk_widget_set_double_buffered(window, FALSE);
 
-	GdkGLConfig *glconfig = gdk_gl_config_new(config_attributes);
+	GdkGLConfig *glconfig = gdk_gl_config_new_by_mode(GDK_GL_MODE_RGBA | GDK_GL_MODE_DEPTH | GDK_GL_MODE_DOUBLE);
 	gtk_widget_set_gl_capability(canvas, glconfig, NULL, TRUE, GDK_GL_RGBA_TYPE);
 
 	gtk_widget_show_all(window);
