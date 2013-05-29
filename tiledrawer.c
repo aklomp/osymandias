@@ -2,7 +2,9 @@
 #include <GL/gl.h>
 
 #include "quadtree.h"
+#include "coord3d.h"
 #include "world.h"
+#include "viewport.h"
 
 struct texture {
 	unsigned int tile_x;
@@ -78,6 +80,40 @@ draw_tile_planar (int tile_x, int tile_y, int tile_wd, int tile_ht, GLuint textu
 	glEnd();
 }
 
+static void
+draw_tile_spherical (int tile_x, int tile_y, int tile_wd, int tile_ht, GLuint texture_id, const struct texture *t)
+{
+	float x[4], y[4], z[4];
+	unsigned int world_size = world_get_size();
+
+	glBindTexture(GL_TEXTURE_2D, texture_id);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+	GLdouble twd = (GLdouble)t->wd / 256.0;
+	GLdouble tht = (GLdouble)t->ht / 256.0;
+	GLdouble txoffs = (GLdouble)t->offset_x / 256.0;
+	GLdouble tyoffs = (GLdouble)t->offset_y / 256.0;
+
+	float lon1 = world_x_to_lon(tile_x, world_size);
+	float lon2 = world_x_to_lon(tile_x + tile_wd, world_size);
+
+	float lat1 = world_y_to_lat(tile_y, world_size);
+	float lat2 = world_y_to_lat(tile_y + tile_ht, world_size);
+
+	latlon_to_xyz(lat1, lon1, world_size, &x[0], &y[0], &z[0]);
+	latlon_to_xyz(lat1, lon2, world_size, &x[1], &y[1], &z[1]);
+	latlon_to_xyz(lat2, lon2, world_size, &x[2], &y[2], &z[2]);
+	latlon_to_xyz(lat2, lon1, world_size, &x[3], &y[3], &z[3]);
+
+	glBegin(GL_QUADS);
+		glNormal3f(x[0], y[0], z[0]); glTexCoord2f(txoffs,       tyoffs);       glVertex3f(x[0], y[0], z[0]);
+		glNormal3f(x[1], y[1], z[1]); glTexCoord2f(txoffs + twd, tyoffs);       glVertex3f(x[1], y[1], z[1]);
+		glNormal3f(x[2], y[2], z[2]); glTexCoord2f(txoffs + twd, tyoffs + tht); glVertex3f(x[2], y[2], z[2]);
+		glNormal3f(x[3], y[3], z[3]); glTexCoord2f(txoffs,       tyoffs + tht); glVertex3f(x[3], y[3], z[3]);
+	glEnd();
+}
+
 void
 tiledrawer (int tile_x, int tile_y, int tile_wd, int tile_ht, double cx, double cy, GLuint texture_id, const struct quadtree_req *req)
 {
@@ -89,5 +125,10 @@ tiledrawer (int tile_x, int tile_y, int tile_wd, int tile_ht, double cx, double 
 	cutout_texture(tile_x, tile_y, tile_wd, tile_ht, req, &t);
 
 	// With this cutout information in hand, draw the actual tile:
-	draw_tile_planar(tile_x, tile_y, tile_wd, tile_ht, texture_id, &t, cx, cy);
+	if (viewport_mode_get() == VIEWPORT_MODE_PLANAR) {
+		draw_tile_planar(tile_x, tile_y, tile_wd, tile_ht, texture_id, &t, cx, cy);
+	}
+	if (viewport_mode_get() == VIEWPORT_MODE_SPHERICAL) {
+		draw_tile_spherical(tile_x, tile_y, tile_wd, tile_ht, texture_id, &t);
+	}
 }
