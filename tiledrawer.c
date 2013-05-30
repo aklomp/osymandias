@@ -16,6 +16,8 @@ struct texture {
 	unsigned int zoomdiff;
 };
 
+#define MIN_SPHERE_DIVISIONS	16
+
 static void
 cutout_texture (int orig_x, int orig_y, int wd, int ht, const struct quadtree_req *req, struct texture *t)
 {
@@ -85,32 +87,43 @@ draw_tile_spherical (int tile_x, int tile_y, int tile_wd, int tile_ht, GLuint te
 {
 	float x[4], y[4], z[4];
 	unsigned int world_size = world_get_size();
+	unsigned int world_zoom = world_get_zoom();
 
 	glBindTexture(GL_TEXTURE_2D, texture_id);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-	GLdouble twd = (GLdouble)t->wd / 256.0;
-	GLdouble tht = (GLdouble)t->ht / 256.0;
-	GLdouble txoffs = (GLdouble)t->offset_x / 256.0;
-	GLdouble tyoffs = (GLdouble)t->offset_y / 256.0;
+	// If tile larger than world_size/MIN_SPHERE_DIVISIONS, split into multiple sub-tiles;
+	// ensure the globe's diameter is always drawn with at least MIN_SPHERE_DIVISIONS segments:
+	int xdivide = ((tile_wd * MIN_SPHERE_DIVISIONS) >> world_zoom); if (xdivide == 0) xdivide = 1;
+	int ydivide = ((tile_ht * MIN_SPHERE_DIVISIONS) >> world_zoom); if (ydivide == 0) ydivide = 1;
 
-	float lon1 = world_x_to_lon(tile_x, world_size);
-	float lon2 = world_x_to_lon(tile_x + tile_wd, world_size);
-
-	float lat1 = world_y_to_lat(tile_y, world_size);
-	float lat2 = world_y_to_lat(tile_y + tile_ht, world_size);
-
-	latlon_to_xyz(lat1, lon1, world_size, &x[0], &y[0], &z[0]);
-	latlon_to_xyz(lat1, lon2, world_size, &x[1], &y[1], &z[1]);
-	latlon_to_xyz(lat2, lon2, world_size, &x[2], &y[2], &z[2]);
-	latlon_to_xyz(lat2, lon1, world_size, &x[3], &y[3], &z[3]);
+	GLdouble twd = (GLdouble)t->wd / (256 * xdivide);
+	GLdouble tht = (GLdouble)t->ht / (256 * ydivide);
 
 	glBegin(GL_QUADS);
-		glNormal3f(x[0], y[0], z[0]); glTexCoord2f(txoffs,       tyoffs);       glVertex3f(x[0], y[0], z[0]);
-		glNormal3f(x[1], y[1], z[1]); glTexCoord2f(txoffs + twd, tyoffs);       glVertex3f(x[1], y[1], z[1]);
-		glNormal3f(x[2], y[2], z[2]); glTexCoord2f(txoffs + twd, tyoffs + tht); glVertex3f(x[2], y[2], z[2]);
-		glNormal3f(x[3], y[3], z[3]); glTexCoord2f(txoffs,       tyoffs + tht); glVertex3f(x[3], y[3], z[3]);
+	for (int dx = 0; dx < xdivide; dx++) {
+		for (int dy = 0; dy < ydivide; dy++) {
+			GLdouble txoffs = (GLdouble)t->offset_x / 256.0 + dx * twd;
+			GLdouble tyoffs = (GLdouble)t->offset_y / 256.0 + dy * tht;
+
+			float lon1 = world_x_to_lon(tile_x + (float)(dx * tile_wd) / xdivide, world_size);
+			float lon2 = world_x_to_lon(tile_x + (float)((dx + 1) * tile_wd) / xdivide, world_size);
+
+			float lat1 = world_y_to_lat(tile_y + (float)(dy * tile_ht) / ydivide, world_size);
+			float lat2 = world_y_to_lat(tile_y + (float)((dy + 1) * tile_ht) / ydivide, world_size);
+
+			latlon_to_xyz(lat1, lon1, world_size, &x[0], &y[0], &z[0]);
+			latlon_to_xyz(lat1, lon2, world_size, &x[1], &y[1], &z[1]);
+			latlon_to_xyz(lat2, lon2, world_size, &x[2], &y[2], &z[2]);
+			latlon_to_xyz(lat2, lon1, world_size, &x[3], &y[3], &z[3]);
+
+			glNormal3f(x[0], y[0], z[0]); glTexCoord2f(txoffs,       tyoffs);       glVertex3f(x[0], y[0], z[0]);
+			glNormal3f(x[1], y[1], z[1]); glTexCoord2f(txoffs + twd, tyoffs);       glVertex3f(x[1], y[1], z[1]);
+			glNormal3f(x[2], y[2], z[2]); glTexCoord2f(txoffs + twd, tyoffs + tht); glVertex3f(x[2], y[2], z[2]);
+			glNormal3f(x[3], y[3], z[3]); glTexCoord2f(txoffs,       tyoffs + tht); glVertex3f(x[3], y[3], z[3]);
+		}
+	}
 	glEnd();
 }
 
