@@ -129,7 +129,7 @@ center_set (const double world_x, const double world_y)
 bool
 viewport_init (void)
 {
-	viewport_mode_set(VIEWPORT_MODE_PLANAR);
+	viewport_mode_set(VIEWPORT_MODE_SPHERICAL);
 	center_x = center_y = (double)world_get_size() / 2.0;
 	view_tilt = 0.0;
 	view_rot = 0.0;

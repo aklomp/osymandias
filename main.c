@@ -1,6 +1,7 @@
 #include <stdbool.h>
 
 #include <gtk/gtk.h>
+#include <gdk/gdkkeysyms.h>
 #include <gtk/gtkgl.h>
 #include <GL/gl.h>
 
@@ -60,6 +61,27 @@ paint_canvas (GtkWidget *widget)
 	gdk_gl_drawable_gl_end(gldrawable);
 }
 
+static void
+on_key_press (GtkWidget *widget, GdkEventKey *event)
+{
+	(void)widget;
+
+	switch (event->keyval)
+	{
+		case GDK_p:
+		case GDK_P:
+			viewport_mode_set(VIEWPORT_MODE_PLANAR);
+			framerate_request_refresh();
+			break;
+
+		case GDK_S:
+		case GDK_s:
+			viewport_mode_set(VIEWPORT_MODE_SPHERICAL);
+			framerate_request_refresh();
+			break;
+	}
+}
+
 int
 main (int argc, char **argv)
 {
@@ -80,6 +102,7 @@ main (int argc, char **argv)
 	g_signal_connect(canvas, "motion_notify_event", G_CALLBACK(on_button_motion), NULL);
 	g_signal_connect(canvas, "button_release_event", G_CALLBACK(on_button_release), NULL);
 	g_signal_connect(canvas, "destroy", G_CALLBACK(gtk_main_quit), NULL);
+	g_signal_connect(window, "key_press_event", G_CALLBACK(on_key_press), NULL);
 
 	// Expose events are scheduled through the framerate manager, not handled directly:
 	g_signal_connect(canvas, "expose-event", G_CALLBACK(framerate_request_refresh), NULL);
