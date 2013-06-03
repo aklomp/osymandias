@@ -23,6 +23,9 @@ static unsigned int screen_ht;	// screen dimension
 static float view_tilt;		// tilt from vertical, in degrees
 static float view_rot;		// rotation along z axis, in degrees
 static float view_zdist;	// Distance from camera to cursor in z units (camera height)
+static float eye_x;
+static float eye_y;
+static float eye_z;
 static double hold_x;		// Mouse hold/drag at this world coordinate
 static double hold_y;
 static double frustum_x[4] = { 0.0, 0.0, 0.0, 0.0 };
@@ -468,23 +471,14 @@ viewport_gl_setup_overview (int sz, int margin)
 	glDepthMask(GL_FALSE);
 }
 
-void
-viewport_gl_setup_world_planar (void)
+static void
+setup_camera (void)
 {
-	// Setup the OpenGL frustrum to map screen to world coordinates,
-	// with the origin at left bottom. This is a different convention
-	// from the one OSM uses for its tiles: origin at left top. But it
-	// makes tile and texture handling much easier (no vertical flips).
+	// The center point (lookat point) is always at (0,0,0); the camera
+	// floats around that point on a sphere.
 
-	double halfwd = (double)screen_wd / 512.0;
-	double halfht = (double)screen_ht / 512.0;
-
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
-	glViewport(0, 0, screen_wd, screen_ht);
-
-	// Pixel snap offset, ensures proper pixel rounding:
-	glTranslatef(0.375 / 256.0, 0.375 / 256.0, 0.0);
+	float halfwd = (float)screen_wd / 512.0f;
+	float halfht = (float)screen_ht / 512.0f;
 
 	// This is built around the idea that the screen center is at (0,0) and
 	// that 1 pixel of the screen should correspond with 1 texture pixel at
@@ -504,9 +498,50 @@ viewport_gl_setup_world_planar (void)
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
 
-	glTranslatef(0.0, 0.0, -view_zdist);
-	glRotatef(-view_tilt, 1.0, 0.0, 0.0);
-	glRotatef(view_rot, 0.0, 0.0, 1.0);
+	// gluLookAt() does not work when up vector == view vector (underdefined);
+	// use old-fashioned rotate/translate to setup the modelview matrix:
+	if (view_tilt == 0.0) {
+		glTranslatef(0.0, 0.0, -view_zdist);
+		glRotatef(-view_tilt, 1.0, 0.0, 0.0);
+		glRotatef(view_rot, 0.0, 0.0, 1.0);
+
+		eye_x = 0;
+		eye_y = 0;
+		eye_z = view_zdist;
+
+		return;
+	}
+	// Place the camera on a sphere centered around (0,0,0):
+	float lat = -view_tilt * M_PI / 180.0f;
+	float lon = view_rot * M_PI / 180.0f;
+
+	eye_x = sinf(lat) * sinf(lon) * view_zdist;
+	eye_y = sinf(lat) * cosf(lon) * view_zdist;
+	eye_z = cosf(lat) * view_zdist;
+
+	gluLookAt(
+		eye_x, eye_y, eye_z,	// Eye point
+		0, 0, 0,		// Lookat point (always the origin)
+		0, 0, 1			// Up vector
+	);
+}
+
+void
+viewport_gl_setup_world_planar (void)
+{
+	// Setup the OpenGL frustrum to map screen to world coordinates,
+	// with the origin at left bottom. This is a different convention
+	// from the one OSM uses for its tiles: origin at left top. But it
+	// makes tile and texture handling much easier (no vertical flips).
+
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
+	glViewport(0, 0, screen_wd, screen_ht);
+
+	// Pixel snap offset, ensures proper pixel rounding:
+	glTranslatef(0.375 / 256.0, 0.375 / 256.0, 0.0);
+
+	setup_camera();
 
 	glGetDoublev(GL_MODELVIEW_MATRIX, modelview);
 	glGetDoublev(GL_PROJECTION_MATRIX, projection);
