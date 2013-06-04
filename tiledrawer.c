@@ -1,4 +1,6 @@
 #include <stdbool.h>
+#include <math.h>
+
 #include <GL/gl.h>
 
 #include "quadtree.h"
@@ -86,8 +88,15 @@ static void
 draw_tile_spherical (int tile_x, int tile_y, int tile_wd, int tile_ht, GLuint texture_id, const struct texture *t)
 {
 	float x[4], y[4], z[4];
+	float sinlat, coslat;
 	unsigned int world_size = world_get_size();
 	unsigned int world_zoom = world_get_zoom();
+
+	// Calculate tilt angle in radians:
+	float lon = world_x_to_lon(viewport_get_center_x(), world_size);
+	float lat = world_y_to_lat(viewport_get_center_y(), world_size);
+
+	sincosf(lat, &sinlat, &coslat);
 
 	glBindTexture(GL_TEXTURE_2D, texture_id);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -113,10 +122,10 @@ draw_tile_spherical (int tile_x, int tile_y, int tile_wd, int tile_ht, GLuint te
 			float lat1 = world_y_to_lat(tile_y + (float)(dy * tile_ht) / ydivide, world_size);
 			float lat2 = world_y_to_lat(tile_y + (float)((dy + 1) * tile_ht) / ydivide, world_size);
 
-			latlon_to_xyz(lat1, lon1, world_size, &x[0], &y[0], &z[0]);
-			latlon_to_xyz(lat1, lon2, world_size, &x[1], &y[1], &z[1]);
-			latlon_to_xyz(lat2, lon2, world_size, &x[2], &y[2], &z[2]);
-			latlon_to_xyz(lat2, lon1, world_size, &x[3], &y[3], &z[3]);
+			latlon_to_xyz(lat1, lon1, world_size, lon, sinlat, coslat, &x[0], &y[0], &z[0]);
+			latlon_to_xyz(lat1, lon2, world_size, lon, sinlat, coslat, &x[1], &y[1], &z[1]);
+			latlon_to_xyz(lat2, lon2, world_size, lon, sinlat, coslat, &x[2], &y[2], &z[2]);
+			latlon_to_xyz(lat2, lon1, world_size, lon, sinlat, coslat, &x[3], &y[3], &z[3]);
 
 			glNormal3f(x[0], y[0], z[0]); glTexCoord2f(txoffs,       tyoffs);       glVertex3f(x[0], y[0], z[0]);
 			glNormal3f(x[1], y[1], z[1]); glTexCoord2f(txoffs + twd, tyoffs);       glVertex3f(x[1], y[1], z[1]);

@@ -8,7 +8,6 @@
 #include <GL/glu.h>
 
 #include "vector.h"
-#include "coord3d.h"
 #include "shaders.h"
 #include "autoscroll.h"
 #include "world.h"
@@ -582,9 +581,6 @@ viewport_gl_setup_world_spherical (void)
 	// from the one OSM uses for its tiles: origin at left top. But it
 	// makes tile and texture handling much easier (no vertical flips).
 
-	double halfwd = (double)screen_wd / 512.0;
-	double halfht = (double)screen_ht / 512.0;
-
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
 	glViewport(0, 0, screen_wd, screen_ht);
@@ -592,25 +588,7 @@ viewport_gl_setup_world_spherical (void)
 	// Pixel snap offset, ensures proper pixel rounding:
 	glTranslatef(0.375 / 256.0, 0.375 / 256.0, 0.0);
 
-	// This is built around the idea that the screen center is at (0,0) and
-	// that 1 pixel of the screen should correspond with 1 texture pixel at
-	// 0 degrees tilt angle:
-	glFrustum(-halfwd / view_zdist, halfwd / view_zdist, -halfht / view_zdist, halfht / view_zdist, 1.0, 100.0);
-
-	// NB: layers that use this projection need to MANUALLY offset all
-	// coordinates with (-center_x, -center_y)! This is necessary because
-	// OpenGL uses floats internally, and their precision is not high
-	// enough for pixel-perfect placement in far corners of a giant world.
-	// So we keep the ortho window close around the origin, where floats
-	// are still precise enough, and apply the transformation *manually* in
-	// software.
-	// Yes, even glTranslated() does not work at the required precision.
-	// Yes, even when used on the MODELVIEW matrix.
-
-	glMatrixMode(GL_MODELVIEW);
-	glLoadIdentity();
-
-	glTranslatef(0.0, 0.0, -view_zdist * 4 - world_get_size());
+	setup_camera();
 
 	glGetDoublev(GL_MODELVIEW_MATRIX, modelview);
 	glGetDoublev(GL_PROJECTION_MATRIX, projection);
@@ -638,18 +616,6 @@ viewport_gl_setup_world_spherical (void)
 		tilepicker_recalc();
 		frustum_coords_need_recalc = 0;
 	}
-
-	// Calculate tilt angle in radians:
-	float lon = world_x_to_lon(center_x, world_get_size()) * (180.0f / M_PI);
-	float lat = world_y_to_lat(center_y, world_get_size()) * (180.0f / M_PI);
-
-	glRotatef(lat, 1.0, 0.0, 0.0);
-	glRotatef(-lon, 0.0, 1.0, 0.0);
-
-	glMatrixMode(GL_PROJECTION);
-	glRotatef(-view_tilt, 1.0, 0.0, 0.0);
-	glRotatef(view_rot, 0.0, 0.0, 1.0);
-
 	glDisable(GL_BLEND);
 	glEnable(GL_DEPTH_TEST);
 	glDepthMask(GL_TRUE);

@@ -20,9 +20,22 @@ tile_y_to_lat (float y, float world_size)
 }
 
 static inline void
-latlon_to_xyz (float lat, float lon, float world_size, float *x, float *y, float *z)
+latlon_to_xyz (float lat, float lon, float world_size, float viewlon, float sin_viewlat, float cos_viewlat, float *x, float *y, float *z)
 {
+	lon -= viewlon;
+
 	*x = cosf(lat) * sinf(lon) * world_size;
 	*z = cosf(lat) * cosf(lon) * world_size;
 	*y = sinf(-lat) * world_size;
+
+	// Rotate the points over lat radians via x axis:
+	float yorig = *y;
+	float zorig = *z;
+
+	*y = yorig * cos_viewlat - zorig * sin_viewlat;
+	*z = yorig * sin_viewlat + zorig * cos_viewlat;
+
+	// Push the world "back" from the camera
+	// so that the cursor (centerpoint) is at (0,0,0):
+	*z -= world_size;
 }
