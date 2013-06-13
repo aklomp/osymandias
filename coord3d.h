@@ -1,36 +1,36 @@
-static inline float
-world_x_to_lon (float x, float world_size)
+static inline double
+world_x_to_lon (double x, double world_size)
 {
 	// xleft is xmin is -pi, xright is xmax is pi; scale accordingly:
-	return (x / world_size - 0.5f) * 2.0f * M_PI;
+	return (x / world_size - 0.5) * 2.0 * M_PI;
 }
 
-static inline float
-world_y_to_lat (float y, float world_size)
+static inline double
+world_y_to_lat (double y, double world_size)
 {
 	// ybottom is ymin is -pi, ytop is ymax is pi:
-	float lat = (y / world_size - 0.5f) * 2.0f * M_PI;
-	return atanf(sinh(lat));
+	double lat = (y / world_size - 0.5) * 2.0 * M_PI;
+	return atan(sinh(lat));
 }
 
-static inline float
-tile_y_to_lat (float y, float world_size)
+static inline double
+tile_y_to_lat (double y, double world_size)
 {
 	return world_y_to_lat(world_size - y, world_size);
 }
 
 static inline void
-latlon_to_xyz (float lat, float lon, float world_size, float viewlon, float sin_viewlat, float cos_viewlat, float *x, float *y, float *z)
+latlon_to_xyz (double lat, double lon, double world_size, double viewlon, double sin_viewlat, double cos_viewlat, double *x, double *y, double *z)
 {
 	lon -= viewlon;
 
-	*x = cosf(lat) * sinf(lon) * world_size;
-	*z = cosf(lat) * cosf(lon) * world_size;
-	*y = sinf(-lat) * world_size;
+	*x = cos(lat) * sin(lon) * world_size;
+	*z = cos(lat) * cos(lon) * world_size;
+	*y = sin(-lat) * world_size;
 
 	// Rotate the points over lat radians via x axis:
-	float yorig = *y;
-	float zorig = *z;
+	double yorig = *y;
+	double zorig = *z;
 
 	*y = yorig * cos_viewlat - zorig * sin_viewlat;
 	*z = yorig * sin_viewlat + zorig * cos_viewlat;
