@@ -12,11 +12,53 @@
 #include "diskcache.h"
 #include "pngloader.h"
 
+#define HEAP_SIZE	100000
+
+#ifndef __BIGGEST_ALIGNMENT__	// FIXME: hack to compile with clang
+#define __BIGGEST_ALIGNMENT__	16
+#endif
+
 static __thread int fd = -1;
 static __thread FILE *fp = NULL;
 static __thread void *rawbits = NULL;
 static __thread png_structp png_ptr = NULL;
 static __thread png_infop info_ptr = NULL;
+static __thread char *heap = NULL;
+static __thread char *heap_head = NULL;
+
+// Our private malloc/free functions that we give to libpng.
+// We just allocate everything off a heap sequentially and never
+// bother to free. At completion or cancellation, we release the
+// entire pool. This should cut down on memory leaks.
+
+static png_voidp
+malloc_fn (png_structp png_ptr, png_size_t size)
+{
+	(void)png_ptr;
+
+	char *ret = heap_head;
+
+	// Increment size to next alignment boundary:
+	if (size & (__BIGGEST_ALIGNMENT__ - 1)) {
+		size &= ~(__BIGGEST_ALIGNMENT__ - 1);
+		size += __BIGGEST_ALIGNMENT__;
+	}
+	// Heap should be big enough; check just in case:
+	if (((heap_head + size) - heap) > HEAP_SIZE) {
+		return NULL;
+	}
+	heap_head += size;
+	return (png_voidp)ret;
+}
+
+static void
+free_fn (png_structp png_ptr, png_voidp ptr)
+{
+	(void)png_ptr;
+	(void)ptr;
+
+	// We don't free anything.
+}
 
 static void
 pngloader_cancel (void *data)
@@ -31,6 +73,7 @@ pngloader_cancel (void *data)
 	}
 	png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
 	free(rawbits);
+	free(heap);
 	free(p->filename);
 	free(p);
 }
@@ -48,6 +91,9 @@ load_png_file (png_structp *ppng_ptr, png_infop *pinfo_ptr, unsigned int *height
 	if ((png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL)) == NULL) {
 		goto exit_0;
 	}
+	// Instantiate our own malloc functions:
+	png_set_mem_fn(png_ptr, NULL, malloc_fn, free_fn);
+
 	if ((info_ptr = png_create_info_struct(png_ptr)) == NULL) {
 		goto exit_1;
 	}
@@ -144,6 +190,9 @@ pngloader_main (void *data)
 
 	p = data;
 
+	// Allocate a block of heap memory:
+	heap = heap_head = malloc(HEAP_SIZE);
+
 	if ((p->filename = tile_filename(p->req.zoom, p->req.x, p->req.y)) == NULL) {
 		goto exit;
 	}
@@ -214,6 +263,7 @@ exit:	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 	pthread_mutex_lock(p->running_mutex);
 	p->n->running = 0;
 	pthread_mutex_unlock(p->running_mutex);
+	free(heap);
 	free(p->filename);
 	free(p);
 	pthread_exit(NULL);
