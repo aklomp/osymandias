@@ -113,18 +113,19 @@ bool
 bitmap_mgr_init (void)
 {
 	if ((bitmaps = quadtree_create(MAX_BITMAPS, &bitmap_procure, &bitmap_destroy)) == NULL) {
-		return false;
+		goto err_0;
 	}
 	if ((threadlist = quadtree_create(200, &thread_procure, &thread_destroy)) == NULL) {
-		quadtree_destroy(&bitmaps);
-		return false;
+		goto err_1;
 	}
 	pthread_mutex_init(&bitmaps_mutex, NULL);
 	pthread_mutex_init(&running_mutex, NULL);
 	pthread_attr_init(&attr_detached);
 	pthread_attr_setdetachstate(&attr_detached, PTHREAD_CREATE_DETACHED);
-
 	return true;
+
+err_1:	quadtree_destroy(&bitmaps);
+err_0:	return false;
 }
 
 void
