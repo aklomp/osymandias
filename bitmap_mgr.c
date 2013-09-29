@@ -6,16 +6,27 @@
 
 #include "framerate.h"
 #include "quadtree.h"
+#include "threadpool.h"
 #include "pngloader.h"
 
 #define ZOOM_MAX	18
 #define MAX_BITMAPS	1000			// Keep at most this many bitmaps in the cache
+#define THREADPOOL_SIZE	30
 
 static struct quadtree *bitmaps = NULL;
 static struct quadtree *threadlist = NULL;
+static struct threadpool *threadpool = NULL;
 static pthread_mutex_t bitmaps_mutex;
 static pthread_mutex_t running_mutex;
 static pthread_attr_t attr_detached;
+
+static void
+pngloader_on_dequeue (void *data)
+{
+	// Called when the job is dequeued before a thread has touched it,
+	// in which case just free the data and call it a day:
+	free(data);
+}
 
 int
 bitmap_request (struct quadtree_req *req)
@@ -58,17 +69,13 @@ bitmap_destroy (void *data)
 static void *
 thread_procure (struct quadtree_req *req)
 {
+	int job_id;
 	struct pngloader *p;
-	struct pngloader_node *n;
 
 	// We have been asked to create a thread that loads the given bitmap
 	// from disk and puts it in the bitmaps quadtree.
 
 	if ((p = malloc(sizeof(*p))) == NULL) {
-		return NULL;
-	}
-	if ((n = malloc(sizeof(*n))) == NULL) {
-		free(p);
 		return NULL;
 	}
 	// The pngloader structure is owned by the thread.
@@ -77,36 +84,23 @@ thread_procure (struct quadtree_req *req)
 	p->bitmaps_mutex = &bitmaps_mutex;
 	memcpy(&p->req, req, sizeof(*req));
 	p->completed_callback = framerate_request_refresh;
-	p->running_mutex = &running_mutex;
-	p->n = n;
 
-	// The pngloader_node structure is owned by us, the threadlist.
-	// We will free it in thread_destroy().
-	n->running = 1;
-	n->thread = &p->thread;
-
-	// Start thread:
-	pthread_create(&p->thread, &attr_detached, &pngloader_main, p);
-
-	// Store node in quadtree:
-	return n;
+	// Enqueue job:
+	if ((job_id = threadpool_job_enqueue(threadpool, p)) == 0) {
+		free(p);
+	}
+	// Store node in quadtree;
+	// job_id is 0 if queueing failed, which is conveniently cast to NULL:
+	return (void *)job_id;
 }
 
 static void
 thread_destroy (void *data)
 {
-	struct pngloader_node *n = data;
-
-	// Free the node pointer. If we can acquire the lock, we are guaranteed
-	// that the thread is either waiting for the lock, or already dead.
+	// Free the job ID:
 	pthread_mutex_lock(&running_mutex);
-	// pthread_cancel() segfaults horribly if a thread is not running,
-	// hence the check:
-	if (n->running) {
-		pthread_cancel(*n->thread);
-	}
+	threadpool_job_cancel(threadpool, (int)data);
 	pthread_mutex_unlock(&running_mutex);
-	free(n);
 }
 
 bool
@@ -118,12 +112,16 @@ bitmap_mgr_init (void)
 	if ((threadlist = quadtree_create(200, &thread_procure, &thread_destroy)) == NULL) {
 		goto err_1;
 	}
+	if ((threadpool = threadpool_create(THREADPOOL_SIZE, pngloader_on_init, pngloader_on_dequeue, pngloader_main, pngloader_on_cancel, pngloader_on_exit)) == NULL) {
+		goto err_2;
+	}
 	pthread_mutex_init(&bitmaps_mutex, NULL);
 	pthread_mutex_init(&running_mutex, NULL);
 	pthread_attr_init(&attr_detached);
 	pthread_attr_setdetachstate(&attr_detached, PTHREAD_CREATE_DETACHED);
 	return true;
 
+err_2:	quadtree_destroy(&threadlist);
 err_1:	quadtree_destroy(&bitmaps);
 err_0:	return false;
 }
@@ -131,6 +129,8 @@ err_0:	return false;
 void
 bitmap_mgr_destroy (void)
 {
+	threadpool_destroy(&threadpool);
+
 	quadtree_destroy(&threadlist);
 
 	pthread_mutex_lock(&bitmaps_mutex);

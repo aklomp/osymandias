@@ -13,6 +13,7 @@
 #include "pngloader.h"
 
 #define HEAP_SIZE	100000
+#define TILESIZE	256	// rgb pixels per side
 
 #ifndef __BIGGEST_ALIGNMENT__	// FIXME: hack to compile with clang
 #define __BIGGEST_ALIGNMENT__	16
@@ -25,6 +26,7 @@ static __thread png_structp png_ptr = NULL;
 static __thread png_infop info_ptr = NULL;
 static __thread char *heap = NULL;
 static __thread char *heap_head = NULL;
+static __thread int init_ok = 0;
 
 // Our private malloc/free functions that we give to libpng.
 // We just allocate everything off a heap sequentially and never
@@ -60,22 +62,14 @@ free_fn (png_structp png_ptr, png_voidp ptr)
 	// We don't free anything.
 }
 
-static void
-pngloader_cancel (void *data)
+void
+pngloader_on_init (void)
 {
-	struct pngloader *p = data;
-
-	if (fp != NULL) {
-		fclose(fp);
+	// Allocate a block of heap memory:
+	if ((heap = heap_head = malloc(HEAP_SIZE)) == NULL) {
+		return;
 	}
-	else if (fd >= 0) {
-		close(fd);
-	}
-	png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
-	free(rawbits);
-	free(heap);
-	free(p->filename);
-	free(p);
+	init_ok = 1;
 }
 
 static bool
@@ -178,20 +172,21 @@ exit_1:	png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
 exit_0:	return ret;
 }
 
-void *
+void
 pngloader_main (void *data)
 {
 	struct pngloader *p;
 	unsigned int width;
 	unsigned int height;
 
-	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-	pthread_cleanup_push(pngloader_cancel, data);
-
 	p = data;
 
-	// Allocate a block of heap memory:
-	heap = heap_head = malloc(HEAP_SIZE);
+	if (!init_ok) {
+		free(data);
+		return;
+	}
+	// Reset heap pointer:
+	heap_head = heap;
 
 	if ((p->filename = tile_filename(p->req.zoom, p->req.x, p->req.y)) == NULL) {
 		goto exit;
@@ -205,16 +200,12 @@ pngloader_main (void *data)
 	// Now that we have the fd, make it properly blocking:
 	fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) & ~O_NONBLOCK);
 
-	// From here on, live dangerously:
-/****/	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-
 	// Now open an fp from the descriptor and load the image:
 	// (this is the blocking part of the thread, we hope):
 	if ((fp = fdopen(fd, "rb")) == NULL) {
 		goto exit;
 	}
 	bool ret = load_png_file(&png_ptr, &info_ptr, &height, &width, &rawbits);
-/****/	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 	if (!ret) {
 		goto exit;
 	}
@@ -223,7 +214,7 @@ pngloader_main (void *data)
 		fp = NULL;
 		fd = -1;
 	}
-	if (height != 256 || width != 256) {
+	if (height != TILESIZE || width != TILESIZE) {
 		free(rawbits);
 		rawbits = NULL;
 		goto exit;
@@ -245,8 +236,7 @@ pngloader_main (void *data)
 		p->completed_callback();
 	}
 
-exit:	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-	if (fp != NULL) {
+exit:	if (fp != NULL) {
 		fclose(fp);
 		fp = NULL;
 		fd = -1;
@@ -256,15 +246,20 @@ exit:	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 		fd = -1;
 	}
 	png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
-	pthread_cleanup_pop(0);
-	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-	pthread_testcancel();
-	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-	pthread_mutex_lock(p->running_mutex);
-	p->n->running = 0;
-	pthread_mutex_unlock(p->running_mutex);
-	free(heap);
 	free(p->filename);
 	free(p);
-	pthread_exit(NULL);
+}
+
+void
+pngloader_on_cancel (void)
+{
+	if (!init_ok) return;
+}
+
+void
+pngloader_on_exit (void)
+{
+	if (!init_ok) return;
+
+	free(heap);
 }

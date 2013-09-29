@@ -17,6 +17,7 @@ OBJS = \
   pngloader.o \
   autoscroll.o \
   bitmap_mgr.o \
+  threadpool.o \
   tiledrawer.o \
   tilepicker.o \
 
