@@ -290,12 +290,15 @@ _quadtree_request (struct quadtree *t, struct quadtree_req *req, struct node *n)
 	if (n->data == NULL || n->zoom < req->zoom)
 	{
 		// Last effort: procure data:
-		if (t->tile_procure && (req->found_data = t->tile_procure(req)) != NULL
-		  && quadtree_data_insert(t, req, req->found_data)) {
-			req->found_x = req->x;
-			req->found_y = req->y;
-			req->found_zoom = req->zoom;
-			return true;
+		if (t->tile_procure && (req->found_data = t->tile_procure(req)) != NULL) {
+			if (quadtree_data_insert(t, req, req->found_data)) {
+				req->found_x = req->x;
+				req->found_y = req->y;
+				req->found_zoom = req->zoom;
+				return true;
+			}
+			t->tile_destroy(req->found_data);
+			return false;
 		}
 		// If this tile has no data either, give up:
 		if (n->data == NULL) {
