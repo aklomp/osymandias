@@ -4,7 +4,6 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include <pthread.h>
 #include <png.h>
 
 #include "quadtree.h"
@@ -213,14 +212,12 @@ exit_0:	png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
 void
 pngloader_main (void *data)
 {
-	struct pngloader *p;
+	struct pngloader *p = data;
 	unsigned int width;
 	unsigned int height;
 
-	p = data;
-
 	if (!init_ok) {
-		free(data);
+		free(p);
 		return;
 	}
 	// Reset heap pointer:
@@ -254,22 +251,8 @@ pngloader_main (void *data)
 		rawbits = NULL;
 		goto exit;
 	}
-	// Got tile, insert into bitmaps:
-	bool ret = false;
-	// pointer to bitmaps can become NULL if the parent process is
-	// suddenly shutting down on us:
-	pthread_mutex_lock(p->bitmaps_mutex);
-	if (p->bitmaps != NULL) {
-		ret = quadtree_data_insert(*(p->bitmaps), &p->req, rawbits);
-	}
-	pthread_mutex_unlock(p->bitmaps_mutex);
-	if (!ret) {
-		free(rawbits);
-		rawbits = NULL;
-	}
-	else if (p->on_completed != NULL) {
-		p->on_completed(p);
-	}
+	// Got tile, run callback:
+	p->on_completed(p, rawbits);
 
 exit:	if (fd >= 0) {
 		close(fd);

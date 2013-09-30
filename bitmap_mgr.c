@@ -69,10 +69,19 @@ bitmap_destroy (void *data)
 }
 
 static void
-thread_on_completed (struct pngloader *p)
+thread_on_completed (struct pngloader *p, void *rawbits)
 {
+	int stored;
+
 	// This function is called by the thread after it has finished
 	// inserting the bitmap; delete the job id from the quadtree:
+
+	// Insert bitmap into quadtree:
+	pthread_mutex_lock(&bitmaps_mutex);
+	stored = quadtree_data_insert(bitmaps, &p->req, rawbits);
+	pthread_mutex_unlock(&bitmaps_mutex);
+
+	if (!stored) bitmap_destroy(rawbits);
 
 	// Remove therad from list of running procure threads:
 	pthread_mutex_lock(&running_mutex);
@@ -96,8 +105,6 @@ thread_procure (struct quadtree_req *req)
 	}
 	// The pngloader structure is owned by the thread.
 	// It is responsible for free()'ing it.
-	p->bitmaps = &bitmaps;
-	p->bitmaps_mutex = &bitmaps_mutex;
 	memcpy(&p->req, req, sizeof(*req));
 	p->on_completed = thread_on_completed;
 
