@@ -4,7 +4,7 @@
 struct pngloader
 {
 	pthread_t thread;
-	void (*completed_callback)(void);
+	void (*on_completed)(struct pngloader *);
 
 	struct quadtree **bitmaps;
 	pthread_mutex_t *bitmaps_mutex;

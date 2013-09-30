@@ -1,5 +1,4 @@
 #include <stdbool.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -20,13 +19,13 @@
 #endif
 
 static __thread int fd = -1;
-static __thread FILE *fp = NULL;
 static __thread void *rawbits = NULL;
 static __thread png_structp png_ptr = NULL;
 static __thread png_infop info_ptr = NULL;
 static __thread char *heap = NULL;
 static __thread char *heap_head = NULL;
 static __thread int init_ok = 0;
+static __thread volatile bool cancel_flag = false;
 
 // Our private malloc/free functions that we give to libpng.
 // We just allocate everything off a heap sequentially and never
@@ -62,6 +61,38 @@ free_fn (png_structp png_ptr, png_voidp ptr)
 	// We don't free anything.
 }
 
+// Our own I/O functions:
+static void
+user_read_data (png_structp png_ptr, png_bytep data, png_size_t length)
+{
+	// Read length bytes from file handle into data:
+	if (cancel_flag || read(fd, data, length) != (ssize_t)length || cancel_flag) {
+		png_error(png_ptr, NULL);
+	}
+}
+
+static void
+user_error_fn (png_structp png_ptr, png_const_charp error_msg)
+{
+	(void)png_ptr;
+	(void)error_msg;
+
+	// According to the libpng docs, this function should not return control,
+	// but longjmp back to the caller:
+	cancel_flag = true;
+	longjmp(png_jmpbuf(png_ptr), 1);
+}
+
+static void
+user_warning_fn (png_structp png_ptr, png_const_charp warning_msg)
+{
+	(void)png_ptr;
+	(void)warning_msg;
+
+	// According to the docs, the warning should simply return, not longjmp.
+	cancel_flag = true;
+}
+
 void
 pngloader_on_init (void)
 {
@@ -73,6 +104,22 @@ pngloader_on_init (void)
 }
 
 static bool
+check_is_png (void)
+{
+	char buf[8];
+
+	// Check that the file is a PNG; can do this without allocating libpng structures:
+	if (read(fd, buf, sizeof(buf)) != sizeof(buf)) {
+		return false;
+	}
+	if (png_sig_cmp((png_bytep)buf, 0, sizeof(buf))) {
+		return false;
+	}
+	// Rewind file handle:
+	return (lseek(fd, 0, SEEK_SET) >= 0);
+}
+
+static bool
 load_png_file (png_structp *ppng_ptr, png_infop *pinfo_ptr, unsigned int *height, unsigned int *width, void **rawbits)
 {
 	png_structp png_ptr = *ppng_ptr;
@@ -81,31 +128,22 @@ load_png_file (png_structp *ppng_ptr, png_infop *pinfo_ptr, unsigned int *height
 
 	*rawbits = NULL;
 
-	// TODO: we don't handle errors; what happens when they occur?
-	if ((png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL)) == NULL) {
-		goto exit_0;
+	// First file read happens here; this is probably also where we can
+	// expect the real io latency hit; check carefully for cancellation:
+	if (!check_is_png() || cancel_flag) {
+		return false;
 	}
-	// Instantiate our own malloc functions:
-	png_set_mem_fn(png_ptr, NULL, malloc_fn, free_fn);
+	if ((png_ptr = png_create_read_struct_2(PNG_LIBPNG_VER_STRING, NULL, user_error_fn, user_warning_fn, NULL, malloc_fn, free_fn)) == NULL) {
+		return false;
+	}
+	// Instantiate our own read function:
+	png_set_read_fn(png_ptr, NULL, user_read_data);
 
 	if ((info_ptr = png_create_info_struct(png_ptr)) == NULL) {
-		goto exit_1;
+		goto exit_0;
 	}
 	if (setjmp(png_jmpbuf(png_ptr))) {
-		goto exit_1;
-	}
-	// Check that the file is a PNG; if so, init the i/o functions:
-	{
-		char buf[8];
-
-		if (fread(buf, 1, sizeof(buf), fp) != sizeof(buf)) {
-			goto exit_1;
-		}
-		if (png_sig_cmp((png_bytep)buf, 0, sizeof(buf))) {
-			goto exit_1;
-		}
-		png_init_io(png_ptr, fp);
-		png_set_sig_bytes(png_ptr, sizeof(buf));
+		goto exit_0;
 	}
 	// Sane limits on image:
 	png_set_user_limits(png_ptr, 500, 500);
@@ -146,7 +184,7 @@ load_png_file (png_structp *ppng_ptr, png_infop *pinfo_ptr, unsigned int *height
 
 	// Allocate the rawbits image data:
 	if ((*rawbits = malloc(*width * *height * 3)) == NULL) {
-		goto exit_1;
+		goto exit_0;
 	}
 	// Allocate array of row pointers, read actual image data:
 	// TODO: check if it's wise to allocate this on the stack:
@@ -162,14 +200,14 @@ load_png_file (png_structp *ppng_ptr, png_infop *pinfo_ptr, unsigned int *height
 		png_read_image(png_ptr, row_pointers);
 	}
 	png_read_end(png_ptr, NULL);
-	ret = true;
+	ret = !cancel_flag;
 
-exit_1:	png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
+exit_0:	png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
 	if (ret == false) {
 		free(*rawbits);
 		*rawbits = NULL;
 	}
-exit_0:	return ret;
+	return ret;
 }
 
 void
@@ -188,30 +226,27 @@ pngloader_main (void *data)
 	// Reset heap pointer:
 	heap_head = heap;
 
-	if ((p->filename = tile_filename(p->req.zoom, p->req.x, p->req.y)) == NULL) {
+	fd = -1;
+	cancel_flag = false;
+
+	if ((p->filename = tile_filename(p->req.zoom, p->req.x, p->req.y)) == NULL || cancel_flag) {
 		goto exit;
 	}
 	// Get a file descriptor to the file. We just want a file descriptor to
 	// associate with this thread so that we know what to clean up, and not
 	// wait for the disk to actually deliver, so we issue a nonblocking call:
-	if ((fd = open(p->filename, O_RDONLY | O_NONBLOCK)) < 0) {
+	if ((fd = open(p->filename, O_RDONLY | O_NONBLOCK)) < 0 || cancel_flag) {
 		goto exit;
 	}
 	// Now that we have the fd, make it properly blocking:
-	fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) & ~O_NONBLOCK);
-
-	// Now open an fp from the descriptor and load the image:
-	// (this is the blocking part of the thread, we hope):
-	if ((fp = fdopen(fd, "rb")) == NULL) {
+	if (fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) & ~O_NONBLOCK) < 0 || cancel_flag) {
 		goto exit;
 	}
-	bool ret = load_png_file(&png_ptr, &info_ptr, &height, &width, &rawbits);
-	if (!ret) {
+	if (!load_png_file(&png_ptr, &info_ptr, &height, &width, &rawbits) || cancel_flag) {
 		goto exit;
 	}
-	if (fp != NULL) {
-		fclose(fp);
-		fp = NULL;
+	if (fd >= 0) {
+		close(fd);
 		fd = -1;
 	}
 	if (height != TILESIZE || width != TILESIZE) {
@@ -220,7 +255,7 @@ pngloader_main (void *data)
 		goto exit;
 	}
 	// Got tile, insert into bitmaps:
-	ret = false;
+	bool ret = false;
 	// pointer to bitmaps can become NULL if the parent process is
 	// suddenly shutting down on us:
 	pthread_mutex_lock(p->bitmaps_mutex);
@@ -232,16 +267,11 @@ pngloader_main (void *data)
 		free(rawbits);
 		rawbits = NULL;
 	}
-	else if (p->completed_callback != NULL) {
-		p->completed_callback();
+	else if (p->on_completed != NULL) {
+		p->on_completed(p);
 	}
 
-exit:	if (fp != NULL) {
-		fclose(fp);
-		fp = NULL;
-		fd = -1;
-	}
-	else if (fd >= 0) {
+exit:	if (fd >= 0) {
 		close(fd);
 		fd = -1;
 	}
@@ -254,6 +284,8 @@ void
 pngloader_on_cancel (void)
 {
 	if (!init_ok) return;
+
+	cancel_flag = true;
 }
 
 void

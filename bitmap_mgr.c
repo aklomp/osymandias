@@ -56,7 +56,9 @@ bitmap_procure (struct quadtree_req *req)
 	// it will be procured by xylist_request by indirectly calling back on
 	// thread_procure(). Our work here is done.
 
+	pthread_mutex_lock(&running_mutex);
 	quadtree_request(threadlist, req);
+	pthread_mutex_unlock(&running_mutex);
 	return NULL;
 }
 
@@ -64,6 +66,20 @@ static void
 bitmap_destroy (void *data)
 {
 	free(data);
+}
+
+static void
+thread_on_completed (struct pngloader *p)
+{
+	// This function is called by the thread after it has finished
+	// inserting the bitmap; delete the job id from the quadtree:
+
+	// Remove therad from list of running procure threads:
+	pthread_mutex_lock(&running_mutex);
+	quadtree_data_insert(threadlist, &p->req, NULL);
+	pthread_mutex_unlock(&running_mutex);
+
+	framerate_request_refresh();
 }
 
 static void *
@@ -83,7 +99,7 @@ thread_procure (struct quadtree_req *req)
 	p->bitmaps = &bitmaps;
 	p->bitmaps_mutex = &bitmaps_mutex;
 	memcpy(&p->req, req, sizeof(*req));
-	p->completed_callback = framerate_request_refresh;
+	p->on_completed = thread_on_completed;
 
 	// Enqueue job:
 	if ((job_id = threadpool_job_enqueue(threadpool, p)) == 0) {
@@ -98,9 +114,7 @@ static void
 thread_destroy (void *data)
 {
 	// Free the job ID:
-	pthread_mutex_lock(&running_mutex);
 	threadpool_job_cancel(threadpool, (int)data);
-	pthread_mutex_unlock(&running_mutex);
 }
 
 bool
