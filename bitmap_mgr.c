@@ -41,20 +41,19 @@ void
 bitmap_zoom_change (const int zoomlevel)
 {
 	(void)zoomlevel;
-//	xylist_purge_other_zoomlevels(threadlist, zoomlevel);
 }
 
 static void *
 bitmap_procure (struct quadtree_req *req)
 {
 	// We have been asked to procure a bitmap. We can't do this fast enough
-	// for this refresh, so we return NULL and shoot off a thread.
-	// We use the 'thread' structure to save the thread data, and to check if
-	// we already have a thread running for this tile.
-
-	// Look up the running thread with xylist_request. If it does not exist,
-	// it will be procured by xylist_request by indirectly calling back on
-	// thread_procure(). Our work here is done.
+	// for this refresh, so we shoot off a threadpool job and return NULL.
+	// The thread will fetch a bitmap from disk and insert it into the
+	// bitmaps list when it's done, thus indirectly fetching the request
+	// for future lookups. Right now, we're done.
+	// We use the 'threadlist' quadtree to hold the job IDs, and to check
+	// if we already have a thread running for this tile. Think of it as a
+	// spatially aware job queue.
 
 	pthread_mutex_lock(&running_mutex);
 	quadtree_request(threadlist, req);
