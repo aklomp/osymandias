@@ -111,16 +111,22 @@ draw_tile_spherical (int tile_x, int tile_y, int tile_wd, int tile_ht, GLuint te
 	GLdouble tht = (GLdouble)t->ht / (256 * ydivide);
 
 	glBegin(GL_QUADS);
-	for (int dx = 0; dx < xdivide; dx++) {
-		for (int dy = 0; dy < ydivide; dy++) {
+
+	// lon1, lon2, lat1, and lat2 form the cornerpoints of the quad being
+	// drawn. The variable use is non-obvious, but we reuse lon2/lat2's
+	// coordinates as the lon1/lat1 for the next round.
+
+	double lon1 = world_x_to_lon(tile_x, world_size);
+	for (int dx = 0; dx < xdivide; dx++)
+	{
+		double lon2 = world_x_to_lon(tile_x + (double)((dx + 1) * tile_wd) / xdivide, world_size);
+		double lat1 = world_y_to_lat(tile_y, world_size);
+		for (int dy = 0; dy < ydivide; dy++)
+		{
+			double lat2 = world_y_to_lat(tile_y + (double)((dy + 1) * tile_ht) / ydivide, world_size);
+
 			GLdouble txoffs = (GLdouble)t->offset_x / 256.0 + dx * twd;
 			GLdouble tyoffs = (GLdouble)t->offset_y / 256.0 + dy * tht;
-
-			double lon1 = world_x_to_lon(tile_x + (double)(dx * tile_wd) / xdivide, world_size);
-			double lon2 = world_x_to_lon(tile_x + (double)((dx + 1) * tile_wd) / xdivide, world_size);
-
-			double lat1 = world_y_to_lat(tile_y + (double)(dy * tile_ht) / ydivide, world_size);
-			double lat2 = world_y_to_lat(tile_y + (double)((dy + 1) * tile_ht) / ydivide, world_size);
 
 			latlon_to_xyz(lat1, lon1, world_size, lon, sinlat, coslat, &x[0], &y[0], &z[0]);
 			latlon_to_xyz(lat1, lon2, world_size, lon, sinlat, coslat, &x[1], &y[1], &z[1]);
@@ -131,7 +137,10 @@ draw_tile_spherical (int tile_x, int tile_y, int tile_wd, int tile_ht, GLuint te
 			glNormal3f(x[1], y[1], z[1]); glTexCoord2f(txoffs + twd, tyoffs);       glVertex3f(x[1], y[1], z[1]);
 			glNormal3f(x[2], y[2], z[2]); glTexCoord2f(txoffs + twd, tyoffs + tht); glVertex3f(x[2], y[2], z[2]);
 			glNormal3f(x[3], y[3], z[3]); glTexCoord2f(txoffs,       tyoffs + tht); glVertex3f(x[3], y[3], z[3]);
+
+			lat1 = lat2;
 		}
+		lon1 = lon2;
 	}
 	glEnd();
 }
