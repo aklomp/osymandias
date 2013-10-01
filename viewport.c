@@ -112,14 +112,20 @@ recalc_tile_extents (void)
 static void
 center_set (const double world_x, const double world_y)
 {
-	// Set center to coordinates, but clip to [0, world_size]
-
 	unsigned int world_size = world_get_size();
 
-	center_x = (world_x < 0) ? 0.0
-	         : (world_x >= world_size) ? world_size
-	         : (world_x);
-
+	// In planar mode, clip to plane:
+	if (viewport_mode == VIEWPORT_MODE_PLANAR) {
+		center_x = (world_x < 0) ? 0.0
+		         : (world_x >= world_size) ? world_size
+		         : (world_x);
+	}
+	// In spherical mode, allow horizontal wrap:
+	if (viewport_mode == VIEWPORT_MODE_SPHERICAL) {
+		center_x = (world_x < 0) ? world_size - world_x
+		         : (world_x >= world_size) ? world_x - world_size
+		         : (world_x);
+	}
 	center_y = (world_y < 0) ? 0.0
 	         : (world_y >= world_size) ? world_size
 	         : (world_y);
