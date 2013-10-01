@@ -644,9 +644,19 @@ viewport_within_world_bounds (void)
 {
 	double world_size = (double)world_get_size();
 
-	for (int i = 0; i < 4; i++) {
-		if (frustum_x[i] < 0.0 || frustum_x[i] > world_size) return false;
-		if (frustum_y[i] < 0.0 || frustum_y[i] > world_size) return false;
+	if (viewport_mode == VIEWPORT_MODE_PLANAR) {
+		for (int i = 0; i < 4; i++) {
+			if (frustum_x[i] < 0.0 || frustum_x[i] > world_size) return false;
+			if (frustum_y[i] < 0.0 || frustum_y[i] > world_size) return false;
+		}
+		return true;
+	}
+	if (viewport_mode == VIEWPORT_MODE_SPHERICAL)
+	{
+		// For now, always redraw background; even if we can calculate
+		// that the world occludes the background, perhaps the tile
+		// mantle has holes in it that "leak" the background:
+		return false;
 	}
 	return true;
 }
