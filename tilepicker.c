@@ -6,6 +6,7 @@
 #include "viewport.h"
 #include "vector.h"
 #include "vector2d.h"
+#include "camera.h"
 #include "tile2d.h"
 
 #define MEMPOOL_BLOCK_SIZE 100
@@ -465,7 +466,7 @@ static int
 tile_get_zoom (int tile_x, int tile_y)
 {
 	// Shortcut: if the tilt is exactly 0.0, always use world zoom:
-	if (viewport_get_tilt() == 0.0) {
+	if (!camera_is_tilted()) {
 		return world_zoom;
 	}
 	return tile2d_get_zoom(tile_x, tile_y, center_x, center_y, world_zoom);

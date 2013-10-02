@@ -11,6 +11,7 @@
 #include "shaders.h"
 #include "autoscroll.h"
 #include "world.h"
+#include "camera.h"
 #include "tilepicker.h"
 #include "layers.h"
 #include "viewport.h"
@@ -19,12 +20,6 @@ static double center_x;		// in world coordinates
 static double center_y;		// in world coordinates
 static unsigned int screen_wd;	// screen dimension
 static unsigned int screen_ht;	// screen dimension
-static float view_tilt;		// tilt from vertical, in degrees
-static float view_rot;		// rotation along z axis, in degrees
-static float view_zdist;	// Distance from camera to cursor in z units (camera height)
-static float eye_x;
-static float eye_y;
-static float eye_z;
 static double hold_x;		// Mouse hold/drag at this world coordinate
 static double hold_y;
 static double frustum_x[4] = { 0.0, 0.0, 0.0, 0.0 };
@@ -139,9 +134,6 @@ viewport_init (void)
 {
 	viewport_mode_set(VIEWPORT_MODE_SPHERICAL);
 	center_x = center_y = (double)world_get_size() / 2.0;
-	view_tilt = 0.0;
-	view_rot = 0.0;
-	view_zdist = 4;
 	return true;
 }
 
@@ -232,13 +224,7 @@ viewport_tilt (const int dy)
 {
 	if (dy == 0) return;
 
-	view_tilt += (double)dy * 0.1;
-
-	if (view_tilt > 80.0) view_tilt = 80.0;
-	if (view_tilt < 0.0) view_tilt = 0.0;
-
-	/* Snap to 0.0: */
-	if (view_tilt < 0.05) view_tilt = 0.0;
+	camera_tilt(dy);
 
 	// This warps the frustum:
 	frustum_changed_shape();
@@ -249,10 +235,7 @@ viewport_rotate (const int dx)
 {
 	if (dx == 0) return;
 
-	view_rot += (double)dx * 0.1;
-
-	if (view_rot < 0.0) view_rot += 360.0;
-	if (view_rot >= 360.0) view_rot -= 360.0;
+	camera_rotate(dx);
 
 	// Basic shape of frustum stays the same, but it's rotated:
 	frustum_changed_location();
@@ -476,61 +459,6 @@ viewport_gl_setup_overview (int sz, int margin)
 	glDepthMask(GL_FALSE);
 }
 
-static void
-setup_camera (void)
-{
-	// The center point (lookat point) is always at (0,0,0); the camera
-	// floats around that point on a sphere.
-
-	float halfwd = (float)screen_wd / 512.0f;
-	float halfht = (float)screen_ht / 512.0f;
-
-	// This is built around the idea that the screen center is at (0,0) and
-	// that 1 pixel of the screen should correspond with 1 texture pixel at
-	// 0 degrees tilt angle:
-	glFrustum(-halfwd / view_zdist, halfwd / view_zdist, -halfht / view_zdist, halfht / view_zdist, 1.0, 100.0);
-
-	// NB: layers that use this projection need to MANUALLY offset all
-	// coordinates with (-center_x, -center_y)! This is necessary because
-	// OpenGL uses floats internally, and their precision is not high
-	// enough for pixel-perfect placement in far corners of a giant world.
-	// So we keep the ortho window close around the origin, where floats
-	// are still precise enough, and apply the transformation *manually* in
-	// software.
-	// Yes, even glTranslated() does not work at the required precision.
-	// Yes, even when used on the MODELVIEW matrix.
-
-	glMatrixMode(GL_MODELVIEW);
-	glLoadIdentity();
-
-	// gluLookAt() does not work when up vector == view vector (underdefined);
-	// use old-fashioned rotate/translate to setup the modelview matrix:
-	if (view_tilt == 0.0) {
-		glTranslatef(0.0, 0.0, -view_zdist);
-		glRotatef(-view_tilt, 1.0, 0.0, 0.0);
-		glRotatef(view_rot, 0.0, 0.0, 1.0);
-
-		eye_x = 0;
-		eye_y = 0;
-		eye_z = view_zdist;
-
-		return;
-	}
-	// Place the camera on a sphere centered around (0,0,0):
-	float lat = -view_tilt * M_PI / 180.0f;
-	float lon = view_rot * M_PI / 180.0f;
-
-	eye_x = sinf(lat) * sinf(lon) * view_zdist;
-	eye_y = sinf(lat) * cosf(lon) * view_zdist;
-	eye_z = cosf(lat) * view_zdist;
-
-	gluLookAt(
-		eye_x, eye_y, eye_z,	// Eye point
-		0, 0, 0,		// Lookat point (always the origin)
-		0, 0, 1			// Up vector
-	);
-}
-
 void
 viewport_gl_setup_world_planar (void)
 {
@@ -546,7 +474,7 @@ viewport_gl_setup_world_planar (void)
 	// Pixel snap offset, ensures proper pixel rounding:
 	glTranslatef(0.375 / 256.0, 0.375 / 256.0, 0.0);
 
-	setup_camera();
+	camera_setup(screen_wd, screen_ht);
 
 	glGetDoublev(GL_MODELVIEW_MATRIX, modelview);
 	glGetDoublev(GL_PROJECTION_MATRIX, projection);
@@ -594,7 +522,7 @@ viewport_gl_setup_world_spherical (void)
 	// Pixel snap offset, ensures proper pixel rounding:
 	glTranslatef(0.375 / 256.0, 0.375 / 256.0, 0.0);
 
-	setup_camera();
+	camera_setup(screen_wd, screen_ht);
 
 	glGetDoublev(GL_MODELVIEW_MATRIX, modelview);
 	glGetDoublev(GL_PROJECTION_MATRIX, projection);
@@ -685,18 +613,6 @@ viewport_get_center_y (void)
 	return center_y;
 }
 
-float
-viewport_get_rot (void)
-{
-	return view_rot;
-}
-
-float
-viewport_get_tilt (void)
-{
-	return view_tilt;
-}
-
 int viewport_get_tile_top (void) { return tile_top; }
 int viewport_get_tile_left (void) { return tile_left; }
 int viewport_get_tile_right (void) { return tile_right; }
@@ -720,7 +636,7 @@ viewport_screen_to_world (double sx, double sy, double *wx, double *wy)
 	// Shortcut: if we know the world is orthogonal, use simpler
 	// calculations; this also lets us "bootstrap" the world before
 	// the first OpenGL projection:
-	if (view_tilt == 0.0 && view_rot == 0.0) {
+	if (!camera_is_tilted() && !camera_is_rotated()) {
 		*wx = center_x + (sx - (double)screen_wd / 2.0) / 256.0;
 		*wy = center_y + (sy - (double)screen_ht / 2.0) / 256.0;
 		return;
@@ -754,7 +670,7 @@ viewport_screen_to_world (double sx, double sy, double *wx, double *wy)
 void
 viewport_world_to_screen (double wx, double wy, double *sx, double *sy)
 {
-	if (view_tilt == 0.0 && view_rot == 0.0) {
+	if (!camera_is_tilted() && !camera_is_rotated()) {
 		*sx = (double)screen_wd / 2.0 + (wx - center_x) * 256.0;
 		*sy = (double)screen_ht / 2.0 + (wy - center_y) * 256.0;
 		return;

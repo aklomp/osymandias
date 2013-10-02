@@ -11,6 +11,7 @@ PROG = osymandias
 
 OBJS = \
   world.o \
+  camera.o \
   layers.o \
   quadtree.o \
   diskcache.o \
