@@ -1,5 +1,6 @@
 #include <stdbool.h>
 #include <stdlib.h>
+#include <math.h>
 
 #include "world.h"
 #include "viewport.h"
@@ -504,12 +505,8 @@ line_intersects_quad (float x1, float y1, float x2, float y2, vec4f x3, vec4f y3
 	p &= (n2 >= z);
 	p &= (n2 <= d);
 
-	if (p[0]) return true;
-	if (p[1]) return true;
-	if (p[2]) return true;
-	if (p[3]) return true;
-
-	return false;
+	// If any one of these holds, the line intersects the quad:
+	return !vec4i_all_false(p);
 }
 
 bool
