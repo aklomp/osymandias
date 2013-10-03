@@ -15,12 +15,9 @@ tile2d_get_corner_zooms_abs (int x1, int y1, int x2, int y2, float center_x, flo
 	vec4f vx = { x1, x2 - 1, x2 - 1, x1 };
 	vec4f vy = { y1, y1, y2 - 1, y2 - 1 };
 
-	vx = vx + vec4f_float(0.5 - center_x);
-	vy = vy + vec4f_float(0.5 - center_y);
-
 	// Use distance-squared, save a square root;
 	// the 40.0 is a fudge factor for the size of the "zoom horizon":
-	vx = (vx * vx + vy * vy) / vec4f_float(40.0);
+	vx = vector2d_distance_squared(center_x - 0.5, center_y - 0.5, vx, vy) / vec4f_float(40.0);
 
 	// Convert to int:
 	vec4i vz = vec4f_to_vec4i(vx);

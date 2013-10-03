@@ -4,6 +4,7 @@
 #include <math.h>
 
 #include "vector.h"
+#include "vector2d.h"
 #include "tile2d.h"
 #include "quadtree.h"
 
