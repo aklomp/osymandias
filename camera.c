@@ -157,6 +157,143 @@ camera_setup (const int screen_wd, const int screen_ht)
 	}
 }
 
+static inline float
+dot (vec4f a, vec4f b)
+{
+	return vec4f_hsum(a * b);
+}
+
+static inline bool
+vertex_visible (vec4f delta, float *const restrict px, float *const restrict py, float *const restrict pz, int *behind)
+{
+	// Project vector onto camera unit reference vector;
+	// express as scalars in the camera's coordinate system:
+	*px = dot(cam.refx, delta);
+	*py = dot(cam.refy, delta);
+	*pz = dot(cam.refz, delta);
+
+	// Check if point is behind the field of view:
+	if ((*behind = (*pz <= cam.clip_near))) {
+		return false;
+	}
+	// Width and height frustum (view pyramid) at original point:
+	float wd = *pz * cam.htan;
+	float ht = *pz * cam.vtan;
+
+	// Point must be in view pyramid to be visible:
+	return (fabsf(*px) <= wd) && (fabsf(*py) <= ht);
+}
+
+static inline void
+project_quad_on_near_plane (float px[4], float py[4], float pz[4], float cx[5], float cy[5], int *nvert)
+{
+	*nvert = 0;
+
+	// Check points i and j. A point is "good" if it is in front of the
+	// clipping plane, and "bad" if it is behind it.
+	// If i is good and j is good, project i;
+	// if i is good and j is bad, project i and project i-j onto clip plane;
+	// if j is bad and i is good, project i-j onto clip plane;
+	// if j is bad and i is bad, do nothing.
+
+	for (int i = 0; i < 4; i++) {
+		int j = (i == 3) ? 0 : i + 1;
+		bool igood = (pz[i] > cam.clip_near);
+		bool jgood = (pz[j] > cam.clip_near);
+
+		if (igood) {
+			cx[*nvert] = (px[i] * cam.clip_near) / pz[i];
+			cy[*nvert] = (py[i] * cam.clip_near) / pz[i];
+			(*nvert)++;
+		}
+		if (igood ^ jgood) {
+			float dx = px[i] - px[j];
+			float dy = py[i] - py[j];
+			float dz = pz[i] - pz[j];
+			cx[*nvert] = px[i] + (dx / dz) * (cam.clip_near - pz[i]);
+			cy[*nvert] = py[i] + (dy / dz) * (cam.clip_near - pz[i]);
+			(*nvert)++;
+		}
+	}
+}
+
+bool
+camera_visible_quad (const vec4f a, const vec4f b, const vec4f c, const vec4f d)
+{
+	float px[4], py[4], pz[4];
+	int behind[4];
+
+	// If any of these vertices is directly visible, return:
+	if (vertex_visible(a - cam.pos, &px[0], &py[0], &pz[0], &behind[0])) return true;
+	if (vertex_visible(b - cam.pos, &px[1], &py[1], &pz[1], &behind[1])) return true;
+	if (vertex_visible(c - cam.pos, &px[2], &py[2], &pz[2], &behind[2])) return true;
+	if (vertex_visible(d - cam.pos, &px[3], &py[3], &pz[3], &behind[3])) return true;
+
+	// If all four vertices are behind us, quad is invisible:
+	if (behind[0] && behind[1] && behind[2] && behind[3]) {
+		return false;
+	}
+	float xproj[5];
+	float yproj[5];
+	int nvert;
+
+	project_quad_on_near_plane(px, py, pz, xproj, yproj, &nvert);
+
+	// Next, use the separation axis method to check for intersections.
+	// first check the intersections in the camera axes:
+
+	float xmin = xproj[0], xmax = xproj[0];
+	float ymin = yproj[0], ymax = yproj[0];
+
+	for (int i = 1; i < nvert; i++) {
+		xmin = fminf(xmin, xproj[i]);
+		xmax = fmaxf(xmax, xproj[i]);
+		ymin = fminf(ymin, yproj[i]);
+		ymax = fmaxf(ymax, yproj[i]);
+	}
+	if (xmin >= cam.halfwd || xmax <= -cam.halfwd
+	 || ymin >= cam.halfht || ymax <= -cam.halfht) {
+		return false;
+	}
+	// Now try the separation axes method on the projected quad:
+	for (int i = 0; i < nvert; i++)
+	{
+		int j = (i == nvert - 1) ? 0 : i + 1;
+
+		// Perpendicular vector to edge between points i and j:
+		float ex = yproj[j] - yproj[i];	// -dy
+		float ey = xproj[i] - xproj[j];	//  dx
+
+		// Project all viewport vertices:
+		float vproj[4] = {
+			ex * -cam.halfwd + ey * -cam.halfht,
+			ex *  cam.halfwd + ey * -cam.halfht,
+			ex * -cam.halfwd + ey *  cam.halfht,
+			ex *  cam.halfwd + ey *  cam.halfht
+		};
+		float kmin, kmax;
+		float vmin = fminf(fminf(vproj[0], vproj[1]), fminf(vproj[2], vproj[3]));
+		float vmax = fmaxf(fmaxf(vproj[0], vproj[1]), fmaxf(vproj[2], vproj[3]));
+
+		// Project quad vertices; find projected minimum and maximum:
+		for (int k = 0; k < nvert; k++) {
+			float kproj = ex * xproj[k] + ey * yproj[k];
+			if (k > 0) {
+				kmin = fminf(kmin, kproj);
+				kmax = fmaxf(kmax, kproj);
+			}
+			else kmin = kmax = kproj;
+		}
+		// Check for overlaps:
+		if (vmax <= kmin || vmin >= kmax) {
+			return false;
+		}
+	}
+	// After exhaustive check, no separation axis found;
+	// we conclude that the tile must be visible:
+	return true;
+}
+
 bool
 camera_is_tilted (void)
 {
