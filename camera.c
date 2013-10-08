@@ -223,11 +223,32 @@ camera_visible_quad (const vec4f a, const vec4f b, const vec4f c, const vec4f d)
 	float px[4], py[4], pz[4];
 	int behind[4];
 
+	//  a---b   a = (x, y, z, _)
+	//  |   |   b = (x, y, z, _)
+	//  d---c   ...
+
+	// Vector between corner points and camera:
+	const vec4f a_delta = a - cam.pos;
+	const vec4f b_delta = b - cam.pos;
+	const vec4f c_delta = c - cam.pos;
+	const vec4f d_delta = d - cam.pos;
+
+	// Check sign of cross product of delta vector and quad edges;
+	// if any of the signs is positive, the quad is visible.
+	// TODO: this is glitchy at globe edges because it uses the flat normal,
+	// not the actual sphere normal at the corner points.
+	for (;;) {
+		if (dot(vector3d_cross(a - b, a - d), a_delta) > 0) break;
+		if (dot(vector3d_cross(b - c, b - a), b_delta) > 0) break;
+		if (dot(vector3d_cross(c - d, c - b), c_delta) > 0) break;
+		if (dot(vector3d_cross(d - a, d - c), d_delta) > 0) break;
+		return false;
+	}
 	// If any of these vertices is directly visible, return:
-	if (vertex_visible(a - cam.pos, &px[0], &py[0], &pz[0], &behind[0])) return true;
-	if (vertex_visible(b - cam.pos, &px[1], &py[1], &pz[1], &behind[1])) return true;
-	if (vertex_visible(c - cam.pos, &px[2], &py[2], &pz[2], &behind[2])) return true;
-	if (vertex_visible(d - cam.pos, &px[3], &py[3], &pz[3], &behind[3])) return true;
+	if (vertex_visible(a_delta, &px[0], &py[0], &pz[0], &behind[0])) return true;
+	if (vertex_visible(b_delta, &px[1], &py[1], &pz[1], &behind[1])) return true;
+	if (vertex_visible(c_delta, &px[2], &py[2], &pz[2], &behind[2])) return true;
+	if (vertex_visible(d_delta, &px[3], &py[3], &pz[3], &behind[3])) return true;
 
 	// If all four vertices are behind us, quad is invisible:
 	if (behind[0] && behind[1] && behind[2] && behind[3]) {
