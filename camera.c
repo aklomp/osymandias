@@ -157,6 +157,27 @@ camera_setup (const int screen_wd, const int screen_ht)
 	}
 }
 
+float
+camera_distance_squared_point (const vec4f a)
+{
+	// Difference vector:
+	vec4f d = a - cam.pos;
+
+	// d[0] * d[0] + d[1] * d[1] + d[2] * d[2]
+	return vec4f_hsum(d * d);
+}
+
+vec4f
+camera_distance_squared_quad (const vec4f x, const vec4f y, const vec4f z)
+{
+	// Difference vectors:
+	vec4f dx = x - vec4f_shuffle(cam.pos, 0, 0, 0, 0);
+	vec4f dy = y - vec4f_shuffle(cam.pos, 1, 1, 1, 1);
+	vec4f dz = z - vec4f_shuffle(cam.pos, 2, 2, 2, 2);
+
+	return (dx * dx) + (dy * dy) + (dz * dz);
+}
+
 static inline float
 dot (vec4f a, vec4f b)
 {
