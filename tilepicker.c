@@ -46,8 +46,6 @@ static int mempool_idx = 0;
 static int tile_get_zoom (int tile_x, int tile_y);
 static void reduce_block (int real_x, int real_y, int tilesize, int maxzoom);
 static void optimize_block (int x, int y, int relzoom);
-static bool line_segments_intersect (double x1, double y1, double x2, double y2, double x3, double y3, double x4, double y4);
-static bool line_intersects_quad (float x1, float y1, float x2, float y2, vec4f x3, vec4f y3, vec4f x4, vec4f y4);
 
 static struct tile *
 mempool_request_tile (void)
@@ -215,52 +213,13 @@ tilepicker_recalc (void)
 static bool
 tile_is_visible (int x, int y, int wd, int ht)
 {
-	// Check if at least one point of the tile is inside the frustum.
-	// This is expensive, but not as expensive as procuring and rendering
-	// an unnecessary tile.
-	if (x > tile_right || x + wd < tile_left) return false;
-	if (y > tile_bottom || y + ht < tile_top) return false;
-
-	double xmin = x;
-	double xmax = x + wd;
-	double ymin = world_size - y - ht;
-	double ymax = world_size - y;
-
-	// Tile can also *contain* the whole frustum; check all frustum corner
-	// points for containment in tile:
-	double *fx, *fy;
-	viewport_get_frustum(&fx, &fy);
-	for (int i = 0; i < 4; i++) {
-		if (fx[i] >= xmin && fx[i] <= xmax
-		 && fy[i] >= ymin && fy[i] <= ymax) {
-			return true;
-		}
-	}
-	// Tile edges, lines from (x3,y3) to (x4,y4):
-	vec4f x3 = { xmin, xmax, xmax, xmin };
-	vec4f y3 = { ymin, ymin, ymax, ymax };
-	vec4f x4 = { xmax, xmax, xmin, xmin };
-	vec4f y4 = { ymin, ymax, ymax, ymin };
-
-	// Check frustum edges one by one for intersection with tile edges:
-	for (int i = 0; i < 4; i++) {
-		float fx1 = fx[i];
-		float fy1 = fy[i];
-		float fx2 = fx[(i == 3) ? 0 : i + 1];
-		float fy2 = fy[(i == 3) ? 0 : i + 1];
-
-		if (line_intersects_quad(fx1, fy1, fx2, fy2, x3, y3, x4, y4)) {
-			return true;
-		}
-	}
-	// Check tile corner points for inclusion in frustum:
-	if (point_inside_frustum(xmin, ymin)
-	 || point_inside_frustum(xmin, ymax)
-	 || point_inside_frustum(xmax, ymax)
-	 || point_inside_frustum(xmax, ymin)) {
-		return true;
-	}
-	return false;
+	// Ensure that the edges rotate clockwise in the "up" direction:
+	return camera_visible_quad(
+		tile_to_world((vec4f){ x,      y,      0, 0 }, center_x, center_y),
+		tile_to_world((vec4f){ x + wd, y,      0, 0 }, center_x, center_y),
+		tile_to_world((vec4f){ x + wd, y + ht, 0, 0 }, center_x, center_y),
+		tile_to_world((vec4f){ x,      y + ht, 0, 0 }, center_x, center_y)
+	);
 }
 
 static void
@@ -470,45 +429,6 @@ tile_get_zoom (int tile_x, int tile_y)
 		return world_zoom;
 	}
 	return tile2d_get_zoom(tile_x, tile_y, center_x, center_y, world_zoom);
-}
-
-static bool
-line_segments_intersect (double x1, double y1, double x2, double y2, double x3, double y3, double x4, double y4)
-{
-	double d = (y4 - y3) * (x2 - x1) - (x4 - x3) * (y2 - y1);
-
-	if (d == 0.0) {
-		return false;
-	}
-	double n1 = (x4 - x3) * (y1 - y3) - (y4 - y3) * (x1 - x3);
-	if (n1 < 0.0 || n1 > d) {
-		return false;
-	}
-	double n2 = (x2 - x1) * (y1 - y3) - (y2 - y1) * (x1 - x3);
-	if (n2 < 0.0 || n2 > d) {
-		return false;
-	}
-	return true;
-}
-
-static bool
-line_intersects_quad (float x1, float y1, float x2, float y2, vec4f x3, vec4f y3, vec4f x4, vec4f y4)
-{
-	vec4f z = vec4f_zero();
-	vec4f d = (y4 - y3) * vec4f_float(x2 - x1) - (x4 - x3) * vec4f_float(y2 - y1);
-	vec4f n1 = (x4 - x3) * (vec4f_float(y1) - y3) - (y4 - y3) * (vec4f_float(x1) - x3);
-	vec4f n2 = vec4f_float(x2 - x1) * (vec4f_float(y1) - y3) - vec4f_float(y2 - y1) * (vec4f_float(x1) - x3);
-
-	// We could write this out as one big expression,
-	// but that crashes GCC 4.7.1:
-	vec4i p = (d != z);
-	p &= (n1 >= z);
-	p &= (n1 <= d);
-	p &= (n2 >= z);
-	p &= (n2 <= d);
-
-	// If any one of these holds, the line intersects the quad:
-	return !vec4i_all_false(p);
 }
 
 bool
