@@ -18,6 +18,7 @@ struct tile {
 	int wd;
 	int ht;
 	int zoom;
+	float p[4][3];
 	struct tile *prev;
 	struct tile *next;
 };
@@ -209,15 +210,31 @@ tilepicker_recalc (void)
 }
 
 static bool
-tile_is_visible (const struct tile *const tile)
+tile_is_visible (struct tile *const tile)
 {
 	// Ensure that the edges rotate clockwise in the "up" direction:
-	return camera_visible_quad(
-		tile_to_world((vec4f){ tile->x,            tile->y,            0, 0 }, center_x, center_y),
-		tile_to_world((vec4f){ tile->x + tile->wd, tile->y,            0, 0 }, center_x, center_y),
-		tile_to_world((vec4f){ tile->x + tile->wd, tile->y + tile->ht, 0, 0 }, center_x, center_y),
-		tile_to_world((vec4f){ tile->x,            tile->y + tile->ht, 0, 0 }, center_x, center_y)
-	);
+	float p[4][3] = {
+		{ tile->x,            tile->y,            0 },
+		{ tile->x + tile->wd, tile->y,            0 },
+		{ tile->x + tile->wd, tile->y + tile->ht, 0 },
+		{ tile->x,            tile->y + tile->ht, 0 }
+	};
+	// Convert from tile coordinates to world coordinates:
+	for (int i = 0; i < 4; i++) {
+		p[i][0] -= center_x;
+		p[i][1] -= center_y;
+		p[i][1] = -p[i][1];
+	}
+	if (camera_visible_quad(
+		(vec4f){ p[0][0], p[0][1], p[0][2], 0 },
+		(vec4f){ p[1][0], p[1][1], p[1][2], 0 },
+		(vec4f){ p[2][0], p[2][1], p[2][2], 0 },
+		(vec4f){ p[3][0], p[3][1], p[3][2], 0 }
+	)) {
+		memcpy(tile->p, p, sizeof(float[4][3]));
+		return true;
+	}
+	return false;
 }
 
 static void
@@ -468,7 +485,7 @@ tile_get_zoom (int tile_x, int tile_y)
 }
 
 bool
-tilepicker_next (int *x, int *y, int *wd, int *ht, int *zoom)
+tilepicker_next (int *x, int *y, int *wd, int *ht, int *zoom, float p[4][3])
 {
 	// Returns true or false depending on whether a tile is available and
 	// returned in the pointer arguments.
@@ -481,17 +498,19 @@ tilepicker_next (int *x, int *y, int *wd, int *ht, int *zoom)
 	*ht = drawlist_iter->ht;
 	*zoom = drawlist_iter->zoom;
 
+	memcpy(p, &drawlist_iter->p, sizeof(float[4][3]));
+
 	drawlist_iter = drawlist_iter->next;
 	return true;
 }
 
 bool
-tilepicker_first (int *x, int *y, int *wd, int *ht, int *zoom)
+tilepicker_first (int *x, int *y, int *wd, int *ht, int *zoom, float p[4][3])
 {
 	// Reset iterator:
 	drawlist_iter = drawlist;
 
-	return tilepicker_next(x, y, wd, ht, zoom);
+	return tilepicker_next(x, y, wd, ht, zoom, p);
 }
 
 void

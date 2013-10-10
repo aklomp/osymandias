@@ -38,8 +38,9 @@ layer_overview_paint (void)
 
 	// Draw tiles from tile picker:
 	int x, y, tile_wd, tile_ht, zoom;
+	float p[4][3];
 
-	for (int iter = tilepicker_first(&x, &y, &tile_wd, &tile_ht, &zoom); iter; iter = tilepicker_next(&x, &y, &tile_wd, &tile_ht, &zoom)) {
+	for (int iter = tilepicker_first(&x, &y, &tile_wd, &tile_ht, &zoom, p); iter; iter = tilepicker_next(&x, &y, &tile_wd, &tile_ht, &zoom, p)) {
 		float zoomcolors[6][3] = {
 			{ 1.0, 0.0, 0.0 },
 			{ 0.0, 1.0, 0.0 },

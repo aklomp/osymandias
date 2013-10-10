@@ -45,6 +45,7 @@ layer_osm_paint (void)
 	int y;
 	int tile_wd, tile_ht;
 	int zoom;
+	float p[4][3];
 	struct quadtree_req req;
 	struct quadtree_req req_tex;
 	int world_zoom = world_get_zoom();
@@ -63,7 +64,7 @@ layer_osm_paint (void)
 	// The texture colors are multiplied with this value:
 	glColor3f(1.0, 1.0, 1.0);
 
-	for (int iter = tilepicker_first(&x, &y, &tile_wd, &tile_ht, &zoom); iter; iter = tilepicker_next(&x, &y, &tile_wd, &tile_ht, &zoom))
+	for (int iter = tilepicker_first(&x, &y, &tile_wd, &tile_ht, &zoom, p); iter; iter = tilepicker_next(&x, &y, &tile_wd, &tile_ht, &zoom, p))
 	{
 		// If showing the zoom colors overlay, pick proper mixin color:
 		if (overlay_zoom) {
