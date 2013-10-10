@@ -1,5 +1,6 @@
 #include <stdbool.h>
 #include <stdlib.h>
+#include <string.h>
 #include <math.h>
 
 #include "world.h"
@@ -107,18 +108,15 @@ mempool_destroy (void)
 }
 
 static bool
-drawlist_add (int tile_x, int tile_y, int zoom, int width, int height)
+drawlist_add (const struct tile *const tile)
 {
 	struct tile *t;
 
 	if ((t = mempool_request_tile()) == NULL) {
 		return false;
 	}
-	t->x = tile_x;
-	t->y = tile_y;
-	t->wd = width;
-	t->ht = height;
-	t->zoom = zoom;
+	memcpy(t, tile, sizeof(*t));
+
 	t->prev = NULL;
 	t->next = NULL;
 
@@ -211,27 +209,30 @@ tilepicker_recalc (void)
 }
 
 static bool
-tile_is_visible (int x, int y, int wd, int ht)
+tile_is_visible (const struct tile *const tile)
 {
 	// Ensure that the edges rotate clockwise in the "up" direction:
 	return camera_visible_quad(
-		tile_to_world((vec4f){ x,      y,      0, 0 }, center_x, center_y),
-		tile_to_world((vec4f){ x + wd, y,      0, 0 }, center_x, center_y),
-		tile_to_world((vec4f){ x + wd, y + ht, 0, 0 }, center_x, center_y),
-		tile_to_world((vec4f){ x,      y + ht, 0, 0 }, center_x, center_y)
+		tile_to_world((vec4f){ tile->x,            tile->y,            0, 0 }, center_x, center_y),
+		tile_to_world((vec4f){ tile->x + tile->wd, tile->y,            0, 0 }, center_x, center_y),
+		tile_to_world((vec4f){ tile->x + tile->wd, tile->y + tile->ht, 0, 0 }, center_x, center_y),
+		tile_to_world((vec4f){ tile->x,            tile->y + tile->ht, 0, 0 }, center_x, center_y)
 	);
 }
 
 static void
 reduce_block (int x, int y, int size, int maxzoom)
 {
+	struct tile tile = { .x = x, .y = y, .wd = size, .ht = size };
+
 	// Not even visible? Give up:
-	if (!tile_is_visible(x, y, size, size)) {
+	if (!tile_is_visible(&tile)) {
 		return;
 	}
 	// This "quad" is a single tile:
 	if (size == 1) {
-		drawlist_add(x, y, tile_get_zoom(x, y), 1, 1);
+		tile.zoom = tile_get_zoom(x, y);
+		drawlist_add(&tile);
 		return;
 	}
 	int halfsize = size / 2;
@@ -307,34 +308,63 @@ reduce_block (int x, int y, int size, int maxzoom)
 	if (quad_consistent[0] && quad_consistent[1] && quad_consistent[2] && quad_consistent[3]
 	 && z[0][0] == z[1][0] && z[1][0] == z[2][0] && z[2][0] == z[3][0]
 	 && z[0][0] <= maxzoom) {
-		drawlist_add(x, y, z[0][0], size, size);
+		tile.x = x;
+		tile.y = y;
+		tile.wd = size;
+		tile.ht = size;
+		tile.zoom = z[0][0];
+		drawlist_add(&tile);
 		return;
 	}
 	int processed[4] = { 0, 0, 0, 0 };
 
 	// If top two quadrants have correct zoom level, add them as block:
-	if (quad_consistent[0] && quad_consistent[1] && z[0][0] == z[1][0] && z[0][0] <= maxzoom
-	 && tile_is_visible(x, y, size, halfsize)) {
-		drawlist_add(x, y, z[0][0], size, halfsize);
-		processed[0] = processed[1] = 1;
+	if (quad_consistent[0] && quad_consistent[1] && z[0][0] == z[1][0] && z[0][0] <= maxzoom) {
+		tile.x = x;
+		tile.y = y;
+		tile.wd = size;
+		tile.ht = halfsize;
+		if (tile_is_visible(&tile)) {
+			tile.zoom = z[0][0];
+			drawlist_add(&tile);
+			processed[0] = processed[1] = 1;
+		}
 	}
 	// If bottom two quadrants have correct zoom level, add them as block:
-	else if (quad_consistent[3] && quad_consistent[2] && z[3][0] == z[2][0] && z[2][0] <= maxzoom
-	 && tile_is_visible(x, y + halfsize, size, halfsize)) {
-		drawlist_add(x, y + halfsize, z[3][0], size, halfsize);
-		processed[3] = processed[2] = 1;
+	else if (quad_consistent[3] && quad_consistent[2] && z[3][0] == z[2][0] && z[2][0] <= maxzoom) {
+		tile.x = x;
+		tile.y = y + halfsize;
+		tile.wd = size;
+		tile.ht = halfsize;
+		if (tile_is_visible(&tile)) {
+			tile.zoom = z[3][0];
+			drawlist_add(&tile);
+			processed[3] = processed[2] = 1;
+		}
 	}
 	// If left two quadrants have correct zoom level, add them as block:
-	if (!processed[0] && !processed[3] && quad_consistent[0] && quad_consistent[3] && z[0][0] == z[3][0] && z[0][0] <= maxzoom
-	 && tile_is_visible(x, y, halfsize, size)) {
-		drawlist_add(x, y, z[0][0], halfsize, size);
-		processed[0] = processed[3] = 1;
+	if (!processed[0] && !processed[3] && quad_consistent[0] && quad_consistent[3] && z[0][0] == z[3][0] && z[0][0] <= maxzoom) {
+		tile.x = x;
+		tile.y = y;
+		tile.wd = halfsize;
+		tile.ht = size;
+		if (tile_is_visible(&tile)) {
+			tile.zoom = z[0][0];
+			drawlist_add(&tile);
+			processed[0] = processed[3] = 1;
+		}
 	}
 	// If right two quadrants have correct zoom level, add them as block:
-	if (!processed[1] && !processed[2] && quad_consistent[1] && quad_consistent[2] && z[1][0] == z[2][0] && z[1][0] <= maxzoom
-	 && tile_is_visible(x + halfsize, y, halfsize, size)) {
-		drawlist_add(x + halfsize, y, z[1][0], halfsize, size);
-		processed[1] = processed[2] = 1;
+	if (!processed[1] && !processed[2] && quad_consistent[1] && quad_consistent[2] && z[1][0] == z[2][0] && z[1][0] <= maxzoom) {
+		tile.x = x + halfsize;
+		tile.y = y;
+		tile.wd = halfsize;
+		tile.ht = size;
+		if (tile_is_visible(&tile)) {
+			tile.zoom = z[1][0];
+			drawlist_add(&tile);
+			processed[1] = processed[2] = 1;
+		}
 	}
 	// Check individual quadrants:
 	for (int q = 0; q < 4; q++) {
@@ -343,10 +373,16 @@ reduce_block (int x, int y, int size, int maxzoom)
 		}
 		int corner_x = corner[quad[q][0]][0];
 		int corner_y = corner[quad[q][0]][1];
-		if (quad_consistent[q] && z[q][0] <= maxzoom
-		 && tile_is_visible(corner_x, corner_y, halfsize, halfsize)) {
-			drawlist_add(corner_x, corner_y, z[q][0], halfsize, halfsize);
-			continue;
+		if (quad_consistent[q] && z[q][0] <= maxzoom) {
+			tile.x = corner_x;
+			tile.y = corner_y;
+			tile.wd = halfsize;
+			tile.ht = halfsize;
+			if (tile_is_visible(&tile)) {
+				tile.zoom = z[q][0];
+				drawlist_add(&tile);
+				continue;
+			}
 		}
 		reduce_block(corner_x, corner_y, halfsize, maxzoom + 1);
 	}
