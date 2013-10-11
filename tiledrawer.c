@@ -18,8 +18,6 @@ struct texture {
 	unsigned int zoomdiff;
 };
 
-#define MIN_SPHERE_DIVISIONS	16
-
 static void
 cutout_texture (int orig_x, int orig_y, int wd, int ht, const struct quadtree_req *req, struct texture *t)
 {
@@ -66,68 +64,27 @@ draw_tile_planar (GLuint texture_id, const struct texture *t, float p[4][3])
 }
 
 static void
-draw_tile_spherical (int tile_x, int tile_y, int tile_wd, int tile_ht, double cx, double cy, GLuint texture_id, const struct texture *t)
+draw_tile_spherical (GLuint texture_id, const struct texture *t, float p[4][3])
 {
-	double x[4], y[4], z[4];
-	double sinlat, coslat;
-	unsigned int world_size = world_get_size();
-	unsigned int world_zoom = world_get_zoom();
-
-	// Calculate tilt angle in radians:
-	double lon = world_x_to_lon(cx, world_size);
-	double lat = world_y_to_lat(cy, world_size);
-
-	sincos(lat, &sinlat, &coslat);
+	GLdouble txoffs = (GLdouble)t->offset_x / 256.0;
+	GLdouble tyoffs = (GLdouble)t->offset_y / 256.0;
+	GLdouble twd = (GLdouble)t->wd / 256.0;
+	GLdouble tht = (GLdouble)t->ht / 256.0;
 
 	glBindTexture(GL_TEXTURE_2D, texture_id);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-	// If tile larger than world_size/MIN_SPHERE_DIVISIONS, split into multiple sub-tiles;
-	// ensure the globe's diameter is always drawn with at least MIN_SPHERE_DIVISIONS segments:
-	int xdivide = ((tile_wd * MIN_SPHERE_DIVISIONS) >> world_zoom); if (xdivide == 0) xdivide = 1;
-	int ydivide = ((tile_ht * MIN_SPHERE_DIVISIONS) >> world_zoom); if (ydivide == 0) ydivide = 1;
-
-	GLdouble twd = (GLdouble)t->wd / (256 * xdivide);
-	GLdouble tht = (GLdouble)t->ht / (256 * ydivide);
-
 	glBegin(GL_QUADS);
-
-	// lon1, lon2, lat1, and lat2 form the cornerpoints of the quad being
-	// drawn. The variable use is non-obvious, but we reuse lon2/lat2's
-	// coordinates as the lon1/lat1 for the next round.
-
-	double lon1 = world_x_to_lon(tile_x, world_size);
-	for (int dx = 0; dx < xdivide; dx++)
-	{
-		double lon2 = world_x_to_lon(tile_x + (double)((dx + 1) * tile_wd) / xdivide, world_size);
-		double lat1 = world_y_to_lat(tile_y, world_size);
-		for (int dy = 0; dy < ydivide; dy++)
-		{
-			double lat2 = world_y_to_lat(tile_y + (double)((dy + 1) * tile_ht) / ydivide, world_size);
-
-			GLdouble txoffs = (GLdouble)t->offset_x / 256.0 + dx * twd;
-			GLdouble tyoffs = (GLdouble)t->offset_y / 256.0 + dy * tht;
-
-			latlon_to_xyz(lat1, lon1, world_size, lon, sinlat, coslat, &x[0], &y[0], &z[0]);
-			latlon_to_xyz(lat1, lon2, world_size, lon, sinlat, coslat, &x[1], &y[1], &z[1]);
-			latlon_to_xyz(lat2, lon2, world_size, lon, sinlat, coslat, &x[2], &y[2], &z[2]);
-			latlon_to_xyz(lat2, lon1, world_size, lon, sinlat, coslat, &x[3], &y[3], &z[3]);
-
-			glNormal3f(x[0], y[0], z[0]); glTexCoord2f(txoffs,       tyoffs);       glVertex3f(x[0], y[0], z[0]);
-			glNormal3f(x[1], y[1], z[1]); glTexCoord2f(txoffs + twd, tyoffs);       glVertex3f(x[1], y[1], z[1]);
-			glNormal3f(x[2], y[2], z[2]); glTexCoord2f(txoffs + twd, tyoffs + tht); glVertex3f(x[2], y[2], z[2]);
-			glNormal3f(x[3], y[3], z[3]); glTexCoord2f(txoffs,       tyoffs + tht); glVertex3f(x[3], y[3], z[3]);
-
-			lat1 = lat2;
-		}
-		lon1 = lon2;
-	}
+		glNormal3f(p[0][0], p[0][1], p[0][2]); glTexCoord2f(txoffs,       tyoffs);       glVertex3f(p[0][0], p[0][1], p[0][2]);
+		glNormal3f(p[1][0], p[1][1], p[1][2]); glTexCoord2f(txoffs + twd, tyoffs);       glVertex3f(p[1][0], p[1][1], p[1][2]);
+		glNormal3f(p[2][0], p[2][1], p[2][2]); glTexCoord2f(txoffs + twd, tyoffs + tht); glVertex3f(p[2][0], p[2][1], p[2][2]);
+		glNormal3f(p[3][0], p[3][1], p[3][2]); glTexCoord2f(txoffs,       tyoffs + tht); glVertex3f(p[3][0], p[3][1], p[3][2]);
 	glEnd();
 }
 
 void
-tiledrawer (int tile_x, int tile_y, int tile_wd, int tile_ht, double cx, double cy, GLuint texture_id, const struct quadtree_req *req, float p[4][3])
+tiledrawer (int tile_x, int tile_y, int tile_wd, int tile_ht, GLuint texture_id, const struct quadtree_req *req, float p[4][3])
 {
 	struct texture t;
 
@@ -141,6 +98,6 @@ tiledrawer (int tile_x, int tile_y, int tile_wd, int tile_ht, double cx, double 
 		draw_tile_planar(texture_id, &t, p);
 	}
 	if (viewport_mode_get() == VIEWPORT_MODE_SPHERICAL) {
-		draw_tile_spherical(tile_x, tile_y, tile_wd, tile_ht, cx, cy, texture_id, &t);
+		draw_tile_spherical(texture_id, &t, p);
 	}
 }

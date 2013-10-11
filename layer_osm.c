@@ -88,7 +88,7 @@ layer_osm_paint (void)
 			// then we're done; else still try to get the native bitmap:
 			if (req.found_zoom == zoom) {
 				if (colorize_cache) glColor3f(0.3, 1.0, 0.3);
-				tiledrawer(x, y, tile_wd, tile_ht, cx, cy, (GLuint)(ptrdiff_t)req.found_data, &req, p);
+				tiledrawer(x, y, tile_wd, tile_ht, (GLuint)(ptrdiff_t)req.found_data, &req, p);
 				if (colorize_cache) glColor3f(1.0, 1.0, 1.0);
 				continue;
 			}
@@ -101,13 +101,13 @@ layer_osm_paint (void)
 			// the bitmap we came back with, use that instead:
 			if (req_tex.found_data != NULL && req_tex.found_zoom >= req.found_zoom) {
 				if (colorize_cache) glColor3f(0.3, 1.0, 0.3);
-				tiledrawer(x, y, tile_wd, tile_ht, cx, cy, (GLuint)(ptrdiff_t)req_tex.found_data, &req_tex, p);
+				tiledrawer(x, y, tile_wd, tile_ht, (GLuint)(ptrdiff_t)req_tex.found_data, &req_tex, p);
 				if (colorize_cache) glColor3f(1.0, 1.0, 1.0);
 				continue;
 			}
 			GLuint id = texture_from_rawbits(req.found_data);
 			if (colorize_cache) glColor3f(0.8, 0.0, 0.0);
-			tiledrawer(x, y, tile_wd, tile_ht, cx, cy, id, &req, p);
+			tiledrawer(x, y, tile_wd, tile_ht, id, &req, p);
 			if (colorize_cache) glColor3f(1.0, 1.0, 1.0);
 
 			req.zoom = req.found_zoom;

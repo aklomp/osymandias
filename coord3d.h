@@ -26,7 +26,7 @@ latlon_to_xyz (const double lat, const double lon, const double world_size, cons
 
 	*x = cos(lat) * sin(lon - viewlon) * world_radius;
 	*z = cos(lat) * cos(lon - viewlon) * world_radius;
-	*y = sin(-lat) * world_radius;
+	*y = sin(lat) * world_radius;
 
 	// Rotate the points over lat radians via x axis:
 	double yorig = *y;
