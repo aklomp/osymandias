@@ -46,7 +46,7 @@ cutout_texture (int orig_x, int orig_y, int wd, int ht, const struct quadtree_re
 }
 
 static void
-draw_tile_planar (int tile_x, int tile_y, int tile_wd, int tile_ht, GLuint texture_id, const struct texture *t, double cx, double cy)
+draw_tile_planar (GLuint texture_id, const struct texture *t, float p[4][3])
 {
 	GLdouble txoffs = (GLdouble)t->offset_x / 256.0;
 	GLdouble tyoffs = (GLdouble)t->offset_y / 256.0;
@@ -57,35 +57,16 @@ draw_tile_planar (int tile_x, int tile_y, int tile_wd, int tile_ht, GLuint textu
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-	// Flip tile y coordinates: tile origin is top left, world origin is bottom left:
-	tile_y = world_get_size() - tile_y - tile_ht;
-
-	// Need to calculate the world coordinates of our tile in double
-	// precision, then translate the coordinates to the center ourselves.
-	// OpenGL uses floats to represent the world, which lack the precision
-	// to represent individual pixels at the max zoom level.
-	float x[4] =
-	{ -cx + (double)tile_x
-	, -cx + (double)tile_x + (double)tile_wd
-	, -cx + (double)tile_x + (double)tile_wd
-	, -cx + (double)tile_x
-	};
-	float y[4] =
-	{ -cy + (double)tile_y + (double)tile_ht
-	, -cy + (double)tile_y + (double)tile_ht
-	, -cy + (double)tile_y
-	, -cy + (double)tile_y
-	};
 	glBegin(GL_QUADS);
-		glTexCoord2f(txoffs,       tyoffs);       glVertex2f(x[0], y[0]);
-		glTexCoord2f(txoffs + twd, tyoffs);       glVertex2f(x[1], y[1]);
-		glTexCoord2f(txoffs + twd, tyoffs + tht); glVertex2f(x[2], y[2]);
-		glTexCoord2f(txoffs,       tyoffs + tht); glVertex2f(x[3], y[3]);
+		glTexCoord2f(txoffs,       tyoffs);       glVertex2f(p[0][0], p[0][1]);
+		glTexCoord2f(txoffs + twd, tyoffs);       glVertex2f(p[1][0], p[1][1]);
+		glTexCoord2f(txoffs + twd, tyoffs + tht); glVertex2f(p[2][0], p[2][1]);
+		glTexCoord2f(txoffs,       tyoffs + tht); glVertex2f(p[3][0], p[3][1]);
 	glEnd();
 }
 
 static void
-draw_tile_spherical (int tile_x, int tile_y, int tile_wd, int tile_ht, GLuint texture_id, const struct texture *t)
+draw_tile_spherical (int tile_x, int tile_y, int tile_wd, int tile_ht, double cx, double cy, GLuint texture_id, const struct texture *t)
 {
 	double x[4], y[4], z[4];
 	double sinlat, coslat;
@@ -93,8 +74,8 @@ draw_tile_spherical (int tile_x, int tile_y, int tile_wd, int tile_ht, GLuint te
 	unsigned int world_zoom = world_get_zoom();
 
 	// Calculate tilt angle in radians:
-	double lon = world_x_to_lon(viewport_get_center_x(), world_size);
-	double lat = world_y_to_lat(viewport_get_center_y(), world_size);
+	double lon = world_x_to_lon(cx, world_size);
+	double lat = world_y_to_lat(cy, world_size);
 
 	sincos(lat, &sinlat, &coslat);
 
@@ -146,7 +127,7 @@ draw_tile_spherical (int tile_x, int tile_y, int tile_wd, int tile_ht, GLuint te
 }
 
 void
-tiledrawer (int tile_x, int tile_y, int tile_wd, int tile_ht, double cx, double cy, GLuint texture_id, const struct quadtree_req *req)
+tiledrawer (int tile_x, int tile_y, int tile_wd, int tile_ht, double cx, double cy, GLuint texture_id, const struct quadtree_req *req, float p[4][3])
 {
 	struct texture t;
 
@@ -157,9 +138,9 @@ tiledrawer (int tile_x, int tile_y, int tile_wd, int tile_ht, double cx, double 
 
 	// With this cutout information in hand, draw the actual tile:
 	if (viewport_mode_get() == VIEWPORT_MODE_PLANAR) {
-		draw_tile_planar(tile_x, tile_y, tile_wd, tile_ht, texture_id, &t, cx, cy);
+		draw_tile_planar(texture_id, &t, p);
 	}
 	if (viewport_mode_get() == VIEWPORT_MODE_SPHERICAL) {
-		draw_tile_spherical(tile_x, tile_y, tile_wd, tile_ht, texture_id, &t);
+		draw_tile_spherical(tile_x, tile_y, tile_wd, tile_ht, cx, cy, texture_id, &t);
 	}
 }

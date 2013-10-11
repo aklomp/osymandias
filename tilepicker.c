@@ -36,6 +36,8 @@ static int tile_right;
 static int tile_bottom;
 static float center_x;
 static float center_y;
+static double center_x_dbl;
+static double center_y_dbl;
 
 static struct tile *drawlist = NULL;
 static struct tile *drawlist_tail = NULL;
@@ -184,8 +186,8 @@ tilepicker_recalc (void)
 	tile_bottom = viewport_get_tile_bottom();
 
 	// Convert center_y to *tile* coordinates; much easier to work with:
-	center_x = viewport_get_center_x();
-	center_y = world_size - viewport_get_center_y();
+	center_x = center_x_dbl = viewport_get_center_x();
+	center_y = center_y_dbl = world_size - viewport_get_center_y();
 
 	// Reset drawlist pointers. The drawlist consists of tiles allocated in
 	// the mempool that point to each other; the drawlist itself does not
@@ -219,10 +221,12 @@ tile_is_visible (struct tile *const tile)
 		{ tile->x + tile->wd, tile->y + tile->ht, 0 },
 		{ tile->x,            tile->y + tile->ht, 0 }
 	};
-	// Convert from tile coordinates to world coordinates:
+	// Convert from tile coordinates to world coordinates;
+	// Guarantee pixel precision by using doubles; the float arrays above
+	// all contain integers which should be represented exactly:
 	for (int i = 0; i < 4; i++) {
-		p[i][0] -= center_x;
-		p[i][1] -= center_y;
+		p[i][0] -= center_x_dbl;
+		p[i][1] -= center_y_dbl;
 		p[i][1] = -p[i][1];
 	}
 	if (camera_visible_quad(
@@ -413,6 +417,10 @@ optimize_block (int x, int y, int relzoom)
 	int have_smaller = 0;
 	struct tile *tile1, *tile2;
 
+	#define inherit_vertices(a,b,u,v)				\
+		memcpy(tile##a->p[u], tile##b->p[u], sizeof(float[3]));	\
+		memcpy(tile##a->p[v], tile##b->p[v], sizeof(float[3]))
+
 reset:	for (tile1 = drawlist; tile1 != NULL; tile1 = tile1->next)
 	{
 		// Check if tile is part of this block:
@@ -439,11 +447,13 @@ reset:	for (tile1 = drawlist; tile1 != NULL; tile1 = tile1->next)
 			if (tile1->wd == tile2->wd && tile1->x == tile2->x) {
 				if (tile1->y + tile1->ht == tile2->y) {
 					tile1->ht += tile2->ht;
+					inherit_vertices(1,2,2,3);
 					drawlist_detach(tile2);
 					goto reset;
 				}
 				if (tile2->y + tile2->ht == tile1->y) {
 					tile2->ht += tile1->ht;
+					inherit_vertices(2,1,2,3);
 					drawlist_detach(tile1);
 					goto reset;
 				}
@@ -452,11 +462,13 @@ reset:	for (tile1 = drawlist; tile1 != NULL; tile1 = tile1->next)
 			if (tile1->ht == tile2->ht && tile1->y == tile2->y) {
 				if (tile1->x + tile1->wd == tile2->x) {
 					tile1->wd += tile2->wd;
+					inherit_vertices(1,2,1,2);
 					drawlist_detach(tile2);
 					goto reset;
 				}
 				if (tile2->x + tile2->wd == tile1->x) {
 					tile2->wd += tile1->wd;
+					inherit_vertices(2,1,1,2);
 					drawlist_detach(tile1);
 					goto reset;
 				}
