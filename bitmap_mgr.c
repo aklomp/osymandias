@@ -1,4 +1,5 @@
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -113,14 +114,14 @@ thread_procure (struct quadtree_req *req)
 	}
 	// Store node in quadtree;
 	// job_id is 0 if queueing failed, which is conveniently cast to NULL:
-	return (void *)job_id;
+	return (void *)(ptrdiff_t)job_id;
 }
 
 static void
 thread_destroy (void *data)
 {
 	// Free the job ID:
-	threadpool_job_cancel(threadpool, (int)data);
+	threadpool_job_cancel(threadpool, (int)(ptrdiff_t)data);
 }
 
 bool

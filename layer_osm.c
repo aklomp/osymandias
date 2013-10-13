@@ -1,5 +1,6 @@
 #include <stdbool.h>
 #include <stdlib.h>
+#include <stddef.h>
 #include <string.h>
 #include <math.h>
 
@@ -87,7 +88,7 @@ layer_osm_paint (void)
 			// then we're done; else still try to get the native bitmap:
 			if (req.found_zoom == zoom) {
 				if (colorize_cache) glColor3f(0.3, 1.0, 0.3);
-				tiledrawer(x, y, tile_wd, tile_ht, cx, cy, (GLuint)req.found_data, &req, p);
+				tiledrawer(x, y, tile_wd, tile_ht, cx, cy, (GLuint)(ptrdiff_t)req.found_data, &req, p);
 				if (colorize_cache) glColor3f(1.0, 1.0, 1.0);
 				continue;
 			}
@@ -100,7 +101,7 @@ layer_osm_paint (void)
 			// the bitmap we came back with, use that instead:
 			if (req_tex.found_data != NULL && req_tex.found_zoom >= req.found_zoom) {
 				if (colorize_cache) glColor3f(0.3, 1.0, 0.3);
-				tiledrawer(x, y, tile_wd, tile_ht, cx, cy, (GLuint)req_tex.found_data, &req_tex, p);
+				tiledrawer(x, y, tile_wd, tile_ht, cx, cy, (GLuint)(ptrdiff_t)req_tex.found_data, &req_tex, p);
 				if (colorize_cache) glColor3f(1.0, 1.0, 1.0);
 				continue;
 			}
@@ -113,8 +114,8 @@ layer_osm_paint (void)
 			req.x = req.found_x;
 			req.y = req.found_y;
 
-			if (!quadtree_data_insert(textures, &req, (void *)id)) {
-				texture_destroy((void *)id);
+			if (!quadtree_data_insert(textures, &req, (void *)(ptrdiff_t)id)) {
+				texture_destroy((void *)(ptrdiff_t)id);
 			}
 			continue;
 		}
@@ -146,7 +147,7 @@ static void
 texture_destroy (void *data)
 {
 	// HACK: dirty cast from pointer to int:
-	GLuint id = (GLuint)data;
+	GLuint id = (GLuint)(ptrdiff_t)data;
 
 	glDeleteTextures(1, &id);
 }
