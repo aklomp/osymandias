@@ -9,6 +9,7 @@
 #include "vector2d.h"
 #include "camera.h"
 #include "tile2d.h"
+#include "coord3d.h"
 
 #define MEMPOOL_BLOCK_SIZE 100
 
@@ -219,6 +220,20 @@ project_points_planar (float points[][3], int npoints)
 		points[i][0] -= center_x_dbl;
 		points[i][1] -= center_y_dbl;
 		points[i][1] = -points[i][1];
+	}
+}
+
+static inline void
+project_points_spherical (float points[][3], int npoints)
+{
+	double cx_lon, sin_cy_lat, cos_cy_lat;
+
+	// Precalculate some invariants outside the loop:
+	tilepoint_to_xyz_precalc(world_size, center_x_dbl, center_y_dbl, &cx_lon, &sin_cy_lat, &cos_cy_lat);
+
+	// Each "point" comes as three floats: x, y and z:
+	for (int i = 0; i < npoints; i++) {
+		tilepoint_to_xyz(points[i][0], points[i][1], world_size, cx_lon, sin_cy_lat, cos_cy_lat, points[i]);
 	}
 }
 
