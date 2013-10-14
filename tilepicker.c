@@ -211,6 +211,17 @@ tilepicker_recalc (void)
 	}
 }
 
+static inline void
+project_points_planar (float points[][3], int npoints)
+{
+	// Each "point" comes as three floats: x, y and z:
+	for (int i = 0; i < npoints; i++) {
+		points[i][0] -= center_x_dbl;
+		points[i][1] -= center_y_dbl;
+		points[i][1] = -points[i][1];
+	}
+}
+
 static bool
 tile_is_visible (struct tile *const tile)
 {
@@ -224,11 +235,8 @@ tile_is_visible (struct tile *const tile)
 	// Convert from tile coordinates to world coordinates;
 	// Guarantee pixel precision by using doubles; the float arrays above
 	// all contain integers which should be represented exactly:
-	for (int i = 0; i < 4; i++) {
-		p[i][0] -= center_x_dbl;
-		p[i][1] -= center_y_dbl;
-		p[i][1] = -p[i][1];
-	}
+	project_points_planar(p, 4);
+
 	if (camera_visible_quad(
 		(vec4f){ p[0][0], p[0][1], p[0][2], 0 },
 		(vec4f){ p[1][0], p[1][1], p[1][2], 0 },
