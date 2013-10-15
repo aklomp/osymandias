@@ -73,3 +73,46 @@ tile2d_get_max_zoom (int x, int y, int sz, float center_x, float center_y, int w
 
 	return tile2d_get_zoom(rx, ry, center_x, center_y, world_zoom);
 }
+
+static inline vec4i
+zooms_quad (int world_zoom, const vec4f x, const vec4f y, const vec4f z)
+{
+	// Get distance squared from camera location:
+	vec4f d = camera_distance_squared_quad(x, y, z);
+
+	// Scale down to zoom gradients, convert to int:
+	vec4i vz = vec4f_to_vec4i(d / vec4f_float(ZOOM_DECAY));
+
+	// Turn distance gradient into absolute zoom levels:
+	vz = vec4i_int(world_zoom) - vz;
+
+	// Clip negative zooms to zero:
+	return vz & (vz > vec4i_zero());
+}
+
+static inline int
+zoom_edges_highest (int world_zoom, const vec4f x, const vec4f y, const vec4f z)
+{
+	// Get squared distances from camera to each edge line:
+	vec4f d = camera_distance_squared_quadedge(x, y, z);
+
+	// Scale down to zoom gradients, convert to int:
+	vec4i vz = vec4f_to_vec4i(d / vec4f_float(ZOOM_DECAY));
+
+	// Turn into absolute zoom levels:
+	vz = vec4i_int(world_zoom) - vz;
+
+	// Clip negative zooms to zero:
+	vz &= (vz > vec4i_zero());
+
+	return vec4i_hmax(vz);
+}
+
+static inline int
+zoom_point (int world_zoom, const float x, const float y, const float z)
+{
+	float f = camera_distance_squared_point((vec4f){ x, y, z, 0 });
+	int r = world_zoom - (f / ZOOM_DECAY);
+
+	return (r < 0) ? 0 : r;
+}

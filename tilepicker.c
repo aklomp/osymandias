@@ -48,8 +48,7 @@ static struct mempool_block *mempool = NULL;
 static struct mempool_block *mempool_tail = NULL;
 static int mempool_idx = 0;
 
-static int tile_get_zoom (int tile_x, int tile_y);
-static void reduce_block (int real_x, int real_y, int tilesize, int maxzoom);
+static void reduce_block (struct tile *tile, int maxzoom);
 static void optimize_block (int x, int y, int relzoom);
 
 static struct tile *
@@ -153,6 +152,42 @@ drawlist_detach (struct tile *t)
 	}
 }
 
+static inline void
+project_points_planar (float points[][3], int npoints)
+{
+	// Each "point" comes as three floats: x, y and z:
+	for (int i = 0; i < npoints; i++) {
+		points[i][0] -= center_x_dbl;
+		points[i][1] -= center_y_dbl;
+		points[i][1] = -points[i][1];
+	}
+}
+
+static inline void
+project_points_spherical (float points[][3], int npoints)
+{
+	double cx_lon, sin_cy_lat, cos_cy_lat;
+
+	// Precalculate some invariants outside the loop:
+	tilepoint_to_xyz_precalc(world_size, center_x_dbl, center_y_dbl, &cx_lon, &sin_cy_lat, &cos_cy_lat);
+
+	// Each "point" comes as three floats: x, y and z:
+	for (int i = 0; i < npoints; i++) {
+		tilepoint_to_xyz(points[i][0], points[i][1], world_size, cx_lon, sin_cy_lat, cos_cy_lat, points[i]);
+	}
+}
+
+static bool
+tile_is_visible (struct tile *const tile)
+{
+	return camera_visible_quad(
+		(vec4f){ tile->p[0][0], tile->p[0][1], tile->p[0][2], 0 },
+		(vec4f){ tile->p[1][0], tile->p[1][1], tile->p[1][2], 0 },
+		(vec4f){ tile->p[2][0], tile->p[2][1], tile->p[2][2], 0 },
+		(vec4f){ tile->p[3][0], tile->p[3][1], tile->p[3][2], 0 }
+	);
+}
+
 static void
 tile_farthest_get_zoom (int *zoom)
 {
@@ -167,6 +202,16 @@ tile_farthest_get_zoom (int *zoom)
 	int min1 = (vz[0] < vz[1]) ? vz[0] : vz[1];
 	int min2 = (vz[2] < vz[3]) ? vz[2] : vz[3];
 	*zoom = (min1 < min2) ? min1 : min2;
+}
+
+static bool
+tile_edges_agree (struct tile *const tile)
+{
+	return (tile->zoom == zoom_edges_highest(
+		world_zoom,
+		(vec4f){ tile->p[0][0], tile->p[1][0], tile->p[2][0], tile->p[3][0] },
+		(vec4f){ tile->p[0][1], tile->p[1][1], tile->p[2][1], tile->p[3][1] },
+		(vec4f){ tile->p[0][2], tile->p[1][2], tile->p[2][2], tile->p[3][2] }));
 }
 
 void
@@ -206,95 +251,63 @@ tilepicker_recalc (void)
 	int tilesize = 1 << zoomdiff;
 	for (int tile_x = tile_left & ~(tilesize - 1); tile_x <= tile_right; tile_x += tilesize) {
 		for (int tile_y = tile_top & ~(tilesize - 1); tile_y <= tile_bottom; tile_y += tilesize) {
-			reduce_block(tile_x, tile_y, tilesize, lowzoom);
+			struct tile tile = {
+				.x = tile_x,
+				.y = tile_y,
+				.wd = tilesize,
+				.ht = tilesize,
+				.p = {
+					{ tile_x,            tile_y,            0 },
+					{ tile_x + tilesize, tile_y,            0 },
+					{ tile_x + tilesize, tile_y + tilesize, 0 },
+					{ tile_x,            tile_y + tilesize, 0 }
+				}
+			};
+			// Must call reduce_block with a tile structure containing
+			// the four projected corner points, so bootstrap:
+			(viewport_mode_get() == VIEWPORT_MODE_PLANAR)
+				? project_points_planar(tile.p, 4)
+				: project_points_spherical(tile.p, 4);
+
+			reduce_block(&tile, lowzoom);
 			optimize_block(tile_x, tile_y, zoomdiff);
 		}
 	}
 }
 
-static inline void
-project_points_planar (float points[][3], int npoints)
-{
-	// Each "point" comes as three floats: x, y and z:
-	for (int i = 0; i < npoints; i++) {
-		points[i][0] -= center_x_dbl;
-		points[i][1] -= center_y_dbl;
-		points[i][1] = -points[i][1];
-	}
-}
-
-static inline void
-project_points_spherical (float points[][3], int npoints)
-{
-	double cx_lon, sin_cy_lat, cos_cy_lat;
-
-	// Precalculate some invariants outside the loop:
-	tilepoint_to_xyz_precalc(world_size, center_x_dbl, center_y_dbl, &cx_lon, &sin_cy_lat, &cos_cy_lat);
-
-	// Each "point" comes as three floats: x, y and z:
-	for (int i = 0; i < npoints; i++) {
-		tilepoint_to_xyz(points[i][0], points[i][1], world_size, cx_lon, sin_cy_lat, cos_cy_lat, points[i]);
-	}
-}
-
-static bool
-tile_is_visible (struct tile *const tile)
-{
-	// Ensure that the edges rotate clockwise in the "up" direction:
-	float p[4][3] = {
-		{ tile->x,            tile->y,            0 },
-		{ tile->x + tile->wd, tile->y,            0 },
-		{ tile->x + tile->wd, tile->y + tile->ht, 0 },
-		{ tile->x,            tile->y + tile->ht, 0 }
-	};
-	// Convert from tile coordinates to world coordinates;
-	// Guarantee pixel precision by using doubles; the float arrays above
-	// all contain integers which should be represented exactly:
-	project_points_planar(p, 4);
-
-	if (camera_visible_quad(
-		(vec4f){ p[0][0], p[0][1], p[0][2], 0 },
-		(vec4f){ p[1][0], p[1][1], p[1][2], 0 },
-		(vec4f){ p[2][0], p[2][1], p[2][2], 0 },
-		(vec4f){ p[3][0], p[3][1], p[3][2], 0 }
-	)) {
-		memcpy(tile->p, p, sizeof(float[4][3]));
-		return true;
-	}
-	return false;
-}
-
 static void
-reduce_block (int x, int y, int size, int maxzoom)
+reduce_block (struct tile *tile, int maxzoom)
 {
-	struct tile tile = { .x = x, .y = y, .wd = size, .ht = size };
+	#define inherit_point(a,k) \
+		memcpy(t.p[a], \
+			  (k == 0) ? tile->p[0] \
+			: (k == 1) ? p[0]  \
+			: (k == 2) ? tile->p[1] \
+			: (k == 3) ? p[1]  \
+			: (k == 4) ? tile->p[2] \
+			: (k == 5) ? p[2]  \
+			: (k == 6) ? tile->p[3] \
+			: (k == 7) ? p[3]  \
+			: p[4] \
+			, sizeof(float[3]))
+
+	#define setcorners(a,b,c,d) \
+		inherit_point(0,a); \
+		inherit_point(1,b); \
+		inherit_point(2,c); \
+		inherit_point(3,d);
+
+	// Caller passes us a struct tile, with at least the x, y, wd, ht,
+	// and p[4][3] fields set. The latter are the *world-projected*
+	// coordinates of the tile corners.
 
 	// Not even visible? Give up:
-	if (!tile_is_visible(&tile)) {
+	if (!tile_is_visible(tile)) {
 		return;
 	}
-	// This "quad" is a single tile:
-	if (size == 1) {
-		tile.zoom = tile_get_zoom(x, y);
-		drawlist_add(&tile);
-		return;
-	}
-	int halfsize = size / 2;
+	int halfsize = tile->wd / 2;
 
-	// Sign test of the four corner points: all x's or all y's should lie
-	// to one side of the center, else split up in four quadrants of the same zoom level:
-	bool signs_x_equal = ((x < center_x) == ((x + size) < center_x));
-	bool signs_y_equal = ((y < center_y) == ((y + size) < center_y));
-
-	if (!(signs_x_equal || signs_y_equal)) {
-		reduce_block(x,            y,            halfsize, maxzoom + 1);
-		reduce_block(x + halfsize, y,            halfsize, maxzoom + 1);
-		reduce_block(x + halfsize, y + halfsize, halfsize, maxzoom + 1);
-		reduce_block(x,            y + halfsize, halfsize, maxzoom + 1);
-		return;
-	}
-	// Is all of this quad at the proper zoom level? Cut it into four quadrants
-	// with 9 corner points:
+	// Split tile up in four quadrants:
 	//
 	//  0--1--2
 	//  | 0| 1|
@@ -302,133 +315,162 @@ reduce_block (int x, int y, int size, int maxzoom)
 	//  | 3| 2|
 	//  6--5--4
 	//
-	// These are the corner points in tile coordinates, numbered as above:
-	int corner[9][2] = {
-		{ x,            y            },	// 0
-		{ x + halfsize, y            },	// 1
-		{ x + size,     y            },	// 2
-		{ x + size,     y + halfsize },	// 3
-		{ x + size,     y + size     },	// 4
-		{ x + halfsize, y + size     },	// 5
-		{ x,            y + size     },	// 6
-		{ x,            y + halfsize },	// 7
-		{ x + halfsize, y + halfsize }	// 8
+	// Need to project points 1, 3, 5, 7, and 8, and find their zoom levels:
+	float p[5][3] = {
+		{ tile->x + halfsize, tile->y,            0 },	// 1
+		{ tile->x + tile->wd, tile->y + halfsize, 0 },	// 3
+		{ tile->x + halfsize, tile->y + tile->ht, 0 },	// 5
+		{ tile->x,            tile->y + halfsize, 0 },	// 7
+		{ tile->x + halfsize, tile->y + halfsize, 0 }	// 8
 	};
-	// These are our quads by corner point:
-	int quad[4][4] = {
-		{ 0, 1, 8, 7 },
-		{ 1, 2, 3, 8 },
-		{ 8, 3, 4, 5 },
-		{ 7, 8, 5, 6 }
-	};
-	// Get the zoom levels for all four quads:
-	int i;
-	vec4i z[4];
+	(viewport_mode_get() == VIEWPORT_MODE_PLANAR)
+		? project_points_planar(p, 5)
+		: project_points_spherical(p, 5);
 
-	if (halfsize == 1) {
-		for (int q = 0; q < 4; q++) {
-			z[q][0] = z[q][1] = z[q][2] = z[q][3] = tile_get_zoom(corner[quad[q][0]][0], corner[quad[q][0]][1]);
+	// And the lonely point 8, the midpoint:
+	int mzoom = zoom_point(world_zoom, p[4][0], p[4][1], p[4][2]);
+
+	// Sign test of the four corner points: all x's or all y's should lie
+	// to one side of the center, else split up in four quadrants of the same zoom level:
+	bool signs_x_equal = ((tile->x < center_x) == ((tile->x + tile->wd) < center_x));
+	bool signs_y_equal = ((tile->y < center_y) == ((tile->y + tile->ht) < center_y));
+
+	if (mzoom > maxzoom || (!(signs_x_equal || signs_y_equal) && tile->wd > 1)) {
+		{	struct tile t = { .x = tile->x, .y = tile->y, .wd = halfsize, .ht = halfsize };
+			setcorners(0, 1, 8, 7);
+			reduce_block(&t, maxzoom + 1);
 		}
-	}
-	else {
-		for (int q = 0; q < 4; q++) {
-			z[q] = tile2d_get_corner_zooms(corner[quad[q][0]][0], corner[quad[q][0]][1], halfsize, center_x, center_y, world_zoom);
+		{	struct tile t = { .x = tile->x + halfsize, .y = tile->y, .wd = halfsize, .ht = halfsize };
+			setcorners(1, 2, 3, 8);
+			reduce_block(&t, maxzoom + 1);
 		}
-	}
-	// Does the quadrant in question have a uniform zoom level?
-	int quad_consistent[4];
-	for (int q = 0; q < 4; q++) {
-		for (i = 1; i < 4; i++) {
-			if (z[q][i] != z[q][i - 1]) {
-				break;
-			}
+		{	struct tile t = { .x = tile->x + halfsize, .y = tile->y + halfsize, .wd = halfsize, .ht = halfsize };
+			setcorners(8, 3, 4, 5);
+			reduce_block(&t, maxzoom + 1);
 		}
-		// Not only must the four corner points be consistent, but so also must the closest tile:
-		// TODO: check if this is actually necessary
-		quad_consistent[q] = (i == 4 && (halfsize <= 2 || tile2d_get_max_zoom(corner[quad[q][0]][0], corner[quad[q][0]][1], halfsize, center_x, center_y, world_zoom) == z[q][0]));
-	}
-	// If all zoom levels are equal, add the whole block:
-	// but only if the tile size is smaller or equal than the zoom max tile size:
-	if (quad_consistent[0] && quad_consistent[1] && quad_consistent[2] && quad_consistent[3]
-	 && z[0][0] == z[1][0] && z[1][0] == z[2][0] && z[2][0] == z[3][0]
-	 && z[0][0] <= maxzoom) {
-		tile.x = x;
-		tile.y = y;
-		tile.wd = size;
-		tile.ht = size;
-		tile.zoom = z[0][0];
-		drawlist_add(&tile);
+		{	struct tile t = { .x = tile->x, .y = tile->y + halfsize, .wd = halfsize, .ht = halfsize };
+			setcorners(7, 8, 5, 6);
+			reduce_block(&t, maxzoom + 1);
+		}
 		return;
 	}
-	int processed[4] = { 0, 0, 0, 0 };
+	// Get vertex zoomlevels:
+	vec4i vzooms = zooms_quad(
+		world_zoom,
+		(vec4f){ tile->p[0][0], tile->p[1][0], tile->p[2][0], tile->p[3][0] },
+		(vec4f){ tile->p[0][1], tile->p[1][1], tile->p[2][1], tile->p[3][1] },
+		(vec4f){ tile->p[0][2], tile->p[1][2], tile->p[2][2], tile->p[3][2] }
+	);
+	// If the whole tile has the same zoom level, add:
+	if (tile->wd == 1 || (vec4i_all_same(vzooms)
+	&& zoom_edges_highest(
+		world_zoom,
+		(vec4f){ tile->p[0][0], tile->p[1][0], tile->p[2][0], tile->p[3][0] },
+		(vec4f){ tile->p[0][1], tile->p[1][1], tile->p[2][1], tile->p[3][1] },
+		(vec4f){ tile->p[0][2], tile->p[1][2], tile->p[2][2], tile->p[3][2] }
+	) == vzooms[0]
+	&& vzooms[0] <= maxzoom)) {
+		tile->zoom = (vzooms[0] + vzooms[1] + vzooms[2] + vzooms[3]) / 4;
+		drawlist_add(tile);
+		return;
+	}
+	// 4/9 of the points are in tile.p, the rest is in p.
+	// Let's get zooms for the points in p:
+	vec4i pzooms = zooms_quad(
+		world_zoom,
+		(vec4f){ p[0][0], p[1][0], p[2][0], p[3][0] },
+		(vec4f){ p[0][1], p[1][1], p[2][1], p[3][1] },
+		(vec4f){ p[0][2], p[1][2], p[2][2], p[3][2] }
+	);
+	// Combine vzooms and pzooms into one vec8i:
+	vec8i zooms = vec8i_from_vec4i(vzooms, pzooms);
 
-	// If top two quadrants have correct zoom level, add them as block:
-	if (quad_consistent[0] && quad_consistent[1] && z[0][0] == z[1][0] && z[0][0] <= maxzoom) {
-		tile.x = x;
-		tile.y = y;
-		tile.wd = size;
-		tile.ht = halfsize;
-		if (tile_is_visible(&tile)) {
-			tile.zoom = z[0][0];
-			drawlist_add(&tile);
-			processed[0] = processed[1] = 1;
+	// zooms now contains the zoomlevels of the eight points in a
+	// strange order: { 0, 2, 4, 6, 1, 3, 5, 7 }
+
+	// Define quad masks. Each quad uses point 8, but also these:
+	// point #      0     2     4     6     1     3     5     7
+	vec8i q0 = { 0xff, 0x00, 0x00, 0x00, 0xff, 0x00, 0x00, 0xff };
+	vec8i q1 = { 0x00, 0xff, 0x00, 0x00, 0xff, 0xff, 0x00, 0x00 };
+	vec8i q2 = { 0x00, 0x00, 0xff, 0x00, 0x00, 0xff, 0xff, 0x00 };
+	vec8i q3 = { 0x00, 0x00, 0x00, 0xff, 0x00, 0x00, 0xff, 0xff };
+
+	// Subtract the zoom for point 8 from all these points:
+	zooms -= vec8i_int(mzoom);
+
+	// Now we start having fun. If zooms is now all zero, the whole
+	// quad has the same zoomlevel:
+	int free[4] = { 1, 1, 1, 1 };
+
+	// OK, split tile up in four quadrants:
+	// Check the top two quadrants, q0 and q1, for same zoom:
+	if (vec8i_all_zero((q0 | q1) & zooms)) {
+		struct tile t = { .x = tile->x, .y = tile->y, .wd = tile->wd, .ht = halfsize, .zoom = mzoom };
+		setcorners(0, 2, 3, 7);
+		if (tile_is_visible(&t) && tile_edges_agree(&t)) {
+			drawlist_add(&t);
+			free[0] = free[1] = 0;
 		}
 	}
-	// If bottom two quadrants have correct zoom level, add them as block:
-	else if (quad_consistent[3] && quad_consistent[2] && z[3][0] == z[2][0] && z[2][0] <= maxzoom) {
-		tile.x = x;
-		tile.y = y + halfsize;
-		tile.wd = size;
-		tile.ht = halfsize;
-		if (tile_is_visible(&tile)) {
-			tile.zoom = z[3][0];
-			drawlist_add(&tile);
-			processed[3] = processed[2] = 1;
+	// Check bottom two quadrants, q2 and q3, for same zoom:
+	if (vec8i_all_zero((q2 | q3) & zooms)) {
+		struct tile t = { .x = tile->x, .y = tile->y + halfsize, .wd = tile->wd, .ht = halfsize, .zoom = mzoom };
+		setcorners(7, 3, 4, 6);
+		if (tile_is_visible(&t) && tile_edges_agree(&t)) {
+			drawlist_add(&t);
+			free[2] = free[3] = 0;
 		}
 	}
-	// If left two quadrants have correct zoom level, add them as block:
-	if (!processed[0] && !processed[3] && quad_consistent[0] && quad_consistent[3] && z[0][0] == z[3][0] && z[0][0] <= maxzoom) {
-		tile.x = x;
-		tile.y = y;
-		tile.wd = halfsize;
-		tile.ht = size;
-		if (tile_is_visible(&tile)) {
-			tile.zoom = z[0][0];
-			drawlist_add(&tile);
-			processed[0] = processed[3] = 1;
+	// Check left two quadrants, q0 and q3, for same zoom:
+	if (free[0] && free[3] && vec8i_all_zero((q0 | q3) & zooms)) {
+		struct tile t = { .x = tile->x, .y = tile->y, .wd = halfsize, .ht = tile->ht, .zoom = mzoom };
+		setcorners(0, 1, 5, 6);
+		if (tile_is_visible(&t) && tile_edges_agree(&t)) {
+			drawlist_add(&t);
+			free[0] = free[3] = 0;
 		}
 	}
-	// If right two quadrants have correct zoom level, add them as block:
-	if (!processed[1] && !processed[2] && quad_consistent[1] && quad_consistent[2] && z[1][0] == z[2][0] && z[1][0] <= maxzoom) {
-		tile.x = x + halfsize;
-		tile.y = y;
-		tile.wd = halfsize;
-		tile.ht = size;
-		if (tile_is_visible(&tile)) {
-			tile.zoom = z[1][0];
-			drawlist_add(&tile);
-			processed[1] = processed[2] = 1;
+	// Check right two quadrants, q1 and q2, for same zoom:
+	if (free[1] && free[2] && vec8i_all_zero((q1 | q2) & zooms)) {
+		struct tile t = { .x = tile->x + halfsize, .y = tile->y, .wd = halfsize, .ht = tile->ht, .zoom = mzoom };
+		setcorners(1, 2, 4, 5);
+		if (tile_is_visible(&t) && tile_edges_agree(&t)) {
+			drawlist_add(&t);
+			free[1] = free[2] = 0;
 		}
 	}
-	// Check individual quadrants:
-	for (int q = 0; q < 4; q++) {
-		if (processed[q]) {
-			continue;
+	// Check the individual, still-free quadrants:
+	if (free[0]) {
+		struct tile t = { .x = tile->x, .y = tile->y, .wd = halfsize, .ht = halfsize, .zoom = mzoom };
+		setcorners(0, 1, 8, 7);
+		if (vec8i_all_zero(q0 & zooms) && tile_is_visible(&t) && tile_edges_agree(&t)) {
+			drawlist_add(&t);
 		}
-		int corner_x = corner[quad[q][0]][0];
-		int corner_y = corner[quad[q][0]][1];
-		if (quad_consistent[q] && z[q][0] <= maxzoom) {
-			tile.x = corner_x;
-			tile.y = corner_y;
-			tile.wd = halfsize;
-			tile.ht = halfsize;
-			if (tile_is_visible(&tile)) {
-				tile.zoom = z[q][0];
-				drawlist_add(&tile);
-				continue;
-			}
+		else reduce_block(&t, maxzoom + 1);
+	}
+	if (free[1]) {
+		struct tile t = { .x = tile->x + halfsize, .y = tile->y, .wd = halfsize, .ht = halfsize, .zoom = mzoom };
+		setcorners(1, 2, 3, 8);
+		if (vec8i_all_zero(q1 & zooms) && tile_is_visible(&t) && tile_edges_agree(&t)) {
+			drawlist_add(&t);
 		}
-		reduce_block(corner_x, corner_y, halfsize, maxzoom + 1);
+		else reduce_block(&t, maxzoom + 1);
+	}
+	if (free[2]) {
+		struct tile t = { .x = tile->x + halfsize, .y = tile->y + halfsize, .wd = halfsize, .ht = halfsize, .zoom = mzoom };
+		setcorners(8, 3, 4, 5);
+		if (vec8i_all_zero(q2 & zooms) && tile_is_visible(&t) && tile_edges_agree(&t)) {
+			drawlist_add(&t);
+		}
+		else reduce_block(&t, maxzoom + 1);
+	}
+	if (free[3]) {
+		struct tile t = { .x = tile->x, .y = tile->y + halfsize, .wd = halfsize, .ht = halfsize, .zoom = mzoom };
+		setcorners(7, 8, 5, 6);
+		if (vec8i_all_zero(q3 & zooms) && tile_is_visible(&t) && tile_edges_agree(&t)) {
+			drawlist_add(&t);
+		}
+		else reduce_block(&t, maxzoom + 1);
 	}
 }
 
@@ -507,16 +549,6 @@ reset:	for (tile1 = drawlist; tile1 != NULL; tile1 = tile1->next)
 	optimize_block(x + sz, y,      relzoom - 1);
 	optimize_block(x + sz, y + sz, relzoom - 1);
 	optimize_block(x,      y + sz, relzoom - 1);
-}
-
-static int
-tile_get_zoom (int tile_x, int tile_y)
-{
-	// Shortcut: if the tilt is exactly 0.0, always use world zoom:
-	if (!camera_is_tilted()) {
-		return world_zoom;
-	}
-	return tile2d_get_zoom(tile_x, tile_y, center_x, center_y, world_zoom);
 }
 
 bool
