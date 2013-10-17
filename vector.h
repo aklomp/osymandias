@@ -1,3 +1,4 @@
+typedef int16_t vec8i __attribute__ ((vector_size(sizeof(int16_t) * 8))) __attribute__ ((aligned));
 typedef int32_t vec4i __attribute__ ((vector_size(sizeof(int32_t) * 4))) __attribute__ ((aligned));
 typedef float vec4f __attribute__ ((vector_size(sizeof(float) * 4))) __attribute__ ((aligned));
 
@@ -134,4 +135,51 @@ vec4i_all_same (const vec4i v)
 {
 	// Benchmarked to generate faster code than our SSE equivalent:
 	return (v[0] == v[1] && v[1] == v[2] && v[2] == v[3]);
+}
+
+// Signed char vectors:
+
+static inline vec8i
+vec8i_from_vec4i (const vec4i a, const vec4i b)
+{
+#ifdef __SSE2__
+	return (vec8i)_mm_packs_epi16((__m128i)a, (__m128i)b);
+#else
+	return (vec8i){
+		(int16_t)a[0], (int16_t)a[1], (int16_t)a[2], (int16_t)a[3],
+		(int16_t)b[0], (int16_t)b[1], (int16_t)b[2], (int16_t)b[3]
+	};
+#endif
+}
+
+static inline vec8i
+vec8i_int (const int i)
+{
+#ifdef __SSE2__
+	return (vec8i)_mm_set1_epi16(i);
+#else
+	return (vec8i){
+		(int16_t)i, (int16_t)i, (int16_t)i, (int16_t)i,
+		(int16_t)i, (int16_t)i, (int16_t)i, (int16_t)i
+	};
+#endif
+}
+
+static inline vec8i
+vec8i_zero (void)
+{
+	return (vec8i)vec4f_zero();
+}
+
+static inline bool
+vec8i_all_zero (const vec8i v)
+{
+#if defined __SSE4__
+	return _mm_testz_si128((__m128)v, (__m128)v);
+#elif defined __SSE__
+	return (_mm_movemask_ps(_mm_cmpeq_ps((__m128)v, _mm_setzero_ps())) == 0xF);
+#else
+	vec4i w = (vec4i)v;
+	return (w[0] == 0 && w[1] == 0 && w[2] == 0 && w[3] == 0);
+#endif
 }
