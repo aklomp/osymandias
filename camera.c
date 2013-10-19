@@ -184,6 +184,55 @@ dot (vec4f a, vec4f b)
 	return vec4f_hsum(a * b);
 }
 
+vec4f
+camera_distance_squared_quadedge (const vec4f x, const vec4f y, const vec4f z)
+{
+	// Calculate the four squared distances from the camera location
+	// to the perpendicular foot on each of the edges.
+	// Math lifted from:
+	// http://mathworld.wolfram.com/Point-LineDistance3-Dimensional.html
+
+	// Get "difference vectors" between edge points:
+	// e.g. xdiff = (x1 - x0), (x2 - x1), (x3 - x2), (x0 - x3)
+	vec4f xdiff = vec4f_shuffle(x, 1, 2, 3, 0) - x;
+	vec4f ydiff = vec4f_shuffle(y, 1, 2, 3, 0) - y;
+	vec4f zdiff = vec4f_shuffle(z, 1, 2, 3, 0) - z;
+
+	// Get "difference vectors" between camera position and first edge point:
+	vec4f xdiffcam = x - vec4f_shuffle(cam.pos, 0, 0, 0, 0);
+	vec4f ydiffcam = y - vec4f_shuffle(cam.pos, 1, 1, 1, 1);
+	vec4f zdiffcam = z - vec4f_shuffle(cam.pos, 2, 2, 2, 2);
+
+	// Dot products of (xdiff, ydiff, zdiff) and (xdiffcam, ydiffcam, zdiffcam):
+	vec4f dots = (xdiff * xdiffcam) + (ydiff * ydiffcam) + (zdiff * zdiffcam);
+
+	// Squared magnitudes of (xdiff, ydiff, zdiff):
+	vec4f squared_magnitudes = (xdiff * xdiff) + (ydiff * ydiff) + (zdiff * zdiff);
+
+	// Find the parameter t for the perpendicular foot on the edge:
+	vec4f t = -dots / squared_magnitudes;
+
+	// Clamp: if t < 0, t = 0:
+	t = (vec4f)((vec4i)t & (t >= vec4f_zero()));
+
+	// Clamp: if t > 1, t = 1:
+	vec4f ones = vec4f_float(1.0);
+	vec4i mask = (t <= ones);
+	vec4i left = (vec4i)ones & ~mask;
+	t = (vec4f)((vec4i)t & mask);
+	t = (vec4f)((vec4i)t | left);
+
+	// Substitute these t values in the squared-distance formula:
+	xdiffcam += xdiff * t;
+	ydiffcam += ydiff * t;
+	zdiffcam += zdiff * t;
+	xdiffcam *= xdiffcam;
+	ydiffcam *= ydiffcam;
+	zdiffcam *= zdiffcam;
+
+	return xdiffcam + ydiffcam + zdiffcam;
+}
+
 static inline bool
 vertex_visible (vec4f delta, float *const restrict px, float *const restrict py, float *const restrict pz, int *behind)
 {
