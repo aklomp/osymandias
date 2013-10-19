@@ -113,6 +113,20 @@ vec4i_int (const int i)
 #endif
 }
 
+static inline int
+vec4i_hmax (const vec4i i)
+{
+#if defined __SSE4__
+	vec4i tmp = _mm_max_epi32(_mm_movehl_ps(v, v), v);
+	tmp = (vec4i)_mm_max_epi32(vec4f_shuffle((vec4f)tmp, 1, 1, 1, 1), (vec4i)tmp);
+	return tmp[0];
+#else
+	int max1 = (i[0] > i[1]) ? i[0] : i[1];
+	int max2 = (i[2] > i[3]) ? i[2] : i[3];
+	return (max1 > max2) ? max1 : max2;
+#endif
+}
+
 static inline vec4i
 vec4f_to_vec4i (const vec4f v)
 {
