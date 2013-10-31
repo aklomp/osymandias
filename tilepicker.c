@@ -214,35 +214,20 @@ tile_edges_agree (struct tile *const tile)
 		(vec4f){ tile->p[0][2], tile->p[1][2], tile->p[2][2], tile->p[3][2] }));
 }
 
-void
-tilepicker_recalc (void)
+static void
+tilepicker_planar (void)
 {
 	int lowzoom;
 
-	// This function first calculates values and puts them in global
-	// variables, so that the other routines in this module can use them.
-	// I'm normally not a fan of globals, but this does make the code
-	// simpler.
-	world_zoom = world_get_zoom();
-	world_size = world_get_size();
+	// In the planar world, we have the concepts of "leftmost tile",
+	// "rightmost tile", and so on. Also the concept of the "farthest
+	// visible tile", which by definition must have the lowest zoomlevel
+	// of all visible tiles. This knowledge lets us take some shortcuts.
 
 	tile_top = viewport_get_tile_top();
 	tile_left = viewport_get_tile_left();
 	tile_right = viewport_get_tile_right();
 	tile_bottom = viewport_get_tile_bottom();
-
-	// Convert center_y to *tile* coordinates; much easier to work with:
-	center_x = center_x_dbl = viewport_get_center_x();
-	center_y = center_y_dbl = world_size - viewport_get_center_y();
-
-	// Reset drawlist pointers. The drawlist consists of tiles allocated in
-	// the mempool that point to each other; the drawlist itself does not
-	// involve allocations.
-	drawlist = drawlist_tail = NULL;
-
-	// Reset tile mempool pointers. For this round, start giving out tiles
-	// from the top of the mempool again.
-	mempool_reset();
 
 	tile_farthest_get_zoom(&lowzoom);
 
@@ -265,14 +250,67 @@ tilepicker_recalc (void)
 			};
 			// Must call reduce_block with a tile structure containing
 			// the four projected corner points, so bootstrap:
-			(viewport_mode_get() == VIEWPORT_MODE_PLANAR)
-				? project_points_planar(tile.p, 4)
-				: project_points_spherical(tile.p, 4);
+			project_points_planar(tile.p, 4);
 
+			// Recursively split this block:
 			reduce_block(&tile, lowzoom);
+
+			// Merge adjacent blocks with same zoom level:
 			optimize_block(tile_x, tile_y, zoomdiff);
 		}
 	}
+}
+
+static void
+tilepicker_spherical (void)
+{
+	// In the spherical world, we start off at the lowest zoom level, level
+	// 0, where the world is a single tile. We recursively walk over the
+	// visible tiles and add them to the drawlist:
+
+	struct tile tile = {
+		.x = 0,
+		.y = 0,
+		.wd = world_size,
+		.ht = world_size,
+		.p = {
+			{ 0,          0,          0 },
+			{ world_size, 0,          0 },
+			{ world_size, world_size, 0 },
+			{ 0,          world_size, 0 }
+		}
+	};
+	project_points_spherical(tile.p, 4);
+
+	reduce_block(&tile, 0);
+}
+
+void
+tilepicker_recalc (void)
+{
+	// This function first calculates values and puts them in global
+	// variables, so that the other routines in this module can use them.
+	// I'm normally not a fan of globals, but this does make the code
+	// simpler.
+	world_zoom = world_get_zoom();
+	world_size = world_get_size();
+
+	// Convert center_y to *tile* coordinates; much easier to work with:
+	center_x = center_x_dbl = viewport_get_center_x();
+	center_y = center_y_dbl = world_size - viewport_get_center_y();
+
+	// Reset drawlist pointers. The drawlist consists of tiles allocated in
+	// the mempool that point to each other; the drawlist itself does not
+	// involve allocations.
+	drawlist = drawlist_tail = NULL;
+
+	// Reset tile mempool pointers. For this round, start giving out tiles
+	// from the top of the mempool again.
+	mempool_reset();
+
+	(viewport_mode_get() == VIEWPORT_MODE_PLANAR)
+		? tilepicker_planar()
+		: tilepicker_spherical();
 }
 
 static void
