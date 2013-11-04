@@ -42,9 +42,7 @@ layer_osm_full_occlusion (void)
 static void
 layer_osm_paint (void)
 {
-	int x;
-	int y;
-	int tile_wd, tile_ht;
+	float x, y, tile_wd, tile_ht;
 	int zoom;
 	float p[4][3];
 	struct quadtree_req req;
@@ -73,8 +71,8 @@ layer_osm_paint (void)
 		}
 		// The tilepicker can tell us to draw a tile at a different zoom level to the world zoom;
 		// we need to correct the geometry to reflect that:
-		req.x = x >> (world_zoom - zoom);
-		req.y = y >> (world_zoom - zoom);
+		req.x = ldexpf(x, -(world_zoom - zoom));
+		req.y = ldexpf(y, -(world_zoom - zoom));
 		req.zoom = zoom;
 		req.world_zoom = world_zoom;
 		req.cx = cx;

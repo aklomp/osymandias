@@ -9,47 +9,35 @@
 #include "viewport.h"
 
 struct texture {
-	unsigned int tile_x;
-	unsigned int tile_y;
-	unsigned int wd;
-	unsigned int ht;
-	unsigned int offset_x;
-	unsigned int offset_y;
-	unsigned int zoomdiff;
+	float wd;
+	float ht;
+	float offset_x;
+	float offset_y;
 };
 
 static void
-cutout_texture (int orig_x, int orig_y, int wd, int ht, const struct quadtree_req *req, struct texture *t)
+cutout_texture (float orig_x, float orig_y, float wd, float ht, const struct quadtree_req *req, struct texture *t)
 {
-	t->zoomdiff = req->world_zoom - req->found_zoom;
-	t->tile_x = req->found_x;
-	t->tile_y = req->found_y;
+	unsigned int zoomdiff = req->world_zoom - req->found_zoom;
 
 	// This is the nth block out of parent, counting from top left:
-	int xblock = orig_x & ((1 << t->zoomdiff) - 1);
-	int yblock = orig_y & ((1 << t->zoomdiff) - 1);
+	float xblock = fmodf(orig_x, (1 << zoomdiff));
+	float yblock = fmodf(orig_y, (1 << zoomdiff));
 
-	if (t->zoomdiff >= 8) {
-		t->offset_x = xblock >> (t->zoomdiff - 8);
-		t->offset_y = yblock >> (t->zoomdiff - 8);
-		t->wd = wd >> (t->zoomdiff - 8);
-		t->ht = ht >> (t->zoomdiff - 8);
-		return;
-	}
 	// Multiplication before division, avoid clipping:
-	t->offset_x = (256 * xblock) >> t->zoomdiff;
-	t->offset_y = (256 * yblock) >> t->zoomdiff;
-	t->wd = (256 * wd) >> t->zoomdiff;
-	t->ht = (256 * ht) >> t->zoomdiff;
+	t->offset_x = ldexpf(xblock, 8 - zoomdiff);
+	t->offset_y = ldexpf(yblock, 8 - zoomdiff);
+	t->wd = ldexpf(wd, 8 - zoomdiff);
+	t->ht = ldexpf(ht, 8 - zoomdiff);
 }
 
 static void
 draw_tile_planar (GLuint texture_id, const struct texture *t, float p[4][3])
 {
-	GLdouble txoffs = (GLdouble)t->offset_x / 256.0;
-	GLdouble tyoffs = (GLdouble)t->offset_y / 256.0;
-	GLdouble twd = (GLdouble)t->wd / 256.0;
-	GLdouble tht = (GLdouble)t->ht / 256.0;
+	GLdouble txoffs = (GLdouble)ldexpf(t->offset_x, -8);
+	GLdouble tyoffs = (GLdouble)ldexpf(t->offset_y, -8);
+	GLdouble twd = (GLdouble)ldexpf(t->wd, -8);
+	GLdouble tht = (GLdouble)ldexpf(t->ht, -8);
 
 	glBindTexture(GL_TEXTURE_2D, texture_id);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -66,10 +54,10 @@ draw_tile_planar (GLuint texture_id, const struct texture *t, float p[4][3])
 static void
 draw_tile_spherical (GLuint texture_id, const struct texture *t, float p[4][3])
 {
-	GLdouble txoffs = (GLdouble)t->offset_x / 256.0;
-	GLdouble tyoffs = (GLdouble)t->offset_y / 256.0;
-	GLdouble twd = (GLdouble)t->wd / 256.0;
-	GLdouble tht = (GLdouble)t->ht / 256.0;
+	GLdouble txoffs = (GLdouble)ldexpf(t->offset_x, -8);
+	GLdouble tyoffs = (GLdouble)ldexpf(t->offset_y, -8);
+	GLdouble twd = (GLdouble)ldexpf(t->wd, -8);
+	GLdouble tht = (GLdouble)ldexpf(t->ht, -8);
 
 	glBindTexture(GL_TEXTURE_2D, texture_id);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -84,7 +72,7 @@ draw_tile_spherical (GLuint texture_id, const struct texture *t, float p[4][3])
 }
 
 void
-tiledrawer (int tile_x, int tile_y, int tile_wd, int tile_ht, GLuint texture_id, const struct quadtree_req *req, float p[4][3])
+tiledrawer (float tile_x, float tile_y, float tile_wd, float tile_ht, GLuint texture_id, const struct quadtree_req *req, float p[4][3])
 {
 	struct texture t;
 

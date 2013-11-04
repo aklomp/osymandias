@@ -14,10 +14,10 @@
 #define MEMPOOL_BLOCK_SIZE 100
 
 struct tile {
-	int x;
-	int y;
-	int wd;
-	int ht;
+	float x;
+	float y;
+	float wd;
+	float ht;
 	int zoom;
 	float p[4][3];
 	struct tile *prev;
@@ -343,7 +343,7 @@ reduce_block (struct tile *tile, int maxzoom)
 	if (!tile_is_visible(tile)) {
 		return;
 	}
-	int halfsize = tile->wd / 2;
+	float halfsize = ldexpf(tile->wd, -1);
 
 	// Split tile up in four quadrants:
 	//
@@ -590,7 +590,7 @@ reset:	for (tile1 = drawlist; tile1 != NULL; tile1 = tile1->next)
 }
 
 bool
-tilepicker_next (int *x, int *y, int *wd, int *ht, int *zoom, float p[4][3])
+tilepicker_next (float *x, float *y, float *wd, float *ht, int *zoom, float p[4][3])
 {
 	// Returns true or false depending on whether a tile is available and
 	// returned in the pointer arguments.
@@ -610,7 +610,7 @@ tilepicker_next (int *x, int *y, int *wd, int *ht, int *zoom, float p[4][3])
 }
 
 bool
-tilepicker_first (int *x, int *y, int *wd, int *ht, int *zoom, float p[4][3])
+tilepicker_first (float *x, float *y, float *wd, float *ht, int *zoom, float p[4][3])
 {
 	// Reset iterator:
 	drawlist_iter = drawlist;

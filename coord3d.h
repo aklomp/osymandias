@@ -53,7 +53,7 @@ tilepoint_to_xyz_precalc (const double world_size, const double cx, const double
 }
 
 static inline void
-tilepoint_to_xyz (const int x, const int y, const double world_size, const double cx_lon, const double sin_cy_lat, const double cos_cy_lat, float p[3])
+tilepoint_to_xyz (const float x, const float y, const double world_size, const double cx_lon, const double sin_cy_lat, const double cos_cy_lat, float p[3])
 {
 	// Find the lat/lon to which the tilepoint corresponds:
 	double lon = world_x_to_lon(x, world_size);
