@@ -13,6 +13,13 @@
 
 #define MEMPOOL_BLOCK_SIZE 100
 
+// The minimal number of subdivisions the globe sphere should have at the
+// lowest zoom levels, as a power of two. At zoom level 0, the world is a
+// single tile in size. In order to keep the spherical appearance at that
+// level, and to make the visibility logic work, we split the sphere into
+// (2 << MIN_SUBDIVISIONS) subdivisions.
+#define MIN_SUBDIVISIONS 4
+
 struct tile {
 	float x;
 	float y;
@@ -48,7 +55,7 @@ static struct mempool_block *mempool = NULL;
 static struct mempool_block *mempool_tail = NULL;
 static int mempool_idx = 0;
 
-static void reduce_block (struct tile *tile, int maxzoom);
+static void reduce_block (struct tile *tile, int maxzoom, float minsize);
 static void optimize_block (int x, int y, int relzoom);
 
 static struct tile *
@@ -253,7 +260,7 @@ tilepicker_planar (void)
 			project_points_planar(tile.p, 4);
 
 			// Recursively split this block:
-			reduce_block(&tile, lowzoom);
+			reduce_block(&tile, lowzoom, 1.0f);
 
 			// Merge adjacent blocks with same zoom level:
 			optimize_block(tile_x, tile_y, zoomdiff);
@@ -264,25 +271,38 @@ tilepicker_planar (void)
 static void
 tilepicker_spherical (void)
 {
-	// In the spherical world, we start off at the lowest zoom level, level
-	// 0, where the world is a single tile. We recursively walk over the
-	// visible tiles and add them to the drawlist:
+	// In the spherical world, we start off at the lowest zoom level,
+	// level 0, where the world is a single tile. We split the world
+	// into (1 << MIN_SUBDIVISIONS) subdivisions to keep the spherical
+	// character of the globe. We recursively walk over the visible
+	// tiles and add them to the drawlist:
 
-	struct tile tile = {
-		.x = 0,
-		.y = 0,
-		.wd = world_size,
-		.ht = world_size,
-		.p = {
-			{ 0,          0,          0 },
-			{ world_size, 0,          0 },
-			{ world_size, world_size, 0 },
-			{ 0,          world_size, 0 }
+	int minsize = (world_zoom > MIN_SUBDIVISIONS) ? 0 : (world_zoom - MIN_SUBDIVISIONS);
+
+	for (int tile_y = 0; tile_y < (1 << MIN_SUBDIVISIONS); tile_y++) {
+		for (int tile_x = 0; tile_x < (1 << MIN_SUBDIVISIONS); tile_x++) {
+			// TODO: hoist invariants out of loop
+			float x = ldexpf(tile_x, world_zoom - MIN_SUBDIVISIONS);
+			float y = ldexpf(tile_y, world_zoom - MIN_SUBDIVISIONS);
+			float sz = ldexpf(1.0f, world_zoom - MIN_SUBDIVISIONS);
+
+			struct tile tile = {
+				.x = x,
+				.y = y,
+				.wd = sz,
+				.ht = sz,
+				.p = {
+					{ x,      y,      0 },
+					{ x + sz, y,      0 },
+					{ x + sz, y + sz, 0 },
+					{ x,      y + sz, 0 }
+				}
+			};
+			project_points_spherical(tile.p, 4);
+
+			reduce_block(&tile, 0, ldexpf(1.0f, minsize));
 		}
-	};
-	project_points_spherical(tile.p, 4);
-
-	reduce_block(&tile, 0);
+	}
 }
 
 void
@@ -314,7 +334,7 @@ tilepicker_recalc (void)
 }
 
 static void
-reduce_block (struct tile *tile, int maxzoom)
+reduce_block (struct tile *tile, int maxzoom, float minsize)
 {
 	#define inherit_point(a,k) \
 		memcpy(t.p[a], \
@@ -343,6 +363,18 @@ reduce_block (struct tile *tile, int maxzoom)
 	if (!tile_is_visible(tile)) {
 		return;
 	}
+	// Tile is already the smallest possible size, cannot split, must accept:
+	if (tile->wd <= minsize) {
+		vec4i vzooms = zooms_quad(
+			world_zoom,
+			(vec4f){ tile->p[0][0], tile->p[1][0], tile->p[2][0], tile->p[3][0] },
+			(vec4f){ tile->p[0][1], tile->p[1][1], tile->p[2][1], tile->p[3][1] },
+			(vec4f){ tile->p[0][2], tile->p[1][2], tile->p[2][2], tile->p[3][2] }
+		);
+		tile->zoom = vec4i_hmax(vzooms);
+		drawlist_add(tile);
+		return;
+	}
 	float halfsize = ldexpf(tile->wd, -1);
 
 	// Split tile up in four quadrants:
@@ -365,7 +397,7 @@ reduce_block (struct tile *tile, int maxzoom)
 		? project_points_planar(p, 5)
 		: project_points_spherical(p, 5);
 
-	// And the lonely point 8, the midpoint:
+	// And the midpoint zoom, shared by all quadrants in this tile:
 	int mzoom = zoom_point(world_zoom, p[4][0], p[4][1], p[4][2]);
 
 	// Sign test of the four corner points: all x's or all y's should lie
@@ -373,22 +405,28 @@ reduce_block (struct tile *tile, int maxzoom)
 	bool signs_x_equal = ((tile->x < center_x) == ((tile->x + tile->wd) < center_x));
 	bool signs_y_equal = ((tile->y < center_y) == ((tile->y + tile->ht) < center_y));
 
-	if (mzoom > maxzoom || (!(signs_x_equal || signs_y_equal) && tile->wd > 1)) {
+	// If the mzoom is larger than the max allowed zoom, we must recurse to the next zoom level.
+	// If the tile is under the cursor, we must also split it:
+	if (mzoom > maxzoom || (!(signs_x_equal || signs_y_equal))) {
+		// Double the minsize:
+		if (minsize < 1.0f) {
+			minsize = ldexpf(minsize, 1);
+		}
 		{	struct tile t = { .x = tile->x, .y = tile->y, .wd = halfsize, .ht = halfsize };
 			setcorners(0, 1, 8, 7);
-			reduce_block(&t, maxzoom + 1);
+			reduce_block(&t, maxzoom + 1, minsize);
 		}
 		{	struct tile t = { .x = tile->x + halfsize, .y = tile->y, .wd = halfsize, .ht = halfsize };
 			setcorners(1, 2, 3, 8);
-			reduce_block(&t, maxzoom + 1);
+			reduce_block(&t, maxzoom + 1, minsize);
 		}
 		{	struct tile t = { .x = tile->x + halfsize, .y = tile->y + halfsize, .wd = halfsize, .ht = halfsize };
 			setcorners(8, 3, 4, 5);
-			reduce_block(&t, maxzoom + 1);
+			reduce_block(&t, maxzoom + 1, minsize);
 		}
 		{	struct tile t = { .x = tile->x, .y = tile->y + halfsize, .wd = halfsize, .ht = halfsize };
 			setcorners(7, 8, 5, 6);
-			reduce_block(&t, maxzoom + 1);
+			reduce_block(&t, maxzoom + 1, minsize);
 		}
 		return;
 	}
@@ -400,15 +438,14 @@ reduce_block (struct tile *tile, int maxzoom)
 		(vec4f){ tile->p[0][2], tile->p[1][2], tile->p[2][2], tile->p[3][2] }
 	);
 	// If the whole tile has the same zoom level, add:
-	if (tile->wd == 1 || (vec4i_all_same(vzooms)
+	if (vec4i_all_same(vzooms) && vzooms[0] == mzoom
 	&& zoom_edges_highest(
 		world_zoom,
 		(vec4f){ tile->p[0][0], tile->p[1][0], tile->p[2][0], tile->p[3][0] },
 		(vec4f){ tile->p[0][1], tile->p[1][1], tile->p[2][1], tile->p[3][1] },
 		(vec4f){ tile->p[0][2], tile->p[1][2], tile->p[2][2], tile->p[3][2] }
-	) == vzooms[0]
-	&& vzooms[0] <= maxzoom)) {
-		tile->zoom = (vzooms[0] + vzooms[1] + vzooms[2] + vzooms[3]) / 4;
+	) == mzoom) {
+		tile->zoom = mzoom;
 		drawlist_add(tile);
 		return;
 	}
@@ -477,6 +514,10 @@ reduce_block (struct tile *tile, int maxzoom)
 			free[1] = free[2] = 0;
 		}
 	}
+	// Double the minsize:
+	if (minsize < 1.0f) {
+		minsize = ldexpf(minsize, 1);
+	}
 	// Check the individual, still-free quadrants:
 	if (free[0]) {
 		struct tile t = { .x = tile->x, .y = tile->y, .wd = halfsize, .ht = halfsize, .zoom = mzoom };
@@ -484,7 +525,7 @@ reduce_block (struct tile *tile, int maxzoom)
 		if (vec8i_all_zero(q0 & zooms) && tile_is_visible(&t) && tile_edges_agree(&t)) {
 			drawlist_add(&t);
 		}
-		else reduce_block(&t, maxzoom + 1);
+		else reduce_block(&t, maxzoom + 1, minsize);
 	}
 	if (free[1]) {
 		struct tile t = { .x = tile->x + halfsize, .y = tile->y, .wd = halfsize, .ht = halfsize, .zoom = mzoom };
@@ -492,7 +533,7 @@ reduce_block (struct tile *tile, int maxzoom)
 		if (vec8i_all_zero(q1 & zooms) && tile_is_visible(&t) && tile_edges_agree(&t)) {
 			drawlist_add(&t);
 		}
-		else reduce_block(&t, maxzoom + 1);
+		else reduce_block(&t, maxzoom + 1, minsize);
 	}
 	if (free[2]) {
 		struct tile t = { .x = tile->x + halfsize, .y = tile->y + halfsize, .wd = halfsize, .ht = halfsize, .zoom = mzoom };
@@ -500,7 +541,7 @@ reduce_block (struct tile *tile, int maxzoom)
 		if (vec8i_all_zero(q2 & zooms) && tile_is_visible(&t) && tile_edges_agree(&t)) {
 			drawlist_add(&t);
 		}
-		else reduce_block(&t, maxzoom + 1);
+		else reduce_block(&t, maxzoom + 1, minsize);
 	}
 	if (free[3]) {
 		struct tile t = { .x = tile->x, .y = tile->y + halfsize, .wd = halfsize, .ht = halfsize, .zoom = mzoom };
@@ -508,7 +549,7 @@ reduce_block (struct tile *tile, int maxzoom)
 		if (vec8i_all_zero(q3 & zooms) && tile_is_visible(&t) && tile_edges_agree(&t)) {
 			drawlist_add(&t);
 		}
-		else reduce_block(&t, maxzoom + 1);
+		else reduce_block(&t, maxzoom + 1, minsize);
 	}
 }
 
