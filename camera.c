@@ -27,6 +27,8 @@ struct camera
 
 	float htan;	// tan of horizontal viewing angle
 	float vtan;	// tan of vertical viewing angle
+
+	vec4f frustum_planes[4];
 };
 
 static struct camera cam =
@@ -64,6 +66,37 @@ camera_rotate (const int dx)
 
 	if (cam.rot < 0.0) cam.rot += 360.0;
 	if (cam.rot >= 360.0) cam.rot -= 360.0;
+}
+
+static void
+extract_frustum_planes (void)
+{
+	// Source: Gribb & Hartmann,
+	// Fast Extraction of Viewing Frustum Planes from the World-View-Projection Matrix
+
+	float m[16];
+	glGetFloatv(GL_MODELVIEW_MATRIX, m);
+
+	glMatrixMode(GL_PROJECTION);
+	glPushMatrix();
+	glMultMatrixf(m);
+	glGetFloatv(GL_PROJECTION_MATRIX, m);
+	glPopMatrix();
+
+	// The actual calculations, which we can optimize by collecting terms:
+	// cam.frustum_planes[0] = (vec4f) { m[3] + m[0], m[7] + m[4], m[11] + m[8], m[15] + m[12] };
+	// cam.frustum_planes[1] = (vec4f) { m[3] - m[0], m[7] - m[4], m[11] - m[8], m[15] - m[12] };
+	// cam.frustum_planes[2] = (vec4f) { m[3] + m[1], m[7] + m[5], m[11] + m[9], m[15] + m[13] };
+	// cam.frustum_planes[3] = (vec4f) { m[3] - m[1], m[7] - m[5], m[11] - m[9], m[15] - m[13] };
+
+	const vec4f c = { m[3], m[7], m[11], m[15] };
+	const vec4f u = { m[0], m[4],  m[8], m[12] };
+	const vec4f v = { m[1], m[5],  m[9], m[13] };
+
+	cam.frustum_planes[0] = c + u;
+	cam.frustum_planes[1] = c - u;
+	cam.frustum_planes[2] = c + v;
+	cam.frustum_planes[3] = c - v;
 }
 
 void
@@ -155,6 +188,7 @@ camera_setup (const int screen_wd, const int screen_ht)
 			0, 0, 1					// Up vector
 		);
 	}
+	extract_frustum_planes();
 }
 
 float
@@ -314,6 +348,16 @@ camera_visible_quad (const vec4f a, const vec4f b, const vec4f c, const vec4f d)
 		if (dot(vector3d_cross(d - a, d - c), d_delta) > 0) break;
 		return false;
 	}
+	// Check each frustum plane, at least one point must be visible:
+	for (int i = 0; i < 4; i++) {
+		if (point_in_front_of_plane(a, cam.frustum_planes[i])) continue;
+		if (point_in_front_of_plane(b, cam.frustum_planes[i])) continue;
+		if (point_in_front_of_plane(c, cam.frustum_planes[i])) continue;
+		if (point_in_front_of_plane(d, cam.frustum_planes[i])) continue;
+		return false;
+	}
+	return true;
+
 	// If any of these vertices is directly visible, return:
 	if (vertex_visible(a_delta, &px[0], &py[0], &pz[0], &behind[0])) return true;
 	if (vertex_visible(b_delta, &px[1], &py[1], &pz[1], &behind[1])) return true;
