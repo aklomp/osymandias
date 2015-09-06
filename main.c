@@ -18,6 +18,12 @@
 #include "layer_blanktile.h"
 #include "layer_osm.h"
 
+struct signal {
+	const gchar	*signal;
+	GCallback	 handler;
+	GdkEventMask	 mask;
+};
+
 static bool
 gdkgl_check (int argc, char **argv)
 {
@@ -82,6 +88,40 @@ on_key_press (GtkWidget *widget, GdkEventKey *event)
 	}
 }
 
+static void
+connect_signals (GtkWidget *widget, struct signal *signals, size_t members)
+{
+	for (size_t i = 0; i < members; i++) {
+		gtk_widget_add_events(widget, signals[i].mask);
+		g_signal_connect(widget, signals[i].signal, signals[i].handler, NULL);
+	}
+}
+
+static void
+connect_canvas_signals (GtkWidget *canvas)
+{
+	struct signal signals[] = {
+		{ "button-press-event",		G_CALLBACK(on_button_press),		GDK_BUTTON_PRESS_MASK	},
+		{ "button-release-event",	G_CALLBACK(on_button_release),		GDK_BUTTON_RELEASE_MASK	},
+		{ "scroll-event",		G_CALLBACK(on_mouse_scroll),		GDK_SCROLL_MASK		},
+		{ "motion-notify-event",	G_CALLBACK(on_button_motion),		GDK_BUTTON_MOTION_MASK	},
+		{ "expose-event",		G_CALLBACK(framerate_request_refresh),	0			},
+	};
+
+	connect_signals(canvas, signals, sizeof(signals) / sizeof(signals[0]));
+}
+
+static void
+connect_window_signals (GtkWidget *window)
+{
+	struct signal signals[] = {
+		{ "destroy",		G_CALLBACK(gtk_main_quit),	0			},
+		{ "key-press-event",	G_CALLBACK(on_key_press),	GDK_KEY_PRESS_MASK	},
+	};
+
+	connect_signals(window, signals, sizeof(signals) / sizeof(signals[0]));
+}
+
 int
 main (int argc, char **argv)
 {
@@ -96,16 +136,8 @@ main (int argc, char **argv)
 	GtkWidget *canvas = gtk_drawing_area_new();
 	gtk_container_add(GTK_CONTAINER(window), canvas);
 
-	gtk_widget_add_events(canvas, GDK_BUTTON_PRESS_MASK | GDK_BUTTON1_MOTION_MASK | GDK_BUTTON3_MOTION_MASK | GDK_BUTTON_RELEASE_MASK);
-	g_signal_connect(canvas, "scroll_event", G_CALLBACK(on_mouse_scroll), NULL);
-	g_signal_connect(canvas, "button_press_event", G_CALLBACK(on_button_press), NULL);
-	g_signal_connect(canvas, "motion_notify_event", G_CALLBACK(on_button_motion), NULL);
-	g_signal_connect(canvas, "button_release_event", G_CALLBACK(on_button_release), NULL);
-	g_signal_connect(canvas, "destroy", G_CALLBACK(gtk_main_quit), NULL);
-	g_signal_connect(window, "key_press_event", G_CALLBACK(on_key_press), NULL);
-
-	// Expose events are scheduled through the framerate manager, not handled directly:
-	g_signal_connect(canvas, "expose-event", G_CALLBACK(framerate_request_refresh), NULL);
+	connect_canvas_signals(canvas);
+	connect_window_signals(window);
 
 	gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_CENTER);
 	gtk_window_set_default_size(GTK_WINDOW(window), 600, 600);
