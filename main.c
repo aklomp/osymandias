@@ -68,17 +68,17 @@ on_key_press (GtkWidget *widget, GdkEventKey *event)
 
 	switch (event->keyval)
 	{
-		case GDK_p:
-		case GDK_P:
-			viewport_mode_set(VIEWPORT_MODE_PLANAR);
-			framerate_request_refresh();
-			break;
+	case GDK_KEY_p:
+	case GDK_KEY_P:
+		viewport_mode_set(VIEWPORT_MODE_PLANAR);
+		framerate_request_refresh();
+		break;
 
-		case GDK_S:
-		case GDK_s:
-			viewport_mode_set(VIEWPORT_MODE_SPHERICAL);
-			framerate_request_refresh();
-			break;
+	case GDK_KEY_s:
+	case GDK_KEY_S:
+		viewport_mode_set(VIEWPORT_MODE_SPHERICAL);
+		framerate_request_refresh();
+		break;
 	}
 }
 
