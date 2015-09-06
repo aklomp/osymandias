@@ -17,6 +17,7 @@
 #include "layer_overview.h"
 #include "layer_blanktile.h"
 #include "layer_osm.h"
+#include "shaders.h"
 
 struct signal {
 	const gchar	*signal;
@@ -48,11 +49,8 @@ gdkgl_check (int argc, char **argv)
 static void
 paint_canvas (GtkWidget *widget)
 {
-	GdkGLContext  *glcontext;
-	GdkGLDrawable *gldrawable;
-
-	glcontext = gtk_widget_get_gl_context(widget);
-	gldrawable = gtk_widget_get_gl_drawable(widget);
+	GdkGLContext  *glcontext  = gtk_widget_get_gl_context(widget);
+	GdkGLDrawable *gldrawable = gtk_widget_get_gl_drawable(widget);
 
 	gdk_gl_drawable_gl_begin(gldrawable, glcontext);
 
@@ -89,6 +87,18 @@ on_key_press (GtkWidget *widget, GdkEventKey *event)
 }
 
 static void
+on_realize (GtkWidget *widget)
+{
+	GdkGLContext  *glcontext  = gtk_widget_get_gl_context(widget);
+	GdkGLDrawable *gldrawable = gtk_widget_get_gl_drawable(widget);
+
+	// Initialize shaders after realizing GL area:
+	gdk_gl_drawable_gl_begin(gldrawable, glcontext);
+	shaders_init();
+	gdk_gl_drawable_gl_end(gldrawable);
+}
+
+static void
 connect_signals (GtkWidget *widget, struct signal *signals, size_t members)
 {
 	for (size_t i = 0; i < members; i++) {
@@ -106,6 +116,7 @@ connect_canvas_signals (GtkWidget *canvas)
 		{ "scroll-event",		G_CALLBACK(on_mouse_scroll),		GDK_SCROLL_MASK		},
 		{ "motion-notify-event",	G_CALLBACK(on_button_motion),		GDK_BUTTON_MOTION_MASK	},
 		{ "expose-event",		G_CALLBACK(framerate_request_refresh),	0			},
+		{ "realize",			G_CALLBACK(on_realize),			0			},
 	};
 
 	connect_signals(canvas, signals, sizeof(signals) / sizeof(signals[0]));

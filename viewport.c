@@ -8,7 +8,6 @@
 #include <GL/glu.h>
 
 #include "vector.h"
-#include "shaders.h"
 #include "autoscroll.h"
 #include "world.h"
 #include "camera.h"
@@ -260,7 +259,6 @@ viewport_reshape (const unsigned int new_width, const unsigned int new_height)
 void
 viewport_render (void)
 {
-	shaders_init();
 	layers_paint();
 }
 

@@ -40,14 +40,8 @@ shader_compile (const enum shaders n)
 void
 shaders_init (void)
 {
-	static bool init = false;
-
-	// Ensure we run only once:
-	if (init) return; else init = true;
-
-	for (enum shaders n = 0; n < NUM_SHADERS; n++) {
+	for (enum shaders n = 0; n < NUM_SHADERS; n++)
 		shader_compile(n);
-	}
 }
 
 static void
