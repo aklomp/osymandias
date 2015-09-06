@@ -16,6 +16,7 @@ OBJS = \
   quadtree.o \
   diskcache.o \
   pngloader.o \
+  inlinebin.o \
   autoscroll.o \
   bitmap_mgr.o \
   threadpool.o \
@@ -38,17 +39,21 @@ OBJS_GTK_GTKGL = \
   main.o \
   viewport.o \
 
-GLSL = cursor.glsl.h
+OBJS_BIN = \
+  shaders/cursor.glsl.o
 
 all: $(PROG)
 
-$(PROG): $(OBJS) $(OBJS_GTK) $(OBJS_GTKGL) $(OBJS_GTK_GTKGL)
+$(PROG): $(OBJS) $(OBJS_GTK) $(OBJS_GTKGL) $(OBJS_GTK_GTKGL) $(OBJS_BIN)
 	$(CC) $(LDFLAGS) $(GTK_LDFLAGS) $(GTKGL_LDFLAGS) -o $@ $^
+
+$(OBJS_BIN): %.o: %
+	$(LD) --relocatable --format=binary -o $@ $^
 
 $(OBJS_GTK_GTKGL): %.o: %.c
 	$(CC) $(CFLAGS) $(GTK_CFLAGS) $(GTKGL_CFLAGS) -c $< -o $@
 
-$(OBJS_GTKGL): %.o: %.c $(GLSL)
+$(OBJS_GTKGL): %.o: %.c
 	$(CC) $(CFLAGS) $(GTKGL_CFLAGS) -c $<
 
 $(OBJS_GTK): %.o: %.c
@@ -57,10 +62,7 @@ $(OBJS_GTK): %.o: %.c
 $(OBJS): %.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
-%.glsl.h: %.glsl
-	awk '{ printf("\"%s\"\n", $$0) } END { print ";" }' < $^ > $@
-
 .PHONY: clean all
 
 clean:
-	rm -f $(OBJS_GTK_GTKGL) $(OBJS_GTKGL) $(OBJS_GTK) $(OBJS) $(PROG) $(GLSL)
+	rm -f $(OBJS_BIN) $(OBJS_GTK_GTKGL) $(OBJS_GTKGL) $(OBJS_GTK) $(OBJS) $(PROG)

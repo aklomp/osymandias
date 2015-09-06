@@ -6,7 +6,6 @@
 #include <GL/gl.h>
 
 #include "mouse.h"
-#include "bitmap_mgr.h"
 #include "framerate.h"
 #include "autoscroll.h"
 #include "viewport.h"
