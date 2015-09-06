@@ -5,7 +5,7 @@
 #include "autoscroll.h"
 
 #define EVENT_X		(int)(event->x)
-#define EVENT_Y		(int)(widget->allocation.height - (int)event->y)
+#define EVENT_Y		(int)(allocation.height - (int)event->y)
 
 static int button_dragged = false;
 static int button_pressed = false;
@@ -14,9 +14,13 @@ static int button_pressed_y;
 static int button_num;
 static int click_halted_autoscroll = 0;
 
+static GtkAllocation allocation;
+
 void
 on_button_press (GtkWidget *widget, GdkEventButton *event)
 {
+	gtk_widget_get_allocation(widget, &allocation);
+
 	button_dragged = false;
 	button_pressed = true;
 	button_pressed_x = EVENT_X;
@@ -35,6 +39,8 @@ on_button_press (GtkWidget *widget, GdkEventButton *event)
 void
 on_button_motion (GtkWidget *widget, GdkEventButton *event)
 {
+	gtk_widget_get_allocation(widget, &allocation);
+
 	int dx = EVENT_X - button_pressed_x;
 	int dy = EVENT_Y - button_pressed_y;
 
@@ -58,9 +64,11 @@ on_button_motion (GtkWidget *widget, GdkEventButton *event)
 void
 on_button_release (GtkWidget *widget, GdkEventButton *event)
 {
-	if (!button_pressed) {
+	if (!button_pressed)
 		return;
-	}
+
+	gtk_widget_get_allocation(widget, &allocation);
+
 	button_pressed = false;
 	if (event->type == GDK_BUTTON_RELEASE) {
 		if (!button_dragged) {
@@ -91,23 +99,25 @@ on_mouse_scroll (GtkWidget* widget, GdkEventScroll *event)
 	int click_x;
 	int click_y;
 
+	gtk_widget_get_allocation(widget, &allocation);
+
 	switch (event->direction)
 	{
-		case GDK_SCROLL_UP:
-			click_x = EVENT_X;
-			click_y = EVENT_Y;
-			viewport_zoom_in(click_x, click_y);
-			gtk_widget_queue_draw(widget);
-			break;
+	case GDK_SCROLL_UP:
+		click_x = EVENT_X;
+		click_y = EVENT_Y;
+		viewport_zoom_in(click_x, click_y);
+		gtk_widget_queue_draw(widget);
+		break;
 
-		case GDK_SCROLL_DOWN:
-			click_x = EVENT_X;
-			click_y = EVENT_Y;
-			viewport_zoom_out(click_x, click_y);
-			gtk_widget_queue_draw(widget);
-			break;
+	case GDK_SCROLL_DOWN:
+		click_x = EVENT_X;
+		click_y = EVENT_Y;
+		viewport_zoom_out(click_x, click_y);
+		gtk_widget_queue_draw(widget);
+		break;
 
-		default:
-			break;
+	default:
+		break;
 	}
 }

@@ -53,7 +53,9 @@ paint_canvas (GtkWidget *widget)
 
 	gdk_gl_drawable_gl_begin(gldrawable, glcontext);
 
-	viewport_reshape(widget->allocation.width, widget->allocation.height);
+	GtkAllocation allocation;
+	gtk_widget_get_allocation(widget, &allocation);
+	viewport_reshape(allocation.width, allocation.height);
 
 	if (gdk_gl_drawable_is_double_buffered(gldrawable)) {
 		gdk_gl_drawable_swap_buffers(gldrawable);
