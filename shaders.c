@@ -1,4 +1,5 @@
 #include <stdbool.h>
+#include <stdlib.h>
 #include <stdio.h>
 #include <GL/gl.h>
 
@@ -29,68 +30,121 @@ static struct program programs[] =
 } ;
 
 static bool
+compile_success (GLuint shader)
+{
+	GLint status, length;
+
+	glGetShaderiv(shader, GL_COMPILE_STATUS, &status);
+	if (status != GL_FALSE)
+		return true;
+
+	glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &length);
+	GLchar *log = calloc(length, sizeof(GLchar));
+	glGetShaderInfoLog(shader, length, NULL, log);
+	fprintf(stderr, "glCompileShader failed:\n%s\n", log);
+	free(log);
+	return false;
+}
+
+static bool
+link_success (GLuint program)
+{
+	GLint status, length;
+
+	glGetProgramiv(program, GL_LINK_STATUS, &status);
+	if (status != GL_FALSE)
+		return true;
+
+	glGetProgramiv(program, GL_INFO_LOG_LENGTH, &length);
+	GLchar *log = calloc(length, sizeof(GLchar));
+	glGetProgramInfoLog(program, length, NULL, log);
+	fprintf(stderr, "glLinkProgram failed: %s\n", log);
+	free(log);
+	return false;
+}
+
+static bool
 shader_compile (struct shader *shader, GLenum type)
 {
-	// Fetch inline data:
 	inlinebin_get(shader->src, &shader->buf, &shader->len);
 
-	// Create shader:
 	shader->id = glCreateShader(type);
 	glShaderSource(shader->id, 1, (const GLchar * const *)&shader->buf, (const GLint *)&shader->len);
 	glCompileShader(shader->id);
 
-	// Check compilation status:
-	GLint param;
-	glGetShaderiv(shader->id, GL_COMPILE_STATUS, &param);
-	if (param == GL_TRUE)
+	if (compile_success(shader->id))
 		return true;
 
-	// Print error message:
-	char buf[512];
-	GLsizei len;
-	glGetShaderInfoLog(shader->id, sizeof(buf), &len, buf);
-	buf[len] = '\0';
-	printf("%s\n", buf);
+	glDeleteShader(shader->id);
 	return false;
+}
+
+static bool
+shader_fragment_create (struct program *program)
+{
+	if (!program->fragment)
+		return true;
+
+	if (!shader_compile(program->fragment, GL_FRAGMENT_SHADER))
+		return false;
+
+	glAttachShader(program->id, program->fragment->id);
+	return true;
+}
+
+static bool
+shader_vertex_create (struct program *program)
+{
+	if (!program->vertex)
+		return true;
+
+	if (!shader_compile(program->vertex, GL_VERTEX_SHADER))
+		return false;
+
+	glAttachShader(program->id, program->vertex->id);
+	return true;
+}
+
+static void
+shader_fragment_destroy (struct program *program)
+{
+	if (!program->fragment)
+		return;
+
+	glDetachShader(program->id, program->fragment->id);
+	glDeleteShader(program->fragment->id);
+}
+
+static void
+shader_vertex_destroy (struct program *program)
+{
+	if (!program->vertex)
+		return;
+
+	glDetachShader(program->id, program->vertex->id);
+	glDeleteShader(program->vertex->id);
 }
 
 static bool
 program_create (struct program *program)
 {
-	// Create program:
 	program->id = glCreateProgram();
 
-	// Create fragment shader:
-	if (program->fragment) {
-		if (!shader_compile(program->fragment, GL_FRAGMENT_SHADER)) {
-			return false;
-		}
-		glAttachShader(program->id, program->fragment->id);
+	if (!(shader_vertex_create(program)
+	   && shader_fragment_create(program))) {
+		glDeleteProgram(program->id);
+		return false;
 	}
 
-	// Create vertex shader:
-	if (program->vertex) {
-		if (!shader_compile(program->vertex, GL_VERTEX_SHADER)) {
-			return false;
-		}
-		glAttachShader(program->id, program->vertex->id);
-	}
-
-	// Link program:
 	glLinkProgram(program->id);
 
-	// Check linking status:
-	GLint param;
-	glGetProgramiv(program->id, GL_LINK_STATUS, &param);
-	if (param == GL_TRUE)
+	shader_vertex_destroy(program);
+	shader_fragment_destroy(program);
+
+	if (link_success(program->id))
 		return true;
 
-	// Print error message:
-	char buf[512];
-	GLsizei len;
-	glGetProgramInfoLog(program->id, sizeof(buf), &len, buf);
-	buf[len] = '\0';
-	printf("%s\n", buf);
+	glDeleteProgram(program->id);
 	return false;
 }
 
