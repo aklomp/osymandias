@@ -25,6 +25,9 @@ inlinebin_get (enum inlinebin member, const uint8_t **buf, size_t *len)
 		size_t		 len;
 	}
 	elems[] = {
+		{ .buf = NULL
+		, .len = 0
+		} ,
 		DATA_ELEM (shaders_cursor_glsl)
 	};
 

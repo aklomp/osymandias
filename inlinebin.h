@@ -1,4 +1,5 @@
 enum inlinebin {
+	INLINEBIN_NONE,
 	SHADER_CURSOR_FRAGMENT,
 };
 
