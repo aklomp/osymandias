@@ -28,11 +28,12 @@ OBJS_GTK = \
   framerate.o \
 
 OBJS_GTKGL = \
-  shaders.o \
+  programs.o \
   layer_osm.o \
   layer_cursor.o \
   layer_overview.o \
   layer_blanktile.o \
+  programs/cursor.o \
   layer_background.o \
 
 OBJS_GTK_GTKGL = \
@@ -54,7 +55,7 @@ $(OBJS_GTK_GTKGL): %.o: %.c
 	$(CC) $(CFLAGS) $(GTK_CFLAGS) $(GTKGL_CFLAGS) -c $< -o $@
 
 $(OBJS_GTKGL): %.o: %.c
-	$(CC) $(CFLAGS) $(GTKGL_CFLAGS) -c $<
+	$(CC) $(CFLAGS) $(GTKGL_CFLAGS) -c $< -o $@
 
 $(OBJS_GTK): %.o: %.c
 	$(CC) $(CFLAGS) $(GTK_CFLAGS) -c $< -o $@

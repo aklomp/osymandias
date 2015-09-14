@@ -8,6 +8,7 @@
 #include "mouse.h"
 #include "framerate.h"
 #include "autoscroll.h"
+#include "inlinebin.h"
 #include "viewport.h"
 #include "tilepicker.h"
 #include "layers.h"
@@ -16,7 +17,7 @@
 #include "layer_overview.h"
 #include "layer_blanktile.h"
 #include "layer_osm.h"
-#include "shaders.h"
+#include "programs.h"
 
 struct signal {
 	const gchar	*signal;
@@ -95,7 +96,7 @@ on_realize (GtkWidget *widget)
 
 	// Initialize shaders after realizing GL area:
 	gdk_gl_drawable_gl_begin(gldrawable, glcontext);
-	shaders_init();
+	programs_init();
 	gdk_gl_drawable_gl_end(gldrawable);
 }
 

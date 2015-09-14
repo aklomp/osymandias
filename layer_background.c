@@ -1,7 +1,8 @@
 #include <stdbool.h>
 #include <GL/gl.h>
 
-#include "shaders.h"
+#include "inlinebin.h"
+#include "programs.h"
 #include "viewport.h"
 #include "layers.h"
 

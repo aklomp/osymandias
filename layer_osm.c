@@ -8,7 +8,8 @@
 
 #include "quadtree.h"
 #include "bitmap_mgr.h"
-#include "shaders.h"
+#include "inlinebin.h"
+#include "programs.h"
 #include "world.h"
 #include "viewport.h"
 #include "tilepicker.h"

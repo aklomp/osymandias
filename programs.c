@@ -4,46 +4,8 @@
 #include <GL/gl.h>
 
 #include "inlinebin.h"
-
-struct shader {
-	enum inlinebin	 src;
-	const uint8_t	*buf;
-	size_t		 len;
-	GLuint		 id;
-};
-
-enum input_type
-	{ TYPE_UNIFORM
-	, TYPE_ATTRIBUTE
-	} ;
-
-struct input {
-	const char	*name;
-	enum input_type	 type;
-	GLint		 loc;
-};
-
-struct program {
-	struct shader	fragment;
-	struct shader	vertex;
-	GLuint		id;
-	struct input	inputs[];
-};
-
-static struct program shader_cursor =
-	{ .fragment = { .src = SHADER_CURSOR_FRAGMENT }
-	, .vertex   = { .src = INLINEBIN_NONE }
-	, .inputs   =
-	  { { .name = "halfwd", .type = TYPE_UNIFORM }
-	  , { .name = "halfht", .type = TYPE_UNIFORM }
-	  , {  NULL }
-	  }
-	} ;
-
-// All programs:
-static struct program *programs[] =
-	{ &shader_cursor
-	} ;
+#include "programs.h"
+#include "programs/cursor.h"
 
 static bool
 compile_success (GLuint shader)
@@ -190,19 +152,15 @@ err:	glDeleteProgram(program->id);
 }
 
 bool
-shaders_init (void)
+programs_init (void)
 {
+	struct program *programs[] = {
+		program_cursor(),
+	};
+
 	for (size_t i = 0; i < sizeof(programs) / sizeof(programs[0]); i++)
 		if (!program_create(programs[i]))
 			return false;
 
 	return true;
-}
-
-void
-shader_use_cursor (const float halfwd, const float halfht)
-{
-	glUseProgram(programs[0]->id);
-	glUniform1f(programs[0]->inputs[0].loc, halfwd);
-	glUniform1f(programs[0]->inputs[1].loc, halfht);
 }

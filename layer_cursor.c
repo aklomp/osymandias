@@ -1,7 +1,9 @@
 #include <stdbool.h>
 #include <GL/gl.h>
 
-#include "shaders.h"
+#include "inlinebin.h"
+#include "programs.h"
+#include "programs/cursor.h"
 #include "viewport.h"
 #include "layers.h"
 
@@ -21,7 +23,11 @@ layer_cursor_paint (void)
 	// Draw 1:1 to screen coordinates, origin bottom left:
 	viewport_gl_setup_screen();
 
-	shader_use_cursor(halfwd, halfht);
+	program_cursor_use(&((struct program_cursor) {
+		.halfwd = halfwd,
+		.halfht = halfht,
+	}));
+
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glBegin(GL_QUADS);
