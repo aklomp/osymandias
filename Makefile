@@ -41,14 +41,14 @@ OBJS_GTK_GTKGL = \
   viewport.o \
 
 OBJS_BIN = \
-  shaders/cursor.glsl.o
+  shaders/cursor.o
 
 all: $(PROG)
 
 $(PROG): $(OBJS) $(OBJS_GTK) $(OBJS_GTKGL) $(OBJS_GTK_GTKGL) $(OBJS_BIN)
 	$(CC) $(LDFLAGS) $(GTK_LDFLAGS) $(GTKGL_LDFLAGS) -o $@ $^
 
-$(OBJS_BIN): %.o: %
+$(OBJS_BIN): %.o: %.glsl
 	$(LD) --relocatable --format=binary -o $@ $^
 
 $(OBJS_GTK_GTKGL): %.o: %.c
