@@ -17,7 +17,7 @@
 DATA_DEF (shaders_cursor_glsl)
 
 void
-inlinebin_get (enum inlinebin member, const uint8_t **buf, size_t *len)
+inlinebin_get (enum inlinebin member, const void **buf, size_t *len)
 {
 	// Define an array of inline data descriptors:
 	struct {
