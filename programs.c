@@ -113,6 +113,25 @@ shader_vertex_destroy (struct program *program)
 }
 
 static bool
+program_link (struct program *program)
+{
+	bool ret = false;
+
+	if (!shader_vertex_create(program))
+		return false;
+
+	if (!shader_fragment_create(program))
+		goto err;
+
+	glLinkProgram(program->id);
+	ret = true;
+
+	shader_fragment_destroy(program);
+err:	shader_vertex_destroy(program);
+	return ret;
+}
+
+static bool
 input_link (GLuint program_id, struct input *i)
 {
 	switch (i->type)
@@ -139,14 +158,8 @@ program_create (struct program *program)
 	program->id = glCreateProgram();
 	program->created = true;
 
-	if (!(shader_vertex_create(program)
-	   && shader_fragment_create(program)))
+	if (!program_link(program))
 		return false;
-
-	glLinkProgram(program->id);
-
-	shader_vertex_destroy(program);
-	shader_fragment_destroy(program);
 
 	if (!link_success(program->id))
 		return false;
