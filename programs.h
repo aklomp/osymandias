@@ -24,8 +24,10 @@ struct program {
 	struct shader	 vertex;
 	GLuint		 id;
 	struct input	*inputs;
+	bool		 created;
 };
 
 bool programs_init (void);
+void programs_destroy (void);
 
 #endif	/* PROGRAMS_H */

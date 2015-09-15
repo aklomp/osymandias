@@ -1,11 +1,15 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include <GL/gl.h>
 
 #include "inlinebin.h"
 #include "programs.h"
 #include "programs/cursor.h"
+
+// Master list of programs, filled by programs_init():
+static struct program *programs[1];
 
 static bool
 compile_success (GLuint shader)
@@ -133,10 +137,11 @@ static bool
 program_create (struct program *program)
 {
 	program->id = glCreateProgram();
+	program->created = true;
 
 	if (!(shader_vertex_create(program)
 	   && shader_fragment_create(program)))
-		goto err;
+		return false;
 
 	glLinkProgram(program->id);
 
@@ -144,28 +149,38 @@ program_create (struct program *program)
 	shader_fragment_destroy(program);
 
 	if (!link_success(program->id))
-		goto err;
+		return false;
 
 	for (struct input *input = program->inputs; input->name; input++)
 		if (!input_link(program->id, input))
-			goto err;
+			return false;
 
 	return true;
+}
 
-err:	glDeleteProgram(program->id);
-	return false;
+void
+programs_destroy (void)
+{
+	for (size_t i = 0; i < sizeof(programs) / sizeof(programs[0]); i++)
+		if (programs[i]->created)
+			glDeleteProgram(programs[i]->id);
 }
 
 bool
 programs_init (void)
 {
-	struct program *programs[] = {
+	struct program *p[] = {
 		program_cursor(),
 	};
 
+	// Copy to static list:
+	memcpy(programs, p, sizeof(programs));
+
 	for (size_t i = 0; i < sizeof(programs) / sizeof(programs[0]); i++)
-		if (!program_create(programs[i]))
+		if (!program_create(programs[i])) {
+			programs_destroy();
 			return false;
+		}
 
 	return true;
 }
