@@ -10,7 +10,8 @@
 static bool
 compile_success (GLuint shader)
 {
-	GLint status, length;
+	GLint status;
+	GLsizei length;
 
 	glGetShaderiv(shader, GL_COMPILE_STATUS, &status);
 	if (status != GL_FALSE)
@@ -27,7 +28,8 @@ compile_success (GLuint shader)
 static bool
 link_success (GLuint program)
 {
-	GLint status, length;
+	GLint status;
+	GLsizei length;
 
 	glGetProgramiv(program, GL_LINK_STATUS, &status);
 	if (status != GL_FALSE)
@@ -46,8 +48,11 @@ shader_compile (struct shader *shader, GLenum type)
 {
 	inlinebin_get(shader->src, &shader->buf, &shader->len);
 
+	const GLchar *const *buf = (const GLchar *const *) &shader->buf;
+	const GLint         *len = (const GLint *)         &shader->len;
+
 	shader->id = glCreateShader(type);
-	glShaderSource(shader->id, 1, (const GLchar * const *)&shader->buf, (const GLint *)&shader->len);
+	glShaderSource(shader->id, 1, buf, len);
 	glCompileShader(shader->id);
 
 	if (compile_success(shader->id))
