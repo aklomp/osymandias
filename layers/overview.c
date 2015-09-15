@@ -1,23 +1,23 @@
 #include <stdbool.h>
 #include <GL/gl.h>
 
-#include "world.h"
-#include "viewport.h"
-#include "layers.h"
-#include "tilepicker.h"
+#include "../world.h"
+#include "../viewport.h"
+#include "../layers.h"
+#include "../tilepicker.h"
 
 #define OVERVIEW_WD	256.0
 #define OVERVIEW_MARGIN	10.0
 
 static bool
-layer_overview_full_occlusion (void)
+occludes (void)
 {
-	// The OVERVIEW, by design, never occludes:
+	// The overview never occludes:
 	return false;
 }
 
 static void
-layer_overview_paint (void)
+paint (void)
 {
 	double world_size = world_get_size();
 
@@ -102,9 +102,13 @@ layer_overview_paint (void)
 	glDisable(GL_BLEND);
 }
 
-bool
-layer_overview_create (void)
+struct layer *
+layer_overview (void)
 {
-	// Cursor should be topmost layer; set sufficiently large z-index:
-	return layer_register(layer_create(layer_overview_full_occlusion, layer_overview_paint, NULL, NULL, NULL), 500);
+	static struct layer layer = {
+		.occludes = &occludes,
+		.paint    = &paint,
+	};
+
+	return &layer;
 }

@@ -1,21 +1,20 @@
 #include <stdbool.h>
 #include <GL/gl.h>
 
-#include "inlinebin.h"
-#include "programs.h"
-#include "programs/cursor.h"
-#include "viewport.h"
-#include "layers.h"
+#include "../inlinebin.h"
+#include "../layers.h"
+#include "../programs.h"
+#include "../programs/cursor.h"
+#include "../viewport.h"
 
 static bool
-layer_cursor_full_occlusion (void)
+occludes (void)
 {
-	// The cursor, by design, never occludes:
 	return false;
 }
 
 static void
-layer_cursor_paint (void)
+paint (void)
 {
 	float halfwd = (float)viewport_get_wd() / 2.0;
 	float halfht = (float)viewport_get_ht() / 2.0;
@@ -40,9 +39,13 @@ layer_cursor_paint (void)
 	glDisable(GL_BLEND);
 }
 
-bool
-layer_cursor_create (void)
+struct layer *
+layer_cursor (void)
 {
-	// Cursor should be topmost layer; set sufficiently large z-index:
-	return layer_register(layer_create(layer_cursor_full_occlusion, layer_cursor_paint, NULL, NULL, NULL), 10000);
+	static struct layer layer = {
+		.occludes = &occludes,
+		.paint    = &paint,
+	};
+
+	return &layer;
 }

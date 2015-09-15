@@ -29,12 +29,12 @@ OBJS_GTK = \
 
 OBJS_GTKGL = \
   programs.o \
-  layer_osm.o \
-  layer_cursor.o \
-  layer_overview.o \
-  layer_blanktile.o \
+  layers/osm.o \
+  layers/cursor.o \
+  layers/overview.o \
+  layers/blanktile.o \
   programs/cursor.o \
-  layer_background.o \
+  layers/background.o \
 
 OBJS_GTK_GTKGL = \
   main.o \

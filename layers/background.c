@@ -1,10 +1,8 @@
 #include <stdbool.h>
 #include <GL/gl.h>
 
-#include "inlinebin.h"
-#include "programs.h"
-#include "viewport.h"
-#include "layers.h"
+#include "../viewport.h"
+#include "../layers.h"
 
 // The background layer is the diagonal pinstripe pattern that is shown in the
 // out-of-bounds area of the viewport.
@@ -12,14 +10,14 @@
 #define PINSTRIPE_PITCH	5
 
 static bool
-layer_background_full_occlusion (void)
+occludes (void)
 {
 	// The background always fully occludes:
 	return true;
 }
 
 static void
-layer_background_paint (void)
+paint (void)
 {
 	// Nothing to do if the viewport is completely within world bounds:
 	if (viewport_within_world_bounds()) {
@@ -52,8 +50,13 @@ layer_background_paint (void)
 	glEnd();
 }
 
-bool
-layer_background_create (void)
+struct layer *
+layer_background (void)
 {
-	return layer_register(layer_create(layer_background_full_occlusion, layer_background_paint, NULL, NULL, NULL), 0);
+	static struct layer layer = {
+		.occludes = &occludes,
+		.paint    = &paint,
+	};
+
+	return &layer;
 }

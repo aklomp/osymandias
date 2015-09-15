@@ -1,7 +1,12 @@
-struct layer;
+struct layer {
+	bool (*init)     (void);
+	bool (*occludes) (void);
+	void (*paint)    (void);
+	void (*zoom)     (void);
+	void (*destroy)  (void);
+};
 
-struct layer *layer_create (bool (*full_occlusion)(void), void (*paint)(void), void (*zoom)(void), void (*destroy)(void *), void *destroy_data);
-bool layer_register (struct layer *l, int zindex);
+bool layers_init (void);
 void layers_destroy (void);
 void layers_paint (void);
 void layers_zoom (void);

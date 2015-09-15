@@ -1,17 +1,15 @@
 #include <stdbool.h>
-#include <stdlib.h>
-#include <string.h>
 
 #include <GL/gl.h>
 
-#include "world.h"
-#include "viewport.h"
-#include "layers.h"
+#include "../world.h"
+#include "../viewport.h"
+#include "../layers.h"
 
 #define FOG_END	20.0
 
 static bool
-layer_blanktile_full_occlusion (void)
+occludes (void)
 {
 	// If the viewport is within world bounds,
 	// we will always fully occlude:
@@ -19,7 +17,7 @@ layer_blanktile_full_occlusion (void)
 }
 
 static void
-layer_blanktile_paint (void)
+paint (void)
 {
 	if (viewport_mode_get() != VIEWPORT_MODE_PLANAR) {
 		return;
@@ -84,8 +82,13 @@ layer_blanktile_paint (void)
 	glDisable(GL_FOG);
 }
 
-bool
-layer_blanktile_create (void)
+struct layer *
+layer_blanktile (void)
 {
-	return layer_register(layer_create(layer_blanktile_full_occlusion, layer_blanktile_paint, NULL, NULL, NULL), 10);
+	static struct layer layer = {
+		.occludes = &occludes,
+		.paint    = &paint,
+	};
+
+	return &layer;
 }

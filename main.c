@@ -12,11 +12,6 @@
 #include "viewport.h"
 #include "tilepicker.h"
 #include "layers.h"
-#include "layer_background.h"
-#include "layer_cursor.h"
-#include "layer_overview.h"
-#include "layer_blanktile.h"
-#include "layer_osm.h"
 #include "programs.h"
 
 struct signal {
@@ -165,13 +160,7 @@ main (int argc, char **argv)
 	gtk_widget_show_all(window);
 
 	viewport_init();
-
-	layer_background_create();
-	layer_cursor_create();
-	layer_overview_create();
-	layer_blanktile_create();
-	layer_osm_create();
-
+	layers_init();
 	framerate_init(canvas, paint_canvas);
 
 	gtk_main();
