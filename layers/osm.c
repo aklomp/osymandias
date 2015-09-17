@@ -11,6 +11,8 @@
 #include "../tilepicker.h"
 #include "../tiledrawer.h"
 #include "../layers.h"
+#include "../inlinebin.h"
+#include "../programs.h"
 
 static int overlay_zoom = 0;
 static int colorize_cache = 0;
@@ -156,7 +158,7 @@ paint (void)
 	}
 	glDisable(GL_BLEND);
 	glDisable(GL_TEXTURE_2D);
-	glUseProgram(0);
+	program_none();
 }
 
 static void

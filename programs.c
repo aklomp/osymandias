@@ -197,3 +197,9 @@ programs_init (void)
 
 	return true;
 }
+
+void
+program_none (void)
+{
+	glUseProgram(0);
+}

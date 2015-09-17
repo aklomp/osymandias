@@ -35,7 +35,7 @@ paint (void)
 		glVertex2f((float)halfwd + 15.0, (float)halfht + 15.0);
 		glVertex2f((float)halfwd - 15.0, (float)halfht + 15.0);
 	glEnd();
-	glUseProgram(0);
+	program_none();
 	glDisable(GL_BLEND);
 }
 

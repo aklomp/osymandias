@@ -29,5 +29,6 @@ struct program {
 
 bool programs_init (void);
 void programs_destroy (void);
+void program_none (void);
 
 #endif	/* PROGRAMS_H */
