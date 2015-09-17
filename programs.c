@@ -6,10 +6,11 @@
 
 #include "inlinebin.h"
 #include "programs.h"
+#include "programs/bkgd.h"
 #include "programs/cursor.h"
 
 // Master list of programs, filled by programs_init():
-static struct program *programs[1];
+static struct program *programs[2];
 
 static bool
 compile_success (GLuint shader)
@@ -183,6 +184,7 @@ bool
 programs_init (void)
 {
 	struct program *p[] = {
+		program_bkgd(),
 		program_cursor(),
 	};
 

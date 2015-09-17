@@ -33,6 +33,7 @@ OBJS_GTKGL = \
   layers/cursor.o \
   layers/overview.o \
   layers/blanktile.o \
+  programs/bkgd.o \
   programs/cursor.o \
   layers/background.o \
 

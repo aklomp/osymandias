@@ -15,6 +15,8 @@
 
 // Define variables pointing to inline data:
 DATA_DEF (shaders_cursor_glsl)
+DATA_DEF (shaders_bkgd_vertex_glsl)
+DATA_DEF (shaders_bkgd_fragment_glsl)
 
 void
 inlinebin_get (enum inlinebin member, const void **buf, size_t *len)
@@ -29,6 +31,8 @@ inlinebin_get (enum inlinebin member, const void **buf, size_t *len)
 		, .len = 0
 		} ,
 		DATA_ELEM (shaders_cursor_glsl)
+		DATA_ELEM (shaders_bkgd_vertex_glsl)
+		DATA_ELEM (shaders_bkgd_fragment_glsl)
 	};
 
 	// Return requested element to caller:
