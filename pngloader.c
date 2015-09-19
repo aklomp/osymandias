@@ -17,10 +17,14 @@
 #define __BIGGEST_ALIGNMENT__	16
 #endif
 
-static __thread int fd = -1;
+// Structure for memory read I/O:
+struct io {
+	size_t      len;
+	const char *buf;
+	const char *cur;
+};
+
 static __thread void *rawbits = NULL;
-static __thread png_structp png_ptr = NULL;
-static __thread png_infop info_ptr = NULL;
 static __thread char *heap = NULL;
 static __thread char *heap_head = NULL;
 static __thread int init_ok = 0;
@@ -64,10 +68,17 @@ free_fn (png_structp png_ptr, png_voidp ptr)
 static void
 user_read_data (png_structp png_ptr, png_bytep data, png_size_t length)
 {
-	// Read length bytes from file handle into data:
-	if (cancel_flag || read(fd, data, length) != (ssize_t)length || cancel_flag) {
+	struct io *io = png_get_io_ptr(png_ptr);
+
+	// Canceled or asking for more data than available:
+	if (cancel_flag || length > io->len - (io->cur - io->buf)) {
 		png_error(png_ptr, NULL);
+		return;
 	}
+
+	// Copy data and adjust pointers:
+	memcpy(data, io->cur, length);
+	io->cur += length;
 }
 
 static void
@@ -103,34 +114,20 @@ pngloader_on_init (void)
 }
 
 static bool
-is_png (void)
+is_png (const char *buf, size_t len)
 {
-	char buf[8];
-
-	// Check that the file is a PNG; can do this without allocating libpng structures:
-	if (read(fd, buf, sizeof(buf)) != sizeof(buf)) {
-		return false;
-	}
-	if (png_sig_cmp((png_bytep)buf, 0, sizeof(buf))) {
-		return false;
-	}
-	// Rewind file handle:
-	return (lseek(fd, 0, SEEK_SET) >= 0);
+	return !png_sig_cmp((png_bytep)buf, 0, (len > 8) ? 8 : len);
 }
 
 static bool
-load_png_file (unsigned int *height, unsigned int *width, void **rawbits)
+load_png (const char *data, size_t len, unsigned int *height, unsigned int *width, void **rawbits)
 {
 	bool ret = false;
+	png_structp png_ptr;
+	png_infop info_ptr;
 
-	*rawbits = NULL;
-
-	// First file read happens here; this is probably also where we can
-	// expect the real io latency hit; check carefully for cancellation:
-	if (!is_png())
-		return false;
-
-	if (cancel_flag)
+	// Must look like a PNG:
+	if (!is_png(data, len))
 		return false;
 
 	// Create read struct:
@@ -147,14 +144,25 @@ load_png_file (unsigned int *height, unsigned int *width, void **rawbits)
 	if (png_ptr == NULL)
 		return false;
 
+	// Create info struct:
+	if ((info_ptr = png_create_info_struct(png_ptr)) == NULL) {
+		png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
+		return false;
+	}
+
+	// Set up read I/O structure:
+	struct io io = {
+		.len = len,
+		.buf = data,
+		.cur = data,
+	};
+
 	// Instantiate our own read function:
-	png_set_read_fn(png_ptr, NULL, user_read_data);
+	png_set_read_fn(png_ptr, &io, user_read_data);
 
-	if ((info_ptr = png_create_info_struct(png_ptr)) == NULL)
-		goto exit_0;
-
+	// Return here on errors:
 	if (setjmp(png_jmpbuf(png_ptr)))
-		goto exit_0;
+		goto exit;
 
 	// Sane limits on image:
 	png_set_user_limits(png_ptr, 500, 500);
@@ -163,39 +171,38 @@ load_png_file (unsigned int *height, unsigned int *width, void **rawbits)
 	png_read_info(png_ptr, info_ptr);
 
 	// Transform input into 8-bit RGB:
-	{
-		png_byte color_type = png_get_color_type (png_ptr, info_ptr);
-		png_byte bit_depth  = png_get_bit_depth  (png_ptr, info_ptr);
+	png_byte color_type = png_get_color_type (png_ptr, info_ptr);
+	png_byte bit_depth  = png_get_bit_depth  (png_ptr, info_ptr);
 
-		// Convert paletted images to RGB:
-		if (color_type == PNG_COLOR_TYPE_PALETTE)
-			png_set_palette_to_rgb(png_ptr);
+	// Convert paletted images to RGB:
+	if (color_type == PNG_COLOR_TYPE_PALETTE)
+		png_set_palette_to_rgb(png_ptr);
 
-		// Upsample low-bit grayscale images to 8-bit:
-		if (color_type == PNG_COLOR_TYPE_GRAY && bit_depth < 8)
-			png_set_expand_gray_1_2_4_to_8(png_ptr);
+	// Upsample low-bit grayscale images to 8-bit:
+	if (color_type == PNG_COLOR_TYPE_GRAY && bit_depth < 8)
+		png_set_expand_gray_1_2_4_to_8(png_ptr);
 
-		// Upsample low-bit images to 8-bit:
-		if (bit_depth < 8)
-			png_set_packing(png_ptr);
+	// Upsample low-bit images to 8-bit:
+	if (bit_depth < 8)
+		png_set_packing(png_ptr);
 
-		// Discard alpha channel:
-		if (color_type & PNG_COLOR_MASK_ALPHA)
-			png_set_strip_alpha(png_ptr);
+	// Discard alpha channel:
+	if (color_type & PNG_COLOR_MASK_ALPHA)
+		png_set_strip_alpha(png_ptr);
 
-		// Upsample grayscale to RGB:
-		if (color_type == PNG_COLOR_TYPE_GRAY
-		 || color_type == PNG_COLOR_TYPE_GRAY_ALPHA)
-			png_set_gray_to_rgb(png_ptr);
+	// Upsample grayscale to RGB:
+	if (color_type == PNG_COLOR_TYPE_GRAY
+	 || color_type == PNG_COLOR_TYPE_GRAY_ALPHA)
+		png_set_gray_to_rgb(png_ptr);
 
-		png_read_update_info(png_ptr, info_ptr);
-	}
+	png_read_update_info(png_ptr, info_ptr);
+
 	*width  = png_get_image_width  (png_ptr, info_ptr);
 	*height = png_get_image_height (png_ptr, info_ptr);
 
 	// Allocate the rawbits image data:
 	if ((*rawbits = malloc(*width * *height * 3)) == NULL)
-		goto exit_0;
+		goto exit;
 
 	// Allocate array of row pointers, read actual image data:
 	// TODO: check if it's wise to allocate this on the stack:
@@ -213,17 +220,56 @@ load_png_file (unsigned int *height, unsigned int *width, void **rawbits)
 	png_read_end(png_ptr, NULL);
 	ret = !cancel_flag;
 
-exit_0:	png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
-	if (ret == false) {
-		free(*rawbits);
-		*rawbits = NULL;
+exit:	png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
+
+	if (ret)
+		return true;
+
+	free(*rawbits);
+	*rawbits = NULL;
+	return false;
+}
+
+static bool
+load_png_file (int fd, unsigned int *height, unsigned int *width, void **rawbits)
+{
+	bool ret = false;
+	char *data;
+	struct stat stat;
+	size_t len;
+	ssize_t nread;
+
+	*rawbits = NULL;
+
+	// Get file size:
+	if (fstat(fd, &stat))
+		return false;
+
+	// Allocate buffer:
+	if ((data = malloc(len = stat.st_size)) == NULL)
+		return false;
+
+	// Read in entire file, check carefully for cancellation:
+	for (size_t total = 0; total < len; total += nread) {
+		nread = read(fd, data + total, len - total);
+		if (cancel_flag || nread <= 0) {
+			free(data);
+			return false;
+		}
 	}
+
+	// Pass to png loader:
+	ret = load_png(data, len, height, width, rawbits);
+
+	// Clean up buffer:
+	free(data);
 	return ret;
 }
 
 void
 pngloader_main (void *data)
 {
+	int fd = -1;
 	struct pngloader *p = data;
 	unsigned int width;
 	unsigned int height;
@@ -235,7 +281,6 @@ pngloader_main (void *data)
 	// Reset heap pointer:
 	heap_head = heap;
 
-	fd = -1;
 	cancel_flag = false;
 
 	if ((p->filename = tile_filename(p->req.zoom, p->req.x, p->req.y)) == NULL || cancel_flag)
@@ -251,7 +296,7 @@ pngloader_main (void *data)
 	if (fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) & ~O_NONBLOCK) < 0 || cancel_flag)
 		goto exit;
 
-	if (!load_png_file(&height, &width, &rawbits) || cancel_flag)
+	if (!load_png_file(fd, &height, &width, &rawbits) || cancel_flag)
 		goto exit;
 
 	if (fd >= 0) {
@@ -266,11 +311,9 @@ pngloader_main (void *data)
 	// Got tile, run callback:
 	p->on_completed(p, rawbits);
 
-exit:	if (fd >= 0) {
+exit:	if (fd >= 0)
 		close(fd);
-		fd = -1;
-	}
-	png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
+
 	free(p->filename);
 	free(p);
 }
