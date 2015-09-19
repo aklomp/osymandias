@@ -65,7 +65,7 @@ free_fn (png_structp png_ptr, png_voidp ptr)
 
 // Our own I/O functions:
 static void
-user_read_data (png_structp png_ptr, png_bytep data, png_size_t length)
+read_fn (png_structp png_ptr, png_bytep data, png_size_t length)
 {
 	struct io *io = png_get_io_ptr(png_ptr);
 
@@ -81,7 +81,7 @@ user_read_data (png_structp png_ptr, png_bytep data, png_size_t length)
 }
 
 static void
-user_error_fn (png_structp png_ptr, png_const_charp msg)
+error_fn (png_structp png_ptr, png_const_charp msg)
 {
 	(void)png_ptr;
 	(void)msg;
@@ -93,7 +93,7 @@ user_error_fn (png_structp png_ptr, png_const_charp msg)
 }
 
 static void
-user_warning_fn (png_structp png_ptr, png_const_charp msg)
+warning_fn (png_structp png_ptr, png_const_charp msg)
 {
 	(void)png_ptr;
 	(void)msg;
@@ -123,8 +123,8 @@ load_png (const char *data, size_t len, unsigned int *height, unsigned int *widt
 	png_ptr = png_create_read_struct_2(
 		PNG_LIBPNG_VER_STRING,
 		NULL,
-		user_error_fn,
-		user_warning_fn,
+		error_fn,
+		warning_fn,
 		NULL,
 		malloc_fn,
 		free_fn
@@ -147,7 +147,7 @@ load_png (const char *data, size_t len, unsigned int *height, unsigned int *widt
 	};
 
 	// Instantiate our own read function:
-	png_set_read_fn(png_ptr, &io, user_read_data);
+	png_set_read_fn(png_ptr, &io, read_fn);
 
 	// Return here on errors:
 	if (setjmp(png_jmpbuf(png_ptr)))
