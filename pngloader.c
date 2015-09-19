@@ -24,7 +24,6 @@ struct io {
 	const char *cur;
 };
 
-static __thread void *rawbits = NULL;
 static __thread char *heap = NULL;
 static __thread char *heap_head = NULL;
 static __thread int init_ok = 0;
@@ -239,8 +238,6 @@ load_png_file (int fd, unsigned int *height, unsigned int *width, void **rawbits
 	size_t len;
 	ssize_t nread;
 
-	*rawbits = NULL;
-
 	// Get file size:
 	if (fstat(fd, &stat))
 		return false;
@@ -273,6 +270,7 @@ pngloader_main (void *data)
 	struct pngloader *p = data;
 	unsigned int width;
 	unsigned int height;
+	void *rawbits = NULL;
 
 	if (!init_ok) {
 		free(p);
