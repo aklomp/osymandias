@@ -26,7 +26,7 @@ struct io {
 
 static __thread char *heap = NULL;
 static __thread char *heap_head = NULL;
-static __thread int init_ok = 0;
+static __thread bool initialized = false;
 static __thread volatile bool cancel_flag = false;
 
 // Our private malloc/free functions that we give to libpng.
@@ -100,16 +100,6 @@ user_warning_fn (png_structp png_ptr, png_const_charp msg)
 
 	// According to the docs, the warning should simply return, not longjmp.
 	cancel_flag = true;
-}
-
-void
-pngloader_on_init (void)
-{
-	// Allocate a block of heap memory:
-	if ((heap = heap_head = malloc(HEAP_SIZE)) == NULL) {
-		return;
-	}
-	init_ok = 1;
 }
 
 static bool
@@ -272,7 +262,7 @@ pngloader_main (void *data)
 	unsigned int height;
 	void *rawbits = NULL;
 
-	if (!init_ok) {
+	if (!initialized) {
 		free(p);
 		return;
 	}
@@ -319,17 +309,19 @@ exit:	if (fd >= 0)
 void
 pngloader_on_cancel (void)
 {
-	if (!init_ok)
-		return;
-
 	cancel_flag = true;
+}
+
+void
+pngloader_on_init (void)
+{
+	// Allocate a block of heap memory:
+	if ((heap = heap_head = malloc(HEAP_SIZE)) != NULL)
+		initialized = true;
 }
 
 void
 pngloader_on_exit (void)
 {
-	if (!init_ok)
-		return;
-
 	free(heap);
 }
