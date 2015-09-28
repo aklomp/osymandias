@@ -18,6 +18,21 @@ static int overlay_zoom = 0;
 static int colorize_cache = 0;
 static struct quadtree *textures = NULL;
 
+static bool
+have_anisotropic (void)
+{
+	static bool init = false;
+	static bool have = false;
+
+	if (!init) {
+		const char *ext = (const char *)glGetString(GL_EXTENSIONS);
+		have = strstr(ext, "GL_EXT_texture_filter_anisotropic");
+		init = true;
+	}
+
+	return have;
+}
+
 static GLuint
 texture_from_rawbits (void *rawbits)
 {
@@ -26,6 +41,13 @@ texture_from_rawbits (void *rawbits)
 	glGenTextures(1, &id);
 	glBindTexture(GL_TEXTURE_2D, id);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 256, 256, 0, GL_RGB, GL_UNSIGNED_BYTE, rawbits);
+
+	// Apply anisotropic filtering if available:
+	if (have_anisotropic()) {
+		GLfloat max;
+		glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &max);
+		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, max);
+	}
 
 	return id;
 }
