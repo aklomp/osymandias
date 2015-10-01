@@ -1,10 +1,11 @@
-in varying vec3 vertex;
-in varying vec3 texture;
+#version 110
 
-out varying vec2 ftex;
+attribute vec3 vertex;
+attribute vec3 texture;
+varying vec2 ftex;
 
 void main (void)
 {
-	ftex = texture;
+	ftex = texture.xy;
 	gl_Position = vec4(vertex, 1.0);
 }
