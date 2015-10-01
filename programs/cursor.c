@@ -12,7 +12,8 @@ static struct input inputs[] =
 	} ;
 
 static struct program program =
-	{ .fragment = { .src = SHADER_CURSOR_FRAGMENT }
+	{ .name     = "cursor"
+	, .fragment = { .src = SHADER_CURSOR_FRAGMENT }
 	, .vertex   = { .src = INLINEBIN_NONE }
 	, .inputs   = inputs
 	} ;

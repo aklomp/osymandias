@@ -31,19 +31,19 @@ compile_success (GLuint shader)
 }
 
 static bool
-link_success (GLuint program)
+link_success (struct program *program)
 {
 	GLint status;
 	GLsizei length;
 
-	glGetProgramiv(program, GL_LINK_STATUS, &status);
+	glGetProgramiv(program->id, GL_LINK_STATUS, &status);
 	if (status != GL_FALSE)
 		return true;
 
-	glGetProgramiv(program, GL_INFO_LOG_LENGTH, &length);
+	glGetProgramiv(program->id, GL_INFO_LOG_LENGTH, &length);
 	GLchar *log = calloc(length, sizeof(GLchar));
-	glGetProgramInfoLog(program, length, NULL, log);
-	fprintf(stderr, "glLinkProgram failed: %s\n", log);
+	glGetProgramInfoLog(program->id, length, NULL, log);
+	fprintf(stderr, "%s: glLinkProgram failed: %s\n", program->name, log);
 	free(log);
 	return false;
 }
@@ -133,23 +133,27 @@ err:	shader_vertex_destroy(program);
 }
 
 static bool
-input_link (GLuint program_id, struct input *i)
+input_link (struct program *program, struct input *i)
 {
+	const char *type = "";
+
 	switch (i->type)
 	{
 	case TYPE_UNIFORM:
-		i->loc = glGetUniformLocation(program_id, i->name);
+		type = "uniform";
+		i->loc = glGetUniformLocation(program->id, i->name);
 		break;
 
 	case TYPE_ATTRIBUTE:
-		i->loc = glGetAttribLocation(program_id, i->name);
+		type = "attribute";
+		i->loc = glGetAttribLocation(program->id, i->name);
 		break;
 	}
 
 	if (i->loc >= 0)
 		return true;
 
-	fprintf(stderr, "Could not link %s\n", i->name);
+	fprintf(stderr, "%s: could not link %s '%s'\n", program->name, type, i->name);
 	return false;
 }
 
@@ -162,11 +166,11 @@ program_create (struct program *program)
 	if (!program_link(program))
 		return false;
 
-	if (!link_success(program->id))
+	if (!link_success(program))
 		return false;
 
 	for (struct input *input = program->inputs; input->name; input++)
-		if (!input_link(program->id, input))
+		if (!input_link(program, input))
 			return false;
 
 	return true;

@@ -20,6 +20,7 @@ struct input {
 };
 
 struct program {
+	const char	*name;
 	struct shader	 fragment;
 	struct shader	 vertex;
 	GLuint		 id;

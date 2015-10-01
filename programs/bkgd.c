@@ -13,7 +13,8 @@ static struct input inputs[] =
 	} ;
 
 static struct program program =
-	{ .fragment = { .src = SHADER_BKGD_FRAGMENT }
+	{ .name     = "bkgd"
+	, .fragment = { .src = SHADER_BKGD_FRAGMENT }
 	, .vertex   = { .src = SHADER_BKGD_VERTEX }
 	, .inputs   = inputs
 	} ;
