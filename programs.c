@@ -94,7 +94,7 @@ shader_fragment_create (struct program *program)
 	if (!shader_compile(&meta))
 		return false;
 
-	glAttachShader(program->id, program->fragment.id);
+	glAttachShader(program->id, meta.shader->id);
 	return true;
 }
 
@@ -114,7 +114,7 @@ shader_vertex_create (struct program *program)
 	if (!shader_compile(&meta))
 		return false;
 
-	glAttachShader(program->id, program->vertex.id);
+	glAttachShader(program->id, meta.shader->id);
 	return true;
 }
 
