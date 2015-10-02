@@ -9,23 +9,32 @@
 #include "programs/bkgd.h"
 #include "programs/cursor.h"
 
+// Local helper struct for compiling shaders:
+struct shadermeta {
+	struct shader	*shader;
+	const char	*progname;
+	const char	*typename;
+	GLenum		 type;
+};
+
 // Master list of programs, filled by programs_init():
 static struct program *programs[2];
 
 static bool
-compile_success (GLuint shader)
+compile_success (const struct shadermeta *meta)
 {
 	GLint status;
 	GLsizei length;
 
-	glGetShaderiv(shader, GL_COMPILE_STATUS, &status);
+	glGetShaderiv(meta->shader->id, GL_COMPILE_STATUS, &status);
 	if (status != GL_FALSE)
 		return true;
 
-	glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &length);
+	glGetShaderiv(meta->shader->id, GL_INFO_LOG_LENGTH, &length);
 	GLchar *log = calloc(length, sizeof(GLchar));
-	glGetShaderInfoLog(shader, length, NULL, log);
-	fprintf(stderr, "glCompileShader failed:\n%s\n", log);
+	glGetShaderInfoLog(meta->shader->id, length, NULL, log);
+	fprintf(stderr, "%s: %s: glCompileShader failed:\n%s\n",
+			meta->progname, meta->typename, log);
 	free(log);
 	return false;
 }
@@ -49,18 +58,20 @@ link_success (struct program *program)
 }
 
 static bool
-shader_compile (struct shader *shader, GLenum type)
+shader_compile (struct shadermeta *meta)
 {
+	struct shader *shader = meta->shader;
+
 	inlinebin_get(shader->src, &shader->buf, &shader->len);
 
 	const GLchar *const *buf = (const GLchar *const *) &shader->buf;
 	const GLint         *len = (const GLint *)         &shader->len;
 
-	shader->id = glCreateShader(type);
+	shader->id = glCreateShader(meta->type);
 	glShaderSource(shader->id, 1, buf, len);
 	glCompileShader(shader->id);
 
-	if (compile_success(shader->id))
+	if (compile_success(meta))
 		return true;
 
 	glDeleteShader(shader->id);
@@ -73,7 +84,14 @@ shader_fragment_create (struct program *program)
 	if (program->fragment.src == INLINEBIN_NONE)
 		return true;
 
-	if (!shader_compile(&program->fragment, GL_FRAGMENT_SHADER))
+	struct shadermeta meta = {
+		.shader		= &program->fragment,
+		.progname	= program->name,
+		.typename	= "fragment",
+		.type		= GL_FRAGMENT_SHADER
+	};
+
+	if (!shader_compile(&meta))
 		return false;
 
 	glAttachShader(program->id, program->fragment.id);
@@ -86,7 +104,14 @@ shader_vertex_create (struct program *program)
 	if (program->vertex.src == INLINEBIN_NONE)
 		return true;
 
-	if (!shader_compile(&program->vertex, GL_VERTEX_SHADER))
+	struct shadermeta meta = {
+		.shader		= &program->vertex,
+		.progname	= program->name,
+		.typename	= "vertex",
+		.type		= GL_VERTEX_SHADER
+	};
+
+	if (!shader_compile(&meta))
 		return false;
 
 	glAttachShader(program->id, program->vertex.id);
