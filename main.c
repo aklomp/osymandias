@@ -8,11 +8,8 @@
 #include "mouse.h"
 #include "framerate.h"
 #include "autoscroll.h"
-#include "inlinebin.h"
 #include "viewport.h"
 #include "tilepicker.h"
-#include "layers.h"
-#include "programs.h"
 
 struct signal {
 	const gchar	*signal;
@@ -89,9 +86,9 @@ on_realize (GtkWidget *widget)
 	GdkGLContext  *glcontext  = gtk_widget_get_gl_context(widget);
 	GdkGLDrawable *gldrawable = gtk_widget_get_gl_drawable(widget);
 
-	// Initialize shaders after realizing GL area:
+	// Initialize shaders and layers after realizing GL area:
 	gdk_gl_drawable_gl_begin(gldrawable, glcontext);
-	programs_init();
+	viewport_init();
 	gdk_gl_drawable_gl_end(gldrawable);
 }
 
@@ -159,14 +156,11 @@ main (int argc, char **argv)
 
 	gtk_widget_show_all(window);
 
-	viewport_init();
-	layers_init();
 	framerate_init(canvas, paint_canvas);
 
 	gtk_main();
 
 	framerate_destroy();
-	layers_destroy();
 	viewport_destroy();
 	tilepicker_destroy();
 
