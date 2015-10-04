@@ -21,8 +21,8 @@ static float
 timespec_diff (struct timespec *restrict earlier, struct timespec *restrict later)
 {
 	// Time difference in floating-point seconds:
-	return ((float)later->tv_sec + ((float)later->tv_nsec) / 1000000000.0)
-	     - ((float)earlier->tv_sec + ((float)earlier->tv_nsec) / 1000000000.0);
+	return ((float)later->tv_sec + ((float)later->tv_nsec) / 1e9)
+	     - ((float)earlier->tv_sec + ((float)earlier->tv_nsec) / 1e9);
 }
 
 void
