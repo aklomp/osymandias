@@ -13,6 +13,8 @@
 #include "camera.h"
 #include "tilepicker.h"
 #include "layers.h"
+#include "inlinebin.h"
+#include "programs.h"
 #include "viewport.h"
 
 static double center_x;		// in world coordinates
