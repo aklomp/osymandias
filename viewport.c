@@ -135,8 +135,13 @@ viewport_init (void)
 {
 	viewport_mode_set(VIEWPORT_MODE_SPHERICAL);
 	center_x = center_y = (double)world_get_size() / 2.0;
-	programs_init();
-	layers_init();
+
+	if (!programs_init())
+		return false;
+
+	if (!layers_init())
+		return false;
+
 	return true;
 }
 
