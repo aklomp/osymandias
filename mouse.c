@@ -39,8 +39,7 @@ on_button_press (GtkWidget *widget, GdkEventButton *event)
 		viewport_hold_start(x, y);
 
 	// Does the press of this button cause the autoscroll to halt?
-	click_halted_autoscroll = autoscroll_is_on();
-	autoscroll_stop();
+	click_halted_autoscroll = autoscroll_stop();
 	autoscroll_measure_down(x, y);
 }
 
@@ -88,13 +87,13 @@ on_button_release (GtkWidget *widget, GdkEventButton *event)
 	}
 
 	// We have a click, not a drag:
-	if (!click_halted_autoscroll) {
-		// Only recenter the viewport if this is the kind
-		// of button press that did not halt the autoscroll:
-		event_get_xy;
-		viewport_center_at(x, y);
-	}
+	if (click_halted_autoscroll)
+		return;
 
+	// Only recenter the viewport if this is the kind
+	// of button press that did not halt the autoscroll:
+	event_get_xy;
+	viewport_center_at(x, y);
 	gtk_widget_queue_draw(widget);
 }
 

@@ -15,7 +15,7 @@ static int scrolled_x = 0;		// x offset traveled in current autoscroll
 static int scrolled_y = 0;		// y offset traveled in current autoscroll
 static struct timespec base_t;		// start time of current autoscroll movement
 
-static bool autoscroll_on = 0;		// boolean toggle
+static bool autoscroll_on = false;		// boolean toggle
 
 static float
 timespec_diff (struct timespec *restrict earlier, struct timespec *restrict later)
@@ -52,7 +52,7 @@ void
 autoscroll_may_start (const int x, const int y)
 {
 	if (clock_gettime(CLOCK_MONOTONIC, &base_t) != 0) {
-		autoscroll_on = 0;
+		autoscroll_on = false;
 		return;
 	}
 	// First calculate whether the user has "moved the hold" sufficiently
@@ -63,7 +63,7 @@ autoscroll_may_start (const int x, const int y)
 	int dy = y - hold_y;
 
 	if (dt > 0.1 && dx > -12 && dx < 12 && dy > -12 && dy < 12) {
-		autoscroll_on = 0;
+		autoscroll_on = false;
 		return;
 	}
 	dt = timespec_diff(&down_t, &base_t);
@@ -74,13 +74,16 @@ autoscroll_may_start (const int x, const int y)
 
 	scrolled_x = 0;
 	scrolled_y = 0;
-	autoscroll_on = 1;
+	autoscroll_on = true;
 }
 
-void
+// Returns true if autoscroll was actually stopped:
+bool
 autoscroll_stop (void)
 {
-	autoscroll_on = 0;
+	bool on = autoscroll_on;
+	autoscroll_on = false;
+	return on;
 }
 
 bool
