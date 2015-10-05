@@ -6,8 +6,8 @@
 #include "../layers.h"
 #include "../tilepicker.h"
 
-#define OVERVIEW_WD	256.0
-#define OVERVIEW_MARGIN	10.0
+#define SIZE	256.0f
+#define MARGIN	 10.0f
 
 static bool
 occludes (void)
@@ -16,16 +16,41 @@ occludes (void)
 	return false;
 }
 
-static void
-paint (void)
+static inline void
+setup_viewport (int world_zoom, double world_size)
 {
-	double world_size = world_get_size();
+	// Make room within the world for one extra pixel at each side,
+	// to keep the outlines on the far tiles within frame:
+	double one_pixel_at_scale = (1 << world_zoom) / SIZE;
+	world_size += one_pixel_at_scale;
 
-	// Draw 1:1 to screen coordinates, origin bottom left:
-	viewport_gl_setup_overview(OVERVIEW_WD, OVERVIEW_MARGIN);
+	int xpos = viewport_get_wd() - MARGIN - SIZE;
+	int ypos = viewport_get_ht() - MARGIN - SIZE;
+
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
+	glLineWidth(1.0);
+	glOrtho(0, world_size, 0, world_size, 0, 1);
+	glViewport(xpos, ypos, SIZE, SIZE);
+
+	glMatrixMode(GL_MODELVIEW);
+	glLoadIdentity();
+
+	glDisable(GL_DEPTH_TEST);
+	glDepthMask(GL_FALSE);
 
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+}
+
+static void
+paint (void)
+{
+	int    world_zoom = world_get_zoom();
+	double world_size = world_get_size();
+
+	// Draw 1:1 to screen coordinates, origin bottom left:
+	setup_viewport(world_zoom, world_size);
 
 	// World plane background:
 	glColor4f(0.3, 0.3, 0.3, 0.5);
