@@ -184,9 +184,9 @@ paint (void)
 }
 
 static void
-zoom (void)
+zoom (const unsigned int zoom)
 {
-	bitmap_zoom_change(world_get_zoom());
+	bitmap_zoom_change(zoom);
 }
 
 struct layer *

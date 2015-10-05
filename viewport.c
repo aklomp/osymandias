@@ -155,11 +155,13 @@ viewport_destroy (void)
 void
 viewport_zoom_in (const int screen_x, const int screen_y)
 {
-	if (world_zoom_in()) {
-		center_x *= 2;
-		center_y *= 2;
-		layers_zoom();
-	}
+	if (!world_zoom_in())
+		return;
+
+	center_x *= 2;
+	center_y *= 2;
+	layers_zoom(world_get_zoom());
+
 	// Keep same point under mouse cursor:
 	if (viewport_mode == VIEWPORT_MODE_PLANAR) {
 		int dx = screen_x - screen_wd / 2;
@@ -173,11 +175,14 @@ viewport_zoom_in (const int screen_x, const int screen_y)
 void
 viewport_zoom_out (const int screen_x, const int screen_y)
 {
-	if (world_zoom_out()) {
-		center_x /= 2;
-		center_y /= 2;
-		layers_zoom();
-	}
+	if (!world_zoom_out())
+		return;
+
+	center_x /= 2;
+	center_y /= 2;
+	layers_zoom(world_get_zoom());
+
+	// Keep same point under mouse cursor:
 	if (viewport_mode == VIEWPORT_MODE_PLANAR) {
 		int dx = screen_x - screen_wd / 2;
 		int dy = screen_y - screen_ht / 2;

@@ -34,11 +34,11 @@ layers_paint (void)
 }
 
 void
-layers_zoom (void)
+layers_zoom (const unsigned int zoom)
 {
 	for (int i = 0; i < LAYERS; i++)
 		if (layers[i]->zoom)
-			layers[i]->zoom();
+			layers[i]->zoom(zoom);
 }
 
 void
