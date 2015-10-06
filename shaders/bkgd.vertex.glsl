@@ -1,11 +1,11 @@
 #version 110
 
-attribute vec3 vertex;
-attribute vec3 texture;
+attribute vec2 vertex;
+attribute vec2 texture;
 varying vec2 ftex;
 
 void main (void)
 {
-	ftex = texture.xy;
-	gl_Position = vec4(vertex, 1.0);
+	ftex = texture;
+	gl_Position = vec4(vertex, 0.5, 1.0);
 }
