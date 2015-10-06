@@ -39,23 +39,26 @@ tex = {
 	"\37\37\"\"\"///###\37\37\37\"\"\"///###\37\37\37\"\"\"///###\37\37\37"
 };
 
-// Array of vertices. The vertices are laid out as follows (two triangles,
-// clockwise rotation):
+// Array of counterclockwise vertices:
 //
-//   0--1    3
-//   | /    /|
-//   |/    / |
-//   2    5--4
+//   0--3
+//   |  |
+//   1--2
 //
-// Points (1, 3) and (2, 5) are identical.
-
 static struct vertex {
 	float x;
 	float y;
 	float u;
 	float v;
 }
-vertex[6];
+vertex[4];
+
+// Array of indices. We define two counterclockwise triangles:
+// 0-1-3 and 1-2-3
+static GLubyte index[6] = {
+	0, 1, 3,
+	1, 2, 3,
+};
 
 static GLuint vao, vbo;
 
@@ -73,17 +76,17 @@ vertcoords (void)
 	vertex[0].x = -1.0;
 	vertex[0].y =  1.0;
 
-	// Top right:
-	vertex[1].x = vertex[3].x = 1.0;
-	vertex[1].y = vertex[3].y = 1.0;
+	// Bottom left:
+	vertex[1].x = -1.0;
+	vertex[1].y = -1.0;
 
 	// Bottom right:
-	vertex[4].x =  1.0;
-	vertex[4].y = -1.0;
+	vertex[2].x =  1.0;
+	vertex[2].y = -1.0;
 
-	// Bottom left:
-	vertex[2].x = vertex[5].x = -1.0;
-	vertex[2].y = vertex[5].y = -1.0;
+	// Top right:
+	vertex[3].x = 1.0;
+	vertex[3].y = 1.0;
 }
 
 static void
@@ -96,17 +99,17 @@ texcoords (float screen_wd, float screen_ht)
 	vertex[0].u = 0;
 	vertex[0].v = ht;
 
-	// Top right:
-	vertex[1].u = vertex[3].u = wd;
-	vertex[1].v = vertex[3].v = ht;
+	// Bottom left:
+	vertex[1].u = 0;
+	vertex[1].v = 0;
 
 	// Bottom right:
-	vertex[4].u = wd;
-	vertex[4].v = 0;
+	vertex[2].u = wd;
+	vertex[2].v = 0;
 
-	// Bottom left:
-	vertex[2].u = vertex[5].u = 0;
-	vertex[2].v = vertex[5].v = 0;
+	// Top right:
+	vertex[3].u = wd;
+	vertex[3].v = ht;
 }
 
 static void
@@ -139,7 +142,7 @@ paint (void)
 
 	// Draw all triangles in the buffer:
 	glBindVertexArray(vao);
-	glDrawArrays(GL_TRIANGLES, 0, sizeof(vertex) / sizeof(vertex[0]));
+	glDrawElements(GL_TRIANGLES, sizeof(index) / sizeof(index[0]), GL_UNSIGNED_BYTE, index);
 
 	program_none();
 }
