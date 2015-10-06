@@ -86,9 +86,21 @@ on_realize (GtkWidget *widget)
 	GdkGLContext  *glcontext  = gtk_widget_get_gl_context(widget);
 	GdkGLDrawable *gldrawable = gtk_widget_get_gl_drawable(widget);
 
-	// Initialize shaders and layers after realizing GL area:
+	// Initialize viewport after realizing GL area, inside GL context:
 	gdk_gl_drawable_gl_begin(gldrawable, glcontext);
 	viewport_init();
+	gdk_gl_drawable_gl_end(gldrawable);
+}
+
+static void
+on_unrealize (GtkWidget *widget)
+{
+	GdkGLContext  *glcontext  = gtk_widget_get_gl_context(widget);
+	GdkGLDrawable *gldrawable = gtk_widget_get_gl_drawable(widget);
+
+	// Destroy viewport on unrealizing, but inside GL context:
+	gdk_gl_drawable_gl_begin(gldrawable, glcontext);
+	viewport_destroy();
 	gdk_gl_drawable_gl_end(gldrawable);
 }
 
@@ -111,6 +123,7 @@ connect_canvas_signals (GtkWidget *canvas)
 		{ "motion-notify-event",	G_CALLBACK(on_button_motion),		GDK_BUTTON_MOTION_MASK	},
 		{ "expose-event",		G_CALLBACK(framerate_request_refresh),	0			},
 		{ "realize",			G_CALLBACK(on_realize),			0			},
+		{ "unrealize",			G_CALLBACK(on_unrealize),		0			},
 	};
 
 	connect_signals(canvas, signals, sizeof(signals) / sizeof(signals[0]));
@@ -161,7 +174,6 @@ main (int argc, char **argv)
 	gtk_main();
 
 	framerate_destroy();
-	viewport_destroy();
 	tilepicker_destroy();
 
 	ret = 0;
