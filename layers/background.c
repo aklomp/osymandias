@@ -190,6 +190,19 @@ init (void)
 	return true;
 }
 
+static void
+destroy (void)
+{
+	// Delete texture:
+	glDeleteTextures(1, &tex.id);
+
+	// Delete vertex array object:
+	glDeleteVertexArrays(1, &vao);
+
+	// Delete vertex buffer:
+	glDeleteBuffers(1, &vbo);
+}
+
 struct layer *
 layer_background (void)
 {
@@ -197,6 +210,7 @@ layer_background (void)
 		.init     = &init,
 		.occludes = &occludes,
 		.paint    = &paint,
+		.destroy  = &destroy,
 	};
 
 	return &layer;
