@@ -1,4 +1,5 @@
 #include <stdbool.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "layers.h"
@@ -8,10 +9,11 @@
 #include "layers/osm.h"
 #include "layers/overview.h"
 
-#define LAYERS	5
-
 // Master list of layers, filled by layers_init():
-static struct layer *layers[LAYERS];
+static struct layer **layers = NULL;
+
+// Number of layers:
+static int nlayers = 0;
 
 void
 layers_paint (void)
@@ -21,14 +23,14 @@ layers_paint (void)
 	// Loop over all layers front to back,
 	// check if they occlude the background;
 	// if they do, then don't bother painting lower layers:
-	for (i = LAYERS - 1; i >= 0; i--)
+	for (i = nlayers - 1; i >= 0; i--)
 		if (layers[i]->occludes)
 			if (layers[i]->occludes())
 				break;
 
 	// If none of the layers claimed full occlusion,
 	// start with the first layer:
-	for (i = (i < 0) ? 0 : i; i < LAYERS; i++)
+	for (i = (i < 0) ? 0 : i; i < nlayers; i++)
 		if (layers[i]->paint)
 			layers[i]->paint();
 }
@@ -36,7 +38,7 @@ layers_paint (void)
 void
 layers_zoom (const unsigned int zoom)
 {
-	for (int i = 0; i < LAYERS; i++)
+	for (int i = 0; i < nlayers; i++)
 		if (layers[i]->zoom)
 			layers[i]->zoom(zoom);
 }
@@ -44,9 +46,11 @@ layers_zoom (const unsigned int zoom)
 void
 layers_destroy (void)
 {
-	for (int i = 0; i < LAYERS; i++)
+	for (int i = 0; i < nlayers; i++)
 		if (layers[i]->destroy)
 			layers[i]->destroy();
+
+	free(layers);
 }
 
 bool
@@ -60,10 +64,17 @@ layers_init (void)
 		layer_cursor(),
 	};
 
-	// Copy to static list:
-	memcpy(layers, l, sizeof(layers));
+	// Count the number of layers:
+	nlayers = sizeof(l) / sizeof(l[0]);
 
-	for (int i = 0; i < LAYERS; i++)
+	// Allocate space for static list:
+	if ((layers = malloc(sizeof(l))) == NULL)
+		return false;
+
+	// Copy to static list:
+	memcpy(layers, l, sizeof(l));
+
+	for (int i = 0; i < nlayers; i++)
 		if (layers[i]->init)
 			if (!layers[i]->init()) {
 				layers_destroy();
