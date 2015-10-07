@@ -18,7 +18,10 @@ struct shadermeta {
 };
 
 // Master list of programs, filled by programs_init():
-static struct program *programs[2];
+static struct program **programs = NULL;
+
+// Number of programs:
+static int nprograms = 0;
 
 static bool
 compile_success (const struct shadermeta *meta)
@@ -204,9 +207,11 @@ program_create (struct program *program)
 void
 programs_destroy (void)
 {
-	for (size_t i = 0; i < sizeof(programs) / sizeof(programs[0]); i++)
+	for (int i = 0; i < nprograms; i++)
 		if (programs[i]->created)
 			glDeleteProgram(programs[i]->id);
+
+	free(programs);
 }
 
 bool
@@ -217,10 +222,17 @@ programs_init (void)
 		program_cursor(),
 	};
 
-	// Copy to static list:
-	memcpy(programs, p, sizeof(programs));
+	// Count the number of programs:
+	nprograms = sizeof(p) / sizeof(p[0]);
 
-	for (size_t i = 0; i < sizeof(programs) / sizeof(programs[0]); i++)
+	// Allocate space for static list:
+	if ((programs = malloc(sizeof(p))) == NULL)
+		return false;
+
+	// Copy to static list:
+	memcpy(programs, p, sizeof(p));
+
+	for (int i = 0; i < nprograms; i++)
 		if (!program_create(programs[i])) {
 			programs_destroy();
 			return false;
