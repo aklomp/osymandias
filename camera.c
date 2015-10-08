@@ -1,11 +1,10 @@
 #include <stdbool.h>
 #include <math.h>
-
 #include <GL/gl.h>
-#include <GL/glu.h>
 
 #include "vector.h"
 #include "vector3d.h"
+#include "matrix.h"
 
 struct camera
 {
@@ -14,10 +13,6 @@ struct camera
 	float tilt;	// tilt from vertical, in degrees
 	float rot;	// rotation along z axis, in degrees
 	float zdist;	// distance from camera to cursor in z units (camera height)
-
-	vec4f refx;	// unit vectors in x, y, z directions
-	vec4f refy;
-	vec4f refz;
 
 	float clip_near;
 	float clip_far;
@@ -29,6 +24,11 @@ struct camera
 	float vtan;	// tan of vertical viewing angle
 
 	vec4f frustum_planes[4];
+
+	float mat_tilt[16];	// Tilt matrix
+	float mat_rot[16];	// Rotate matrix
+	float mat_trans[16];	// Translation out of origin
+	float mat[16];		// View matrix
 };
 
 static struct camera cam;
@@ -45,12 +45,18 @@ camera_tilt (const float radians)
 	// If almost vertical, snap to perfectly vertical:
 	if (cam.tilt < 0.005f)
 		cam.tilt = 0.0f;
+
+	// Tilt occurs around the x axis:
+	mat_rotate(cam.mat_tilt, 1, 0, 0, cam.tilt);
 }
 
 void
 camera_rotate (const float radians)
 {
 	cam.rot += radians;
+
+	// Rotate occurs around the z axis:
+	mat_rotate(cam.mat_rot, 0, 0, 1, cam.rot);
 }
 
 static void
@@ -60,11 +66,9 @@ extract_frustum_planes (void)
 	// Fast Extraction of Viewing Frustum Planes from the World-View-Projection Matrix
 
 	float m[16];
-	glGetFloatv(GL_MODELVIEW_MATRIX, m);
-
 	glMatrixMode(GL_PROJECTION);
 	glPushMatrix();
-	glMultMatrixf(m);
+	glMultMatrixf(cam.mat);
 	glGetFloatv(GL_PROJECTION_MATRIX, m);
 	glPopMatrix();
 
@@ -117,61 +121,21 @@ camera_setup (const int screen_wd, const int screen_ht)
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
 
-	// gluLookAt() does not work when up vector == view vector (underdefined);
-	// use old-fashioned rotate/translate to setup the modelview matrix:
-	if (cam.tilt == 0.0)
-	{
-		float sin, cos;
+	// Compose camera matrix from individual matrices:
+	mat_multiply(cam.mat, cam.mat_tilt, cam.mat_rot);
+	mat_multiply(cam.mat, cam.mat_trans, cam.mat);
+	glLoadMatrixf(cam.mat);
 
-		glTranslatef(0, 0, -cam.zdist);
-		glRotatef(cam.rot * 180.0f / M_PI, 0, 0, 1);
+	// This was reverse-engineered by observing that the values in the
+	// third row of the matrix matched the normalized camera position.
+	// TODO: derive this properly.
+	cam.pos = (vec4f) {
+		cam.mat[2]  * -cam.mat[14],
+		cam.mat[6]  * -cam.mat[14],
+		cam.mat[10] * -cam.mat[14],
+		0.0f
+	};
 
-		// z reference vector is straight down:
-		cam.refz = (vec4f){ 0, 0, -1, 0 };
-
-		// Camera's position is the inverse, since we look at the origin:
-		cam.pos = -cam.refz * vec4f_float(cam.zdist);
-
-		// Precalculate sine and cosine of rotation:
-		sincosf(cam.rot, &sin, &cos);
-
-		// y reference vector is the rotation:
-		cam.refy = (vec4f){ sin, cos, 0, 0 };
-
-		// x reference is cross product of the other two:
-		cam.refx = vector3d_cross(cam.refz, cam.refy);
-	}
-	else {
-		float lat = -cam.tilt;
-		float lon = cam.rot;
-		float sinlat, coslat;
-		float sinlon, coslon;
-
-		sincosf(lat, &sinlat, &coslat);
-		sincosf(lon, &sinlon, &coslon);
-
-		// Place the camera on a sphere centered around (0,0,0):
-		cam.refz = (vec4f){
-			-sinlat * sinlon,
-			-sinlat * coslon,
-			-coslat,
-			0
-		};
-		// Camera's position is the inverse, since we look at the origin:
-		cam.pos = -cam.refz * vec4f_float(cam.zdist);
-
-		// The x reference axis is just the rotation in the xy plane:
-		cam.refx = (vec4f){ -coslon, sinlon, 0, 0 };
-
-		// Cross x and z to get the y vector:
-		cam.refy = vector3d_cross(cam.refx, cam.refz);
-
-		gluLookAt(
-			cam.pos[0], cam.pos[1], cam.pos[2],	// Eye point
-			0, 0, 0,				// Lookat point (always the origin)
-			0, 0, 1					// Up vector
-		);
-	}
 	extract_frustum_planes();
 }
 
@@ -317,6 +281,11 @@ camera_init (void)
 	// Clip planes:
 	cam.clip_near =   1.0;
 	cam.clip_far  = 100.0;
+
+	// Initialize tilt, rotate and translate matrices:
+	mat_identity(cam.mat_rot);
+	mat_identity(cam.mat_tilt);
+	mat_translate(cam.mat_trans, 0, 0, -cam.zdist);
 
 	return true;
 }
