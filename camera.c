@@ -44,17 +44,17 @@ static struct camera cam =
 };
 
 void
-camera_tilt (const int dy)
+camera_tilt (const float radians)
 {
-	if (dy == 0) return;
+	cam.tilt += radians;
 
-	cam.tilt += (float)dy * 0.1;
+	// Always keep a small angle to the map:
+	if (cam.tilt > 1.4f)
+		cam.tilt = 1.4f;
 
-	if (cam.tilt > 80.0) cam.tilt = 80.0;
-	if (cam.tilt < 0.0) cam.tilt = 0.0;
-
-	// Snap to 0.0:
-	if (cam.tilt < 0.05) cam.tilt = 0.0;
+	// If almost vertical, snap to perfectly vertical:
+	if (cam.tilt < 0.005f)
+		cam.tilt = 0.0f;
 }
 
 void
@@ -139,7 +139,6 @@ camera_setup (const int screen_wd, const int screen_ht)
 		float sin, cos;
 
 		glTranslatef(0, 0, -cam.zdist);
-		glRotatef(-cam.tilt, 1, 0, 0);
 		glRotatef(cam.rot, 0, 0, 1);
 
 		// z reference vector is straight down:
@@ -158,7 +157,7 @@ camera_setup (const int screen_wd, const int screen_ht)
 		cam.refx = vector3d_cross(cam.refz, cam.refy);
 	}
 	else {
-		float lat = -cam.tilt * M_PI / 180.0f;
+		float lat = -cam.tilt;
 		float lon = cam.rot * M_PI / 180.0f;
 		float sinlat, coslat;
 		float sinlon, coslon;
