@@ -31,17 +31,7 @@ struct camera
 	vec4f frustum_planes[4];
 };
 
-static struct camera cam =
-{
-	.pos = { 0, 0, 4, 0 },
-
-	.tilt = 0,
-	.rot = 0,
-	.zdist = 4,
-
-	.clip_near = 1.0,
-	.clip_far = 100.0,
-};
+static struct camera cam;
 
 void
 camera_tilt (const float radians)
@@ -306,4 +296,27 @@ bool
 camera_is_rotated (void)
 {
 	return (cam.rot != 0.0f);
+}
+
+void
+camera_destroy (void)
+{
+}
+
+bool
+camera_init (void)
+{
+	// Initial position in space:
+	cam.zdist = 4;
+	cam.pos = (vec4f){ 0, 0, cam.zdist, 0 };
+
+	// Initial attitude:
+	cam.tilt = 0;
+	cam.rot  = 0;
+
+	// Clip planes:
+	cam.clip_near =   1.0;
+	cam.clip_far  = 100.0;
+
+	return true;
 }

@@ -142,12 +142,16 @@ viewport_init (void)
 	if (!layers_init())
 		return false;
 
+	if (!camera_init())
+		return false;
+
 	return true;
 }
 
 void
 viewport_destroy (void)
 {
+	camera_destroy();
 	layers_destroy();
 	programs_destroy();
 }

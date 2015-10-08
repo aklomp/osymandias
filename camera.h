@@ -1,3 +1,5 @@
+bool camera_init (void);
+void camera_destroy (void);
 void camera_tilt (const float radians);
 void camera_rotate (const float radians);
 void camera_setup (const int screen_wd, const int screen_ht);
