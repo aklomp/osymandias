@@ -29,13 +29,8 @@ OBJS_GTK = \
 
 OBJS_GTKGL = \
   programs.o \
-  layers/osm.o \
-  layers/cursor.o \
-  layers/overview.o \
-  layers/blanktile.o \
-  programs/bkgd.o \
-  programs/cursor.o \
-  layers/background.o \
+  $(patsubst %.c,%.o,$(wildcard layers/*.c)) \
+  $(patsubst %.c,%.o,$(wildcard programs/*.c))
 
 OBJS_GTK_GTKGL = \
   main.o \
