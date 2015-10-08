@@ -58,14 +58,9 @@ camera_tilt (const float radians)
 }
 
 void
-camera_rotate (const int dx)
+camera_rotate (const float radians)
 {
-	if (dx == 0) return;
-
-	cam.rot += (float)dx * 0.1;
-
-	if (cam.rot < 0.0) cam.rot += 360.0;
-	if (cam.rot >= 360.0) cam.rot -= 360.0;
+	cam.rot += radians;
 }
 
 static void
@@ -139,7 +134,7 @@ camera_setup (const int screen_wd, const int screen_ht)
 		float sin, cos;
 
 		glTranslatef(0, 0, -cam.zdist);
-		glRotatef(cam.rot, 0, 0, 1);
+		glRotatef(cam.rot * 180.0f / M_PI, 0, 0, 1);
 
 		// z reference vector is straight down:
 		cam.refz = (vec4f){ 0, 0, -1, 0 };
@@ -148,7 +143,7 @@ camera_setup (const int screen_wd, const int screen_ht)
 		cam.pos = -cam.refz * vec4f_float(cam.zdist);
 
 		// Precalculate sine and cosine of rotation:
-		sincosf(cam.rot * M_PI / 180.0f, &sin, &cos);
+		sincosf(cam.rot, &sin, &cos);
 
 		// y reference vector is the rotation:
 		cam.refy = (vec4f){ sin, cos, 0, 0 };
@@ -158,7 +153,7 @@ camera_setup (const int screen_wd, const int screen_ht)
 	}
 	else {
 		float lat = -cam.tilt;
-		float lon = cam.rot * M_PI / 180.0f;
+		float lon = cam.rot;
 		float sinlat, coslat;
 		float sinlon, coslon;
 
@@ -304,11 +299,11 @@ camera_visible_quad (const vec4f a, const vec4f b, const vec4f c, const vec4f d)
 bool
 camera_is_tilted (void)
 {
-	return (cam.tilt != 0.0);
+	return (cam.tilt != 0.0f);
 }
 
 bool
 camera_is_rotated (void)
 {
-	return (cam.rot != 0.0);
+	return (cam.rot != 0.0f);
 }

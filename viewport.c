@@ -250,7 +250,7 @@ viewport_rotate (const int dx)
 {
 	if (dx == 0) return;
 
-	camera_rotate(dx);
+	camera_rotate(dx * 0.005f);
 
 	// Basic shape of frustum stays the same, but it's rotated:
 	frustum_changed_location();
