@@ -33,6 +33,28 @@ struct camera
 
 static struct camera cam;
 
+// Update view matrix after tilt/rot/trans changed:
+static void
+mat_view_update (void)
+{
+	// Compose view matrix from individual matrices:
+	mat_multiply(cam.mat_view, cam.mat_tilt, cam.mat_rot);
+	mat_multiply(cam.mat_view, cam.mat_trans, cam.mat_view);
+
+	// This was reverse-engineered by observing that the values in the
+	// third row of the matrix matched the normalized camera position.
+	// TODO: derive this properly.
+	cam.pos = (vec4f) {
+		cam.mat_view[2]  * -cam.mat_view[14],
+		cam.mat_view[6]  * -cam.mat_view[14],
+		cam.mat_view[10] * -cam.mat_view[14],
+		0.0f
+	};
+
+	// TODO: when we also generate our own projection matrix,
+	// extract the frustum planes at this point.
+}
+
 void
 camera_tilt (const float radians)
 {
@@ -48,6 +70,9 @@ camera_tilt (const float radians)
 
 	// Tilt occurs around the x axis:
 	mat_rotate(cam.mat_tilt, 1, 0, 0, cam.tilt);
+
+	// Update view matrix:
+	mat_view_update();
 }
 
 void
@@ -57,6 +82,9 @@ camera_rotate (const float radians)
 
 	// Rotate occurs around the z axis:
 	mat_rotate(cam.mat_rot, 0, 0, 1, cam.rot);
+
+	// Update view matrix:
+	mat_view_update();
 }
 
 static void
@@ -118,23 +146,9 @@ camera_setup (const int screen_wd, const int screen_ht)
 	// Yes, even glTranslated() does not work at the required precision.
 	// Yes, even when used on the MODELVIEW matrix.
 
-	// Compose view matrix from individual matrices:
-	mat_multiply(cam.mat_view, cam.mat_tilt, cam.mat_rot);
-	mat_multiply(cam.mat_view, cam.mat_trans, cam.mat_view);
-
 	// Upload the view matrix:
 	glMatrixMode(GL_MODELVIEW);
 	glLoadMatrixf(cam.mat_view);
-
-	// This was reverse-engineered by observing that the values in the
-	// third row of the matrix matched the normalized camera position.
-	// TODO: derive this properly.
-	cam.pos = (vec4f) {
-		cam.mat_view[2]  * -cam.mat_view[14],
-		cam.mat_view[6]  * -cam.mat_view[14],
-		cam.mat_view[10] * -cam.mat_view[14],
-		0.0f
-	};
 
 	extract_frustum_planes();
 }
@@ -286,6 +300,9 @@ camera_init (void)
 	mat_identity(cam.mat_rot);
 	mat_identity(cam.mat_tilt);
 	mat_translate(cam.mat_trans, 0, 0, -cam.zdist);
+
+	// Initialize view matrix:
+	mat_view_update();
 
 	return true;
 }
