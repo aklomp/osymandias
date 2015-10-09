@@ -28,7 +28,7 @@ struct camera
 	float mat_tilt[16];	// Tilt matrix
 	float mat_rot[16];	// Rotate matrix
 	float mat_trans[16];	// Translation out of origin
-	float mat[16];		// View matrix
+	float mat_view[16];	// View matrix
 };
 
 static struct camera cam;
@@ -68,7 +68,7 @@ extract_frustum_planes (void)
 	float m[16];
 	glMatrixMode(GL_PROJECTION);
 	glPushMatrix();
-	glMultMatrixf(cam.mat);
+	glMultMatrixf(cam.mat_view);
 	glGetFloatv(GL_PROJECTION_MATRIX, m);
 	glPopMatrix();
 
@@ -118,21 +118,21 @@ camera_setup (const int screen_wd, const int screen_ht)
 	// Yes, even glTranslated() does not work at the required precision.
 	// Yes, even when used on the MODELVIEW matrix.
 
-	glMatrixMode(GL_MODELVIEW);
-	glLoadIdentity();
+	// Compose view matrix from individual matrices:
+	mat_multiply(cam.mat_view, cam.mat_tilt, cam.mat_rot);
+	mat_multiply(cam.mat_view, cam.mat_trans, cam.mat_view);
 
-	// Compose camera matrix from individual matrices:
-	mat_multiply(cam.mat, cam.mat_tilt, cam.mat_rot);
-	mat_multiply(cam.mat, cam.mat_trans, cam.mat);
-	glLoadMatrixf(cam.mat);
+	// Upload the view matrix:
+	glMatrixMode(GL_MODELVIEW);
+	glLoadMatrixf(cam.mat_view);
 
 	// This was reverse-engineered by observing that the values in the
 	// third row of the matrix matched the normalized camera position.
 	// TODO: derive this properly.
 	cam.pos = (vec4f) {
-		cam.mat[2]  * -cam.mat[14],
-		cam.mat[6]  * -cam.mat[14],
-		cam.mat[10] * -cam.mat[14],
+		cam.mat_view[2]  * -cam.mat_view[14],
+		cam.mat_view[6]  * -cam.mat_view[14],
+		cam.mat_view[10] * -cam.mat_view[14],
 		0.0f
 	};
 
