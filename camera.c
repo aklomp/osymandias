@@ -17,18 +17,13 @@ struct camera
 	float clip_near;
 	float clip_far;
 
-	float halfwd;	// half of screen width
-	float halfht;	// half of screen height
-
-	float htan;	// tan of horizontal viewing angle
-	float vtan;	// tan of vertical viewing angle
-
 	vec4f frustum_planes[4];
 
 	float mat_tilt[16];	// Tilt matrix
 	float mat_rot[16];	// Rotate matrix
 	float mat_trans[16];	// Translation out of origin
 	float mat_view[16];	// View matrix
+	float mat_proj[16];	// Projection matrix
 };
 
 static struct camera cam;
@@ -45,14 +40,34 @@ mat_view_update (void)
 	// third row of the matrix matched the normalized camera position.
 	// TODO: derive this properly.
 	cam.pos = (vec4f) {
-		cam.mat_view[2]  * -cam.mat_view[14],
-		cam.mat_view[6]  * -cam.mat_view[14],
-		cam.mat_view[10] * -cam.mat_view[14],
-		0.0f
+		cam.mat_view[2]  * cam.mat_view[14],
+		cam.mat_view[6]  * cam.mat_view[14],
+		cam.mat_view[10] * cam.mat_view[14],
+		1.0f
 	};
 
 	// TODO: when we also generate our own projection matrix,
 	// extract the frustum planes at this point.
+}
+
+// Recaculate the projection matrix when screen size changes:
+void
+camera_projection (const int screen_wd, const int screen_ht)
+{
+	// This is built around the idea that 1 screen pixel should
+	// correspond with 1 texture pixel at 0 degrees tilt angle.
+
+	// Screen aspect ratio:
+	float aspect = (float)screen_wd / (float)screen_ht;
+
+	// Half the screen width in units of 256-pixel tiles:
+	float halfwd = (float)screen_wd / 2.0f / 256.0f;
+
+	// Horizontal viewing angle:
+	float angle = atanf(halfwd / cam.zdist);
+
+	// Generate projection matrix:
+	mat_frustum(cam.mat_proj, angle, aspect, cam.clip_near, cam.clip_far);
 }
 
 void
@@ -61,11 +76,11 @@ camera_tilt (const float radians)
 	cam.tilt += radians;
 
 	// Always keep a small angle to the map:
-	if (cam.tilt > 1.4f)
-		cam.tilt = 1.4f;
+	if (cam.tilt < -1.4f)
+		cam.tilt = -1.4f;
 
 	// If almost vertical, snap to perfectly vertical:
-	if (cam.tilt < 0.005f)
+	if (cam.tilt > -0.005f)
 		cam.tilt = 0.0f;
 
 	// Tilt occurs around the x axis:
@@ -94,11 +109,7 @@ extract_frustum_planes (void)
 	// Fast Extraction of Viewing Frustum Planes from the World-View-Projection Matrix
 
 	float m[16];
-	glMatrixMode(GL_PROJECTION);
-	glPushMatrix();
-	glMultMatrixf(cam.mat_view);
-	glGetFloatv(GL_PROJECTION_MATRIX, m);
-	glPopMatrix();
+	mat_multiply(m, cam.mat_proj, cam.mat_view);
 
 	// The actual calculations, which we can optimize by collecting terms:
 	// cam.frustum_planes[0] = (vec4f) { m[3] + m[0], m[7] + m[4], m[11] + m[8], m[15] + m[12] };
@@ -117,34 +128,11 @@ extract_frustum_planes (void)
 }
 
 void
-camera_setup (const int screen_wd, const int screen_ht)
+camera_setup (void)
 {
-	// The center point (lookat point) is always at (0,0,0); the camera
-	// floats around that point on a sphere.
-
-	float halfwd = (float)screen_wd / 512.0f;
-	float halfht = (float)screen_ht / 512.0f;
-
-	cam.halfwd = halfwd / cam.zdist;
-	cam.halfht = halfht / cam.zdist;
-
-	cam.htan = cam.halfwd / cam.clip_near;
-	cam.vtan = cam.halfht / cam.clip_near;
-
-	// This is built around the idea that the screen center is at (0,0) and
-	// that 1 pixel of the screen should correspond with 1 texture pixel at
-	// 0 degrees tilt angle:
-	glFrustum(-cam.halfwd, cam.halfwd, -cam.halfht, cam.halfht, cam.clip_near, cam.clip_far);
-
-	// NB: layers that use this projection need to MANUALLY offset all
-	// coordinates with (-center_x, -center_y)! This is necessary because
-	// OpenGL uses floats internally, and their precision is not high
-	// enough for pixel-perfect placement in far corners of a giant world.
-	// So we keep the ortho window close around the origin, where floats
-	// are still precise enough, and apply the transformation *manually* in
-	// software.
-	// Yes, even glTranslated() does not work at the required precision.
-	// Yes, even when used on the MODELVIEW matrix.
+	// Upload the projection matrix:
+	glMatrixMode(GL_PROJECTION);
+	glLoadMatrixf(cam.mat_proj);
 
 	// Upload the view matrix:
 	glMatrixMode(GL_MODELVIEW);
@@ -299,7 +287,7 @@ camera_init (void)
 	// Initialize tilt, rotate and translate matrices:
 	mat_identity(cam.mat_rot);
 	mat_identity(cam.mat_tilt);
-	mat_translate(cam.mat_trans, 0, 0, -cam.zdist);
+	mat_translate(cam.mat_trans, 0, 0, cam.zdist);
 
 	// Initialize view matrix:
 	mat_view_update();

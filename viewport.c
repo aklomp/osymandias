@@ -243,7 +243,7 @@ viewport_tilt (const int dy)
 {
 	if (dy == 0) return;
 
-	camera_tilt(dy * 0.005f);
+	camera_tilt(dy * -0.005f);
 
 	// This warps the frustum:
 	frustum_changed_shape();
@@ -270,6 +270,9 @@ viewport_reshape (const unsigned int new_width, const unsigned int new_height)
 	}
 	screen_wd = new_width;
 	screen_ht = new_height;
+
+	// Update camera's projection matrix:
+	camera_projection(screen_wd, screen_ht);
 
 	frustum_changed_shape();
 
@@ -471,7 +474,7 @@ viewport_gl_setup_world_planar (void)
 	// Pixel snap offset, ensures proper pixel rounding:
 	glTranslatef(0.375 / 256.0, 0.375 / 256.0, 0.0);
 
-	camera_setup(screen_wd, screen_ht);
+	camera_setup();
 
 	glGetDoublev(GL_MODELVIEW_MATRIX, modelview);
 	glGetDoublev(GL_PROJECTION_MATRIX, projection);
@@ -519,7 +522,7 @@ viewport_gl_setup_world_spherical (void)
 	// Pixel snap offset, ensures proper pixel rounding:
 	glTranslatef(0.375 / 256.0, 0.375 / 256.0, 0.0);
 
-	camera_setup(screen_wd, screen_ht);
+	camera_setup();
 
 	glGetDoublev(GL_MODELVIEW_MATRIX, modelview);
 	glGetDoublev(GL_PROJECTION_MATRIX, projection);

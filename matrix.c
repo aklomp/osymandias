@@ -79,6 +79,27 @@ mat_rotate (float *matrix, float x, float y, float z, float angle)
 }
 
 void
+mat_frustum (float *matrix, float angle_of_view, float aspect_ratio, float z_near, float z_far)
+{
+	matrix[0] = 1.0f / tanf(angle_of_view);
+	matrix[1] = 0.0f;
+	matrix[2] = 0.0f;
+	matrix[3] = 0.0f;
+	matrix[4] = 0.0f;
+	matrix[5] = aspect_ratio / tanf(angle_of_view);
+	matrix[6] = 0.0f;
+	matrix[7] = 0.0f;
+	matrix[8] = 0.0f;
+	matrix[9] = 0.0f;
+	matrix[10] = (z_far + z_near) / (z_far - z_near);
+	matrix[11] = 1.0f;
+	matrix[12] = 0.0f;
+	matrix[13] = 0.0f;
+	matrix[14] = -2.0f * z_far * z_near / (z_far - z_near);
+	matrix[15] = 0.0f;
+}
+
+void
 mat_multiply (float *matrix, const float *a, const float *b)
 {
 	float result[16];
