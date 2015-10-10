@@ -60,5 +60,9 @@ tilepoint_to_xyz (const float x, const float y, const double world_size, const d
 	double lat = tile_y_to_lat(y, world_size);
 	double px, py, pz;
 
-	latlon_to_xyz(lat, lon, world_size, cx_lon, sin_cy_lat, cos_cy_lat, &px, &py, &pz); p[0] = px; p[1] = py; p[2] = pz;
+	latlon_to_xyz(lat, lon, world_size, cx_lon, sin_cy_lat, cos_cy_lat, &px, &py, &pz);
+
+	p[0] = px;
+	p[1] = py;
+	p[2] = -pz;
 }
