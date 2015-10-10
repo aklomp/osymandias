@@ -79,7 +79,7 @@ mat_rotate (float *matrix, float x, float y, float z, float angle)
 }
 
 void
-mat_multiply (float *matrix, float *a, float *b)
+mat_multiply (float *matrix, const float *a, const float *b)
 {
 	float result[16];
 	for (int c = 0; c < 4; c++) {
