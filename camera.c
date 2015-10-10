@@ -28,6 +28,31 @@ struct camera
 
 static struct camera cam;
 
+static void
+extract_frustum_planes (void)
+{
+	// Source: Gribb & Hartmann,
+	// Fast Extraction of Viewing Frustum Planes from the World-View-Projection Matrix
+
+	float m[16];
+	mat_multiply(m, cam.mat_proj, cam.mat_view);
+
+	// The actual calculations, which we can optimize by collecting terms:
+	// cam.frustum_planes[0] = (vec4f) { m[3] + m[0], m[7] + m[4], m[11] + m[8], m[15] + m[12] };
+	// cam.frustum_planes[1] = (vec4f) { m[3] - m[0], m[7] - m[4], m[11] - m[8], m[15] - m[12] };
+	// cam.frustum_planes[2] = (vec4f) { m[3] + m[1], m[7] + m[5], m[11] + m[9], m[15] + m[13] };
+	// cam.frustum_planes[3] = (vec4f) { m[3] - m[1], m[7] - m[5], m[11] - m[9], m[15] - m[13] };
+
+	const vec4f c = { m[3], m[7], m[11], m[15] };
+	const vec4f u = { m[0], m[4],  m[8], m[12] };
+	const vec4f v = { m[1], m[5],  m[9], m[13] };
+
+	cam.frustum_planes[0] = c + u;
+	cam.frustum_planes[1] = c - u;
+	cam.frustum_planes[2] = c + v;
+	cam.frustum_planes[3] = c - v;
+}
+
 // Update view matrix after tilt/rot/trans changed:
 static void
 mat_view_update (void)
@@ -46,8 +71,8 @@ mat_view_update (void)
 		1.0f
 	};
 
-	// TODO: when we also generate our own projection matrix,
-	// extract the frustum planes at this point.
+	// Extract the frustum planes from the updated MVP matrix:
+	extract_frustum_planes();
 }
 
 // Recaculate the projection matrix when screen size changes:
@@ -68,6 +93,9 @@ camera_projection (const int screen_wd, const int screen_ht)
 
 	// Generate projection matrix:
 	mat_frustum(cam.mat_proj, angle, aspect, cam.clip_near, cam.clip_far);
+
+	// Extract the frustum planes from the updated MVP matrix:
+	extract_frustum_planes();
 }
 
 void
@@ -102,31 +130,6 @@ camera_rotate (const float radians)
 	mat_view_update();
 }
 
-static void
-extract_frustum_planes (void)
-{
-	// Source: Gribb & Hartmann,
-	// Fast Extraction of Viewing Frustum Planes from the World-View-Projection Matrix
-
-	float m[16];
-	mat_multiply(m, cam.mat_proj, cam.mat_view);
-
-	// The actual calculations, which we can optimize by collecting terms:
-	// cam.frustum_planes[0] = (vec4f) { m[3] + m[0], m[7] + m[4], m[11] + m[8], m[15] + m[12] };
-	// cam.frustum_planes[1] = (vec4f) { m[3] - m[0], m[7] - m[4], m[11] - m[8], m[15] - m[12] };
-	// cam.frustum_planes[2] = (vec4f) { m[3] + m[1], m[7] + m[5], m[11] + m[9], m[15] + m[13] };
-	// cam.frustum_planes[3] = (vec4f) { m[3] - m[1], m[7] - m[5], m[11] - m[9], m[15] - m[13] };
-
-	const vec4f c = { m[3], m[7], m[11], m[15] };
-	const vec4f u = { m[0], m[4],  m[8], m[12] };
-	const vec4f v = { m[1], m[5],  m[9], m[13] };
-
-	cam.frustum_planes[0] = c + u;
-	cam.frustum_planes[1] = c - u;
-	cam.frustum_planes[2] = c + v;
-	cam.frustum_planes[3] = c - v;
-}
-
 void
 camera_setup (void)
 {
@@ -137,8 +140,6 @@ camera_setup (void)
 	// Upload the view matrix:
 	glMatrixMode(GL_MODELVIEW);
 	glLoadMatrixf(cam.mat_view);
-
-	extract_frustum_planes();
 }
 
 float
