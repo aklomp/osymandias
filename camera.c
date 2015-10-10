@@ -24,6 +24,7 @@ struct camera
 	float mat_trans[16];	// Translation out of origin
 	float mat_view[16];	// View matrix
 	float mat_proj[16];	// Projection matrix
+	float mat_mvp[16];	// Model-view-projection matrix
 };
 
 static struct camera cam;
@@ -34,8 +35,8 @@ extract_frustum_planes (void)
 	// Source: Gribb & Hartmann,
 	// Fast Extraction of Viewing Frustum Planes from the World-View-Projection Matrix
 
-	float m[16];
-	mat_multiply(m, cam.mat_proj, cam.mat_view);
+	// Shorthand:
+	float *m = cam.mat_mvp;
 
 	// The actual calculations, which we can optimize by collecting terms:
 	// cam.frustum_planes[0] = (vec4f) { m[3] + m[0], m[7] + m[4], m[11] + m[8], m[15] + m[12] };
@@ -51,6 +52,17 @@ extract_frustum_planes (void)
 	cam.frustum_planes[1] = c - u;
 	cam.frustum_planes[2] = c + v;
 	cam.frustum_planes[3] = c - v;
+}
+
+// Update model-view-projection matrix after view or projection changed:
+static void
+mat_mvp_update (void)
+{
+	// Generate the MVP matrix:
+	mat_multiply(cam.mat_mvp, cam.mat_proj, cam.mat_view);
+
+	// Extract the frustum planes from the updated MVP matrix:
+	extract_frustum_planes();
 }
 
 // Update view matrix after tilt/rot/trans changed:
@@ -71,8 +83,8 @@ mat_view_update (void)
 		1.0f
 	};
 
-	// Extract the frustum planes from the updated MVP matrix:
-	extract_frustum_planes();
+	// This changes the MVP matrix:
+	mat_mvp_update();
 }
 
 // Recaculate the projection matrix when screen size changes:
@@ -94,8 +106,8 @@ camera_projection (const int screen_wd, const int screen_ht)
 	// Generate projection matrix:
 	mat_frustum(cam.mat_proj, angle, aspect, cam.clip_near, cam.clip_far);
 
-	// Extract the frustum planes from the updated MVP matrix:
-	extract_frustum_planes();
+	// This changes the MVP matrix:
+	mat_mvp_update();
 }
 
 void
