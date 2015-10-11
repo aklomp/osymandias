@@ -50,7 +50,7 @@ static struct vertex {
 	float y;
 	float u;
 	float v;
-}
+} __attribute__((packed))
 vertex[4];
 
 // Array of indices. We define two counterclockwise triangles:
@@ -129,12 +129,6 @@ paint (void)
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, tex.id);
-
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
-
-	glMatrixMode(GL_MODELVIEW);
-	glLoadIdentity();
 
 	// Copy vertices to buffer:
 	glBindBuffer(GL_ARRAY_BUFFER, vbo);
