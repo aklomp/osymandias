@@ -1,6 +1,7 @@
 #include <stdbool.h>
 #include <GL/gl.h>
 
+#include "../matrix.h"
 #include "../world.h"
 #include "../viewport.h"
 #include "../layers.h"
@@ -19,6 +20,9 @@ occludes (void)
 static inline void
 setup_viewport (int world_zoom, double world_size)
 {
+	// Projection matrix:
+	static float mat_proj[16];
+
 	// Make room within the world for one extra pixel at each side,
 	// to keep the outlines on the far tiles within frame:
 	double one_pixel_at_scale = (1 << world_zoom) / SIZE;
@@ -27,11 +31,13 @@ setup_viewport (int world_zoom, double world_size)
 	int xpos = viewport_get_wd() - MARGIN - SIZE;
 	int ypos = viewport_get_ht() - MARGIN - SIZE;
 
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
 	glLineWidth(1.0);
-	glOrtho(0, world_size, 0, world_size, 0, 1);
 	glViewport(xpos, ypos, SIZE, SIZE);
+
+	mat_ortho(mat_proj, 0, world_size, 0, world_size, 0, 1);
+
+	glMatrixMode(GL_PROJECTION);
+	glLoadMatrixf(mat_proj);
 
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();

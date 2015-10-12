@@ -8,6 +8,7 @@
 #include <GL/glu.h>
 
 #include "vector.h"
+#include "matrix.h"
 #include "autoscroll.h"
 #include "world.h"
 #include "camera.h"
@@ -439,15 +440,19 @@ viewport_calc_bbox (void)
 void
 viewport_gl_setup_screen (void)
 {
+	float mat_proj[16];
+
 	// Setup the OpenGL frustrum to map 1:1 to screen coordinates,
 	// with the origin at left bottom. Handy for drawing items that
 	// are statically positioned relative to the screen, such as the
 	// background and the cursor.
 
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
-	glOrtho(0, screen_wd, 0, screen_ht, 0, 1);
 	glViewport(0, 0, screen_wd, screen_ht);
+
+	mat_ortho(mat_proj, 0, screen_wd, 0, screen_ht, 0, 1);
+
+	glMatrixMode(GL_PROJECTION);
+	glLoadMatrixf(mat_proj);
 
 	// Slight translation to snap line artwork to pixels:
 	glMatrixMode(GL_MODELVIEW);
