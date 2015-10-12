@@ -8,6 +8,7 @@
 #include "programs.h"
 #include "programs/bkgd.h"
 #include "programs/cursor.h"
+#include "programs/solid.h"
 
 // Local helper struct for compiling shaders:
 struct shadermeta {
@@ -220,6 +221,7 @@ programs_init (void)
 	struct program *p[] = {
 		program_bkgd(),
 		program_cursor(),
+		program_solid(),
 	};
 
 	// Count the number of programs:
