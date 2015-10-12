@@ -115,10 +115,6 @@ texcoords (float screen_wd, float screen_ht)
 static void
 paint (void)
 {
-	// Nothing to do if the viewport is completely within world bounds:
-	if (viewport_within_world_bounds())
-		return;
-
 	// Update texture coordinates:
 	texcoords(viewport_get_wd(), viewport_get_ht());
 
