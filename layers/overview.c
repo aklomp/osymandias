@@ -6,12 +6,28 @@
 #include "../viewport.h"
 #include "../layers.h"
 #include "../tilepicker.h"
+#include "../inlinebin.h"
+#include "../programs.h"
+#include "../programs/solid.h"
 
 #define SIZE	256.0f
 #define MARGIN	 10.0f
 
 // Projection matrix:
 static float mat_proj[16];
+
+static GLuint vao_bkgd;
+static GLuint vbo_bkgd;
+
+// Each point has 2D space coordinates and color:
+struct vertex {
+	float x;
+	float y;
+	float r;
+	float g;
+	float b;
+	float a;
+} __attribute__((packed));
 
 static bool
 occludes (void)
@@ -43,21 +59,39 @@ setup_viewport (void)
 }
 
 static void
+paint_background (void)
+{
+	// Array of indices. We define two counterclockwise triangles:
+	// 0-1-3 and 1-2-3
+	GLubyte index[6] = {
+		0, 1, 3,
+		1, 2, 3,
+	};
+
+	// Draw solid background:
+	glBindVertexArray(vao_bkgd);
+	glBindBuffer(GL_ARRAY_BUFFER, vbo_bkgd);
+	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_BYTE, index);
+}
+
+static void
 paint (void)
 {
-	double world_size = world_get_size();
-
 	// Draw 1:1 to screen coordinates, origin bottom left:
 	setup_viewport();
 
-	// World plane background:
-	glColor4f(0.3, 0.3, 0.3, 0.5);
-	glBegin(GL_QUADS);
-		glVertex2d(0, 0);
-		glVertex2d(0, world_size);
-		glVertex2d(world_size, world_size);
-		glVertex2d(world_size, 0);
-	glEnd();
+	double world_size = world_get_size();
+
+	// Use the solid program:
+	program_solid_use(&((struct program_solid) {
+		.matrix = mat_proj,
+	}));
+
+	// Paint background:
+	paint_background();
+
+	// Reset program:
+	program_none();
 
 	// Draw tiles from tile picker:
 	int zoom;
@@ -128,21 +162,71 @@ paint (void)
 static void
 zoom (const unsigned int zoom)
 {
-	double world_size = world_get_size();
+	double size = world_get_size();
 
 	// Make room within the world for one extra pixel at each side,
 	// to keep the outlines on the far tiles within frame:
 	double one_pixel_at_scale = (1 << zoom) / SIZE;
-	world_size += one_pixel_at_scale;
+	size += one_pixel_at_scale;
 
-	mat_ortho(mat_proj, 0, world_size, 0, world_size, 0, 1);
+	mat_ortho(mat_proj, 0, size, 0, size, 0, 1);
+
+	// Background quad is array of counterclockwise vertices:
+	//
+	//   3--2
+	//   |  |
+	//   0--1
+	//
+	struct vertex bkgd[4] = {
+		{ 0.0f, 0.0f, 0.3f, 0.3f, 0.3f, 0.5f },
+		{ size, 0.0f, 0.3f, 0.3f, 0.3f, 0.5f },
+		{ size, size, 0.3f, 0.3f, 0.3f, 0.5f },
+		{ 0.0f, size, 0.3f, 0.3f, 0.3f, 0.5f },
+	};
+
+	// Bind vertex buffer object and upload vertices:
+	glBindBuffer(GL_ARRAY_BUFFER, vbo_bkgd);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(bkgd), bkgd, GL_STREAM_DRAW);
 }
 
 static bool
 init (void)
 {
+	// Generate vertex buffer object:
+	glGenBuffers(1, &vbo_bkgd);
+
+	// Generate vertex array object:
+	glGenVertexArrays(1, &vao_bkgd);
+
+	// Bind buffer and vertex array:
+	glBindBuffer(GL_ARRAY_BUFFER, vbo_bkgd);
+	glBindVertexArray(vao_bkgd);
+
+	// Add pointer to 'vertex' attribute:
+	glEnableVertexAttribArray(program_solid_loc_vertex());
+	glVertexAttribPointer(program_solid_loc_vertex(), 2, GL_FLOAT, GL_FALSE,
+		sizeof(struct vertex),
+		(void *)(&((struct vertex *)0)->x));
+
+	// Add pointer to 'color' attribute:
+	glEnableVertexAttribArray(program_solid_loc_color());
+	glVertexAttribPointer(program_solid_loc_color(), 4, GL_FLOAT, GL_FALSE,
+		sizeof(struct vertex),
+		(void *)(&((struct vertex *)0)->r));
+
 	zoom(0);
+
 	return true;
+}
+
+static void
+destroy (void)
+{
+	// Delete vertex array object:
+	glDeleteVertexArrays(1, &vao_bkgd);
+
+	// Delete vertex buffer:
+	glDeleteBuffers(1, &vbo_bkgd);
 }
 
 struct layer *
@@ -153,6 +237,7 @@ layer_overview (void)
 		.occludes = &occludes,
 		.paint    = &paint,
 		.zoom     = &zoom,
+		.destroy  = &destroy,
 	};
 
 	return &layer;
