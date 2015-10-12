@@ -8,6 +8,7 @@
 #include "programs.h"
 #include "programs/bkgd.h"
 #include "programs/cursor.h"
+#include "programs/frustum.h"
 #include "programs/solid.h"
 
 // Local helper struct for compiling shaders:
@@ -222,6 +223,7 @@ programs_init (void)
 		program_bkgd(),
 		program_cursor(),
 		program_solid(),
+		program_frustum(),
 	};
 
 	// Count the number of programs:

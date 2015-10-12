@@ -1,13 +1,16 @@
 #include <stdbool.h>
 #include <GL/gl.h>
 
+#include "../vector.h"
 #include "../matrix.h"
 #include "../world.h"
 #include "../viewport.h"
+#include "../camera.h"
 #include "../layers.h"
 #include "../tilepicker.h"
 #include "../inlinebin.h"
 #include "../programs.h"
+#include "../programs/frustum.h"
 #include "../programs/solid.h"
 
 #define SIZE	256.0f
@@ -18,6 +21,7 @@ static float mat_proj[16];
 
 static GLuint vao_bkgd;
 static GLuint vbo_bkgd;
+static GLuint vao_frustum;
 
 // Each point has 2D space coordinates and color:
 struct vertex {
@@ -59,7 +63,7 @@ setup_viewport (void)
 }
 
 static void
-paint_background (void)
+paint_background (GLuint vao)
 {
 	// Array of indices. We define two counterclockwise triangles:
 	// 0-1-3 and 1-2-3
@@ -69,7 +73,7 @@ paint_background (void)
 	};
 
 	// Draw solid background:
-	glBindVertexArray(vao_bkgd);
+	glBindVertexArray(vao);
 	glBindBuffer(GL_ARRAY_BUFFER, vbo_bkgd);
 	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_BYTE, index);
 }
@@ -105,21 +109,6 @@ paint_tiles (void)
 			glVertex2d(x, world_size - y - tile_ht);
 		glEnd();
 	}
-}
-
-static void
-paint_frustum (void)
-{
-	// Draw frustum (view region):
-	double *wx, *wy;
-	viewport_get_frustum(&wx, &wy);
-
-	glColor4f(1.0, 0.3, 0.3, 0.5);
-	glBegin(GL_QUADS);
-	for (int i = 0; i < 4; i++) {
-		glVertex2d(wx[i], wy[i]);
-	}
-	glEnd();
 }
 
 static void
@@ -160,23 +149,38 @@ paint (void)
 	// Draw 1:1 to screen coordinates, origin bottom left:
 	setup_viewport();
 
-	// Use the solid program:
+	// Paint background using solid program:
 	program_solid_use(&((struct program_solid) {
 		.matrix = mat_proj,
 	}));
 
-	// Paint background:
-	paint_background();
+	paint_background(vao_bkgd);
 
 	// Reset program:
 	program_none();
 
 	paint_tiles();
-	paint_frustum();
+
+	// Paint background using frustum program:
+	program_frustum_use(&((struct program_frustum) {
+		.mat_proj = mat_proj,
+		.mat_frustum = camera_mat_mvp(),
+		.cx = viewport_get_center_x(),
+		.cy = viewport_get_center_y()
+	}));
+
+	paint_background(vao_frustum);
+
+	// Reset program:
+	program_none();
+
 	paint_center();
 	paint_bbox();
 
 	glDisable(GL_BLEND);
+
+	// Reset program:
+	program_none();
 }
 
 static void
@@ -215,14 +219,15 @@ init (void)
 	// Generate vertex buffer object:
 	glGenBuffers(1, &vbo_bkgd);
 
-	// Generate vertex array object:
+	// Generate vertex array objects:
 	glGenVertexArrays(1, &vao_bkgd);
+	glGenVertexArrays(1, &vao_frustum);
 
 	// Bind buffer and vertex array:
 	glBindBuffer(GL_ARRAY_BUFFER, vbo_bkgd);
-	glBindVertexArray(vao_bkgd);
 
 	// Add pointer to 'vertex' attribute:
+	glBindVertexArray(vao_bkgd);
 	glEnableVertexAttribArray(program_solid_loc_vertex());
 	glVertexAttribPointer(program_solid_loc_vertex(), 2, GL_FLOAT, GL_FALSE,
 		sizeof(struct vertex),
@@ -234,6 +239,13 @@ init (void)
 		sizeof(struct vertex),
 		(void *)(&((struct vertex *)0)->r));
 
+	// Add pointer to 'vertex' attribute:
+	glBindVertexArray(vao_frustum);
+	glEnableVertexAttribArray(program_frustum_loc_vertex());
+	glVertexAttribPointer(program_frustum_loc_vertex(), 2, GL_FLOAT, GL_FALSE,
+		sizeof(struct vertex),
+		(void *)(&((struct vertex *)0)->x));
+
 	zoom(0);
 
 	return true;
@@ -242,8 +254,9 @@ init (void)
 static void
 destroy (void)
 {
-	// Delete vertex array object:
+	// Delete vertex array objects:
 	glDeleteVertexArrays(1, &vao_bkgd);
+	glDeleteVertexArrays(1, &vao_frustum);
 
 	// Delete vertex buffer:
 	glDeleteBuffers(1, &vbo_bkgd);

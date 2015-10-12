@@ -20,6 +20,8 @@ DATA_DEF (shaders_bkgd_vertex_glsl)
 DATA_DEF (shaders_bkgd_fragment_glsl)
 DATA_DEF (shaders_solid_vertex_glsl)
 DATA_DEF (shaders_solid_fragment_glsl)
+DATA_DEF (shaders_frustum_vertex_glsl)
+DATA_DEF (shaders_frustum_fragment_glsl)
 
 void
 inlinebin_get (enum inlinebin member, const void **buf, size_t *len)
@@ -39,6 +41,8 @@ inlinebin_get (enum inlinebin member, const void **buf, size_t *len)
 		DATA_ELEM (shaders_bkgd_fragment_glsl)
 		DATA_ELEM (shaders_solid_vertex_glsl)
 		DATA_ELEM (shaders_solid_fragment_glsl)
+		DATA_ELEM (shaders_frustum_vertex_glsl)
+		DATA_ELEM (shaders_frustum_fragment_glsl)
 	};
 
 	// Return requested element to caller:

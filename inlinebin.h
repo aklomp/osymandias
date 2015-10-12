@@ -9,6 +9,8 @@ enum inlinebin {
 	SHADER_BKGD_FRAGMENT,
 	SHADER_SOLID_VERTEX,
 	SHADER_SOLID_FRAGMENT,
+	SHADER_FRUSTUM_VERTEX,
+	SHADER_FRUSTUM_FRAGMENT,
 };
 
 void inlinebin_get (enum inlinebin member, const void **buf, size_t *len);

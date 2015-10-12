@@ -608,13 +608,6 @@ viewport_world_to_screen (double wx, double wy, double *sx, double *sy)
 }
 
 void
-viewport_get_frustum (double **wx, double **wy)
-{
-	*wx = frustum_x;
-	*wy = frustum_y;
-}
-
-void
 viewport_get_bbox (double **bx, double **by)
 {
 	*bx = bbox_x;

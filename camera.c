@@ -277,6 +277,12 @@ camera_is_rotated (void)
 	return (cam.rot != 0.0f);
 }
 
+const float *
+camera_mat_mvp (void)
+{
+	return cam.mat_mvp;
+}
+
 void
 camera_destroy (void)
 {

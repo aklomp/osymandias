@@ -22,7 +22,6 @@ void viewport_gl_setup_world_spherical (void);
 bool viewport_within_world_bounds (void);
 void viewport_screen_to_world (double sx, double sy, double *wx, double *wy);
 void viewport_world_to_screen (double wx, double wy, double *sx, double *sy);
-void viewport_get_frustum (double **wx, double **wy);
 void viewport_get_bbox (double **bx, double **by);
 void viewport_mode_set (int mode);
 int viewport_mode_get (void);
