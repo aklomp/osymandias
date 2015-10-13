@@ -44,6 +44,14 @@ layers_zoom (const unsigned int zoom)
 }
 
 void
+layers_resize (const unsigned int width, const unsigned int height)
+{
+	for (int i = 0; i < nlayers; i++)
+		if (layers[i]->resize)
+			layers[i]->resize(width, height);
+}
+
+void
 layers_destroy (void)
 {
 	for (int i = 0; i < nlayers; i++)

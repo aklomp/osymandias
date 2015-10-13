@@ -262,20 +262,23 @@ viewport_rotate (const int dx)
 }
 
 void
-viewport_reshape (const unsigned int new_width, const unsigned int new_height)
+viewport_resize (const unsigned int width, const unsigned int height)
 {
 	int dx, dy;
 
 	if (autoscroll_update(&dx, &dy)) {
 		viewport_scroll(-dx, -dy);
 	}
-	screen_wd = new_width;
-	screen_ht = new_height;
+	screen_wd = width;
+	screen_ht = height;
 
 	// Update camera's projection matrix:
-	camera_projection(screen_wd, screen_ht);
+	camera_projection(width, height);
 
 	frustum_changed_shape();
+
+	// Alert layers:
+	layers_resize(width, height);
 
 	viewport_render();
 }

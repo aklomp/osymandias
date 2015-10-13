@@ -17,6 +17,8 @@ struct signal {
 	GdkEventMask	 mask;
 };
 
+static bool is_realized = false;
+
 static bool
 gdkgl_check (int argc, char **argv)
 {
@@ -48,7 +50,7 @@ paint_canvas (GtkWidget *widget)
 
 	GtkAllocation allocation;
 	gtk_widget_get_allocation(widget, &allocation);
-	viewport_reshape(allocation.width, allocation.height);
+	viewport_resize(allocation.width, allocation.height);
 
 	if (gdk_gl_drawable_is_double_buffered(gldrawable)) {
 		gdk_gl_drawable_swap_buffers(gldrawable);
@@ -90,6 +92,8 @@ on_realize (GtkWidget *widget)
 	gdk_gl_drawable_gl_begin(gldrawable, glcontext);
 	viewport_init();
 	gdk_gl_drawable_gl_end(gldrawable);
+
+	is_realized = true;
 }
 
 static void
@@ -102,6 +106,24 @@ on_unrealize (GtkWidget *widget)
 	gdk_gl_drawable_gl_begin(gldrawable, glcontext);
 	viewport_destroy();
 	gdk_gl_drawable_gl_end(gldrawable);
+}
+
+static gboolean
+on_configure (GtkWidget *widget, GdkEventConfigure *event)
+{
+	// This function is called once before the widget is realized:
+	if (!is_realized)
+		return FALSE;
+
+	GdkGLContext  *glcontext  = gtk_widget_get_gl_context(widget);
+	GdkGLDrawable *gldrawable = gtk_widget_get_gl_drawable(widget);
+
+	// Resize viewport within GL context:
+	gdk_gl_drawable_gl_begin(gldrawable, glcontext);
+	viewport_resize(event->width, event->height);
+	gdk_gl_drawable_gl_end(gldrawable);
+
+	return FALSE;
 }
 
 static void
@@ -122,6 +144,7 @@ connect_canvas_signals (GtkWidget *canvas)
 		{ "scroll-event",		G_CALLBACK(on_mouse_scroll),		GDK_SCROLL_MASK		},
 		{ "motion-notify-event",	G_CALLBACK(on_button_motion),		GDK_BUTTON_MOTION_MASK	},
 		{ "expose-event",		G_CALLBACK(framerate_request_refresh),	0			},
+		{ "configure-event",		G_CALLBACK(on_configure),		0			},
 		{ "realize",			G_CALLBACK(on_realize),			0			},
 		{ "unrealize",			G_CALLBACK(on_unrealize),		0			},
 	};
