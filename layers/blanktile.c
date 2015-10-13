@@ -27,7 +27,7 @@ paint (void)
 	double cy = -viewport_get_center_y();
 
 	// Draw to world coordinates:
-	viewport_gl_setup_world_planar();
+	viewport_gl_setup_world();
 
 	// Draw a giant quad to the current world size:
 	glColor3f(0.12, 0.12, 0.12);

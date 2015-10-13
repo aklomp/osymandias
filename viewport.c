@@ -465,110 +465,55 @@ viewport_gl_setup_screen (void)
 }
 
 void
-viewport_gl_setup_world_planar (void)
-{
-	// Setup the OpenGL frustrum to map screen to world coordinates,
-	// with the origin at left bottom. This is a different convention
-	// from the one OSM uses for its tiles: origin at left top. But it
-	// makes tile and texture handling much easier (no vertical flips).
-
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
-	glViewport(0, 0, screen_wd, screen_ht);
-
-	// Pixel snap offset, ensures proper pixel rounding:
-	glTranslatef(0.375 / 256.0, 0.375 / 256.0, 0.0);
-
-	camera_setup();
-
-	glGetDoublev(GL_MODELVIEW_MATRIX, modelview);
-	glGetDoublev(GL_PROJECTION_MATRIX, projection);
-
-	// Must put this logic here because these recalc functions rely on the
-	// projection matrices that have just been set up; use control
-	// variables to run them only when needed, since this function can be
-	// called multiple times per frame.
-	if (frustum_coords_need_recalc) {
-		viewport_calc_frustum();
-
-		// Floating-point vector versions of above:
-		frustum_x1 = (vec4f){ frustum_x[0], frustum_x[1], frustum_x[2], frustum_x[3] };
-		frustum_y1 = (vec4f){ frustum_y[0], frustum_y[1], frustum_y[2], frustum_y[3] };
-
-		if (frustum_inside_need_recalc)
-		{
-			// Relies on the frustum points:
-			frustum_inside_recalc();
-			frustum_inside_need_recalc = 0;
-		}
-		// Relies on the precalculations:
-		viewport_calc_bbox();
-		recalc_tile_extents();
-		tilepicker_recalc();
-		frustum_coords_need_recalc = 0;
-	}
-	glDisable(GL_BLEND);
-	glDisable(GL_DEPTH_TEST);
-	glDepthMask(GL_FALSE);
-}
-
-void
-viewport_gl_setup_world_spherical (void)
-{
-	// Setup the OpenGL frustrum to map screen to world coordinates,
-	// with the origin at left bottom. This is a different convention
-	// from the one OSM uses for its tiles: origin at left top. But it
-	// makes tile and texture handling much easier (no vertical flips).
-
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
-	glViewport(0, 0, screen_wd, screen_ht);
-
-	// Pixel snap offset, ensures proper pixel rounding:
-	glTranslatef(0.375 / 256.0, 0.375 / 256.0, 0.0);
-
-	camera_setup();
-
-	glGetDoublev(GL_MODELVIEW_MATRIX, modelview);
-	glGetDoublev(GL_PROJECTION_MATRIX, projection);
-
-	// Must put this logic here because these recalc functions rely on the
-	// projection matrices that have just been set up; use control
-	// variables to run them only when needed, since this function can be
-	// called multiple times per frame.
-	if (frustum_coords_need_recalc) {
-		viewport_calc_frustum();
-
-		// Floating-point vector versions of above:
-		frustum_x1 = (vec4f){ frustum_x[0], frustum_x[1], frustum_x[2], frustum_x[3] };
-		frustum_y1 = (vec4f){ frustum_y[0], frustum_y[1], frustum_y[2], frustum_y[3] };
-
-		if (frustum_inside_need_recalc)
-		{
-			// Relies on the frustum points:
-			frustum_inside_recalc();
-			frustum_inside_need_recalc = 0;
-		}
-		// Relies on the precalculations:
-		viewport_calc_bbox();
-		recalc_tile_extents();
-		tilepicker_recalc();
-		frustum_coords_need_recalc = 0;
-	}
-	glDisable(GL_BLEND);
-	glEnable(GL_DEPTH_TEST);
-	glDepthMask(GL_TRUE);
-	glClear(GL_DEPTH_BUFFER_BIT);
-}
-
-void
 viewport_gl_setup_world (void)
 {
-	if (viewport_mode == VIEWPORT_MODE_PLANAR) {
-		viewport_gl_setup_world_planar();
+	// Setup viewport:
+	glViewport(0, 0, screen_wd, screen_ht);
+
+	// Setup camera:
+	camera_setup();
+
+	// Get matrices for unproject:
+	glGetDoublev(GL_MODELVIEW_MATRIX, modelview);
+	glGetDoublev(GL_PROJECTION_MATRIX, projection);
+
+	// Must put this logic here because these recalc functions rely on the
+	// projection matrices that have just been set up; use control
+	// variables to run them only when needed, since this function can be
+	// called multiple times per frame.
+	if (frustum_coords_need_recalc) {
+		viewport_calc_frustum();
+
+		// Floating-point vector versions of above:
+		frustum_x1 = (vec4f){ frustum_x[0], frustum_x[1], frustum_x[2], frustum_x[3] };
+		frustum_y1 = (vec4f){ frustum_y[0], frustum_y[1], frustum_y[2], frustum_y[3] };
+
+		if (frustum_inside_need_recalc)
+		{
+			// Relies on the frustum points:
+			frustum_inside_recalc();
+			frustum_inside_need_recalc = 0;
+		}
+		// Relies on the precalculations:
+		viewport_calc_bbox();
+		recalc_tile_extents();
+		tilepicker_recalc();
+		frustum_coords_need_recalc = 0;
 	}
-	if (viewport_mode == VIEWPORT_MODE_SPHERICAL) {
-		viewport_gl_setup_world_spherical();
+	glDisable(GL_BLEND);
+
+	switch (viewport_mode)
+	{
+	case VIEWPORT_MODE_PLANAR:
+		glDisable(GL_DEPTH_TEST);
+		glDepthMask(GL_FALSE);
+		break;
+
+	case VIEWPORT_MODE_SPHERICAL:
+		glEnable(GL_DEPTH_TEST);
+		glDepthMask(GL_TRUE);
+		glClear(GL_DEPTH_BUFFER_BIT);
+		break;
 	}
 }
 
