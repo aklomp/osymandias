@@ -1,7 +1,8 @@
 struct program_cursor {
-	float halfwd;
-	float halfht;
+	const float *mat_proj;
+	const float *mat_view;
 };
 
 struct program *program_cursor (void);
+GLint program_cursor_loc_vertex (void);
 void program_cursor_use (struct program_cursor *);

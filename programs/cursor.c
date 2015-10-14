@@ -6,15 +6,16 @@
 #include "cursor.h"
 
 static struct input inputs[] =
-	{ { .name = "halfwd", .type = TYPE_UNIFORM }
-	, { .name = "halfht", .type = TYPE_UNIFORM }
+	{ { .name = "mat_proj", .type = TYPE_UNIFORM }
+	, { .name = "mat_view", .type = TYPE_UNIFORM }
+	, { .name = "vertex",   .type = TYPE_ATTRIBUTE }
 	, {  NULL }
 	} ;
 
 static struct program program =
 	{ .name     = "cursor"
+	, .vertex   = { .src = SHADER_CURSOR_VERTEX }
 	, .fragment = { .src = SHADER_CURSOR_FRAGMENT }
-	, .vertex   = { .src = INLINEBIN_NONE }
 	, .inputs   = inputs
 	} ;
 
@@ -24,10 +25,16 @@ program_cursor (void)
 	return &program;
 }
 
+GLint
+program_cursor_loc_vertex (void)
+{
+	return inputs[2].loc;
+}
+
 void
 program_cursor_use (struct program_cursor *values)
 {
 	glUseProgram(program.id);
-	glUniform1f(inputs[0].loc, values->halfwd);
-	glUniform1f(inputs[1].loc, values->halfht);
+	glUniformMatrix4fv(inputs[0].loc, 1, GL_FALSE, values->mat_proj);
+	glUniformMatrix4fv(inputs[1].loc, 1, GL_FALSE, values->mat_view);
 }
