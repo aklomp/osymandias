@@ -438,33 +438,6 @@ viewport_calc_bbox (void)
 }
 
 void
-viewport_gl_setup_screen (void)
-{
-	float mat_proj[16];
-
-	// Setup the OpenGL frustrum to map 1:1 to screen coordinates,
-	// with the origin at left bottom. Handy for drawing items that
-	// are statically positioned relative to the screen, such as the
-	// background and the cursor.
-
-	glViewport(0, 0, screen_wd, screen_ht);
-
-	mat_ortho(mat_proj, 0, screen_wd, 0, screen_ht, 0, 1);
-
-	glMatrixMode(GL_PROJECTION);
-	glLoadMatrixf(mat_proj);
-
-	// Slight translation to snap line artwork to pixels:
-	glMatrixMode(GL_MODELVIEW);
-	glLoadIdentity();
-	glTranslatef(0.375, 0.375, 0.0);
-
-	glDisable(GL_BLEND);
-	glDisable(GL_DEPTH_TEST);
-	glDepthMask(GL_FALSE);
-}
-
-void
 viewport_gl_setup_world (void)
 {
 	// Setup viewport:
