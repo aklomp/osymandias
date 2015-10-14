@@ -41,9 +41,9 @@ tex = {
 
 // Array of counterclockwise vertices:
 //
-//   0--3
+//   3--2
 //   |  |
-//   1--2
+//   0--1
 //
 static struct vertex {
 	float x;
@@ -54,10 +54,10 @@ static struct vertex {
 vertex[4];
 
 // Array of indices. We define two counterclockwise triangles:
-// 0-1-3 and 1-2-3
+// 3-0-2 and 0-1-2
 static GLubyte index[6] = {
-	0, 1, 3,
-	1, 2, 3,
+	3, 0, 2,
+	0, 1, 2,
 };
 
 static GLuint vao, vbo;
@@ -72,21 +72,21 @@ occludes (void)
 static void
 vertcoords (void)
 {
-	// Top left:
-	vertex[0].x = -1.0;
-	vertex[0].y =  1.0;
-
 	// Bottom left:
-	vertex[1].x = -1.0;
-	vertex[1].y = -1.0;
+	vertex[0].x = -1.0;
+	vertex[0].y = -1.0;
 
 	// Bottom right:
-	vertex[2].x =  1.0;
-	vertex[2].y = -1.0;
+	vertex[1].x =  1.0;
+	vertex[1].y = -1.0;
 
 	// Top right:
-	vertex[3].x = 1.0;
-	vertex[3].y = 1.0;
+	vertex[2].x =  1.0;
+	vertex[2].y =  1.0;
+
+	// Top left:
+	vertex[3].x = -1.0;
+	vertex[3].y =  1.0;
 }
 
 static void
@@ -95,20 +95,20 @@ texcoords (float screen_wd, float screen_ht)
 	float wd = screen_wd / tex.size;
 	float ht = screen_ht / tex.size;
 
-	// Top left:
-	vertex[0].u = 0;
-	vertex[0].v = ht;
-
 	// Bottom left:
-	vertex[1].u = 0;
-	vertex[1].v = 0;
+	vertex[0].u = 0;
+	vertex[0].v = 0;
 
 	// Bottom right:
-	vertex[2].u = wd;
-	vertex[2].v = 0;
+	vertex[1].u = wd;
+	vertex[1].v = 0;
 
 	// Top right:
-	vertex[3].u = wd;
+	vertex[2].u = wd;
+	vertex[2].v = ht;
+
+	// Top left:
+	vertex[3].u = 0;
 	vertex[3].v = ht;
 }
 
