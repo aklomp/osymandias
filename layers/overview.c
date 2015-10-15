@@ -10,6 +10,9 @@
 #define SIZE	256.0f
 #define MARGIN	 10.0f
 
+// Projection matrix:
+static float mat_proj[16];
+
 static bool
 occludes (void)
 {
@@ -18,23 +21,13 @@ occludes (void)
 }
 
 static inline void
-setup_viewport (int world_zoom, double world_size)
+setup_viewport (void)
 {
-	// Projection matrix:
-	static float mat_proj[16];
-
-	// Make room within the world for one extra pixel at each side,
-	// to keep the outlines on the far tiles within frame:
-	double one_pixel_at_scale = (1 << world_zoom) / SIZE;
-	world_size += one_pixel_at_scale;
-
 	int xpos = viewport_get_wd() - MARGIN - SIZE;
 	int ypos = viewport_get_ht() - MARGIN - SIZE;
 
 	glLineWidth(1.0);
 	glViewport(xpos, ypos, SIZE, SIZE);
-
-	mat_ortho(mat_proj, 0, world_size, 0, world_size, 0, 1);
 
 	glMatrixMode(GL_PROJECTION);
 	glLoadMatrixf(mat_proj);
@@ -52,11 +45,10 @@ setup_viewport (int world_zoom, double world_size)
 static void
 paint (void)
 {
-	int    world_zoom = world_get_zoom();
 	double world_size = world_get_size();
 
 	// Draw 1:1 to screen coordinates, origin bottom left:
-	setup_viewport(world_zoom, world_size);
+	setup_viewport();
 
 	// World plane background:
 	glColor4f(0.3, 0.3, 0.3, 0.5);
@@ -133,12 +125,34 @@ paint (void)
 	glDisable(GL_BLEND);
 }
 
+static void
+zoom (const unsigned int zoom)
+{
+	double world_size = world_get_size();
+
+	// Make room within the world for one extra pixel at each side,
+	// to keep the outlines on the far tiles within frame:
+	double one_pixel_at_scale = (1 << zoom) / SIZE;
+	world_size += one_pixel_at_scale;
+
+	mat_ortho(mat_proj, 0, world_size, 0, world_size, 0, 1);
+}
+
+static bool
+init (void)
+{
+	zoom(0);
+	return true;
+}
+
 struct layer *
 layer_overview (void)
 {
 	static struct layer layer = {
+		.init     = &init,
 		.occludes = &occludes,
 		.paint    = &paint,
+		.zoom     = &zoom,
 	};
 
 	return &layer;
