@@ -27,6 +27,14 @@ static GLubyte index[6] = {
 	0, 1, 2,
 };
 
+// Projection and view matrices:
+static float mat_proj[16];
+static float mat_view[16];
+
+// Screen size:
+static float wd;
+static float ht;
+
 static GLuint vao, vbo;
 
 static bool
@@ -58,20 +66,8 @@ vertcoords (void)
 static void
 paint (void)
 {
-	float mat_proj[16];
-	float mat_view[16];
-
-	const float wd = viewport_get_wd();
-	const float ht = viewport_get_ht();
-
 	// Viewport is screen:
 	glViewport(0, 0, wd, ht);
-
-	// Projection matrix maps 1:1 to screen:
-	mat_ortho(mat_proj, 0, wd, 0, ht, 0, 1);
-
-	// Modelview matrix translates vertices to center screen:
-	mat_translate(mat_view, wd / 2.0f, ht / 2.0f, 0.0f);
 
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -89,6 +85,19 @@ paint (void)
 	glDrawElements(GL_TRIANGLES, sizeof(index) / sizeof(index[0]), GL_UNSIGNED_BYTE, index);
 
 	program_none();
+}
+
+static void
+resize (const unsigned int width, const unsigned int height)
+{
+	wd = width;
+	ht = height;
+
+	// Projection matrix maps 1:1 to screen:
+	mat_ortho(mat_proj, 0, wd, 0, ht, 0, 1);
+
+	// Modelview matrix translates vertices to center screen:
+	mat_translate(mat_view, wd / 2.0f, ht / 2.0f, 0.0f);
 }
 
 static bool
@@ -136,6 +145,7 @@ layer_cursor (void)
 		.init     = &init,
 		.occludes = &occludes,
 		.paint    = &paint,
+		.resize   = &resize,
 		.destroy  = &destroy,
 	};
 
