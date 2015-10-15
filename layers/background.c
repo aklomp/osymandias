@@ -1,7 +1,6 @@
 #include <stdbool.h>
 #include <GL/gl.h>
 
-#include "../viewport.h"
 #include "../layers.h"
 #include "../inlinebin.h"
 #include "../programs.h"
@@ -115,9 +114,6 @@ texcoords (float screen_wd, float screen_ht)
 static void
 paint (void)
 {
-	// Update texture coordinates:
-	texcoords(viewport_get_wd(), viewport_get_ht());
-
 	// Use the background program:
 	program_bkgd_use(&((struct program_bkgd) {
 		.tex = 0,
@@ -135,6 +131,13 @@ paint (void)
 	glDrawElements(GL_TRIANGLES, sizeof(index) / sizeof(index[0]), GL_UNSIGNED_BYTE, index);
 
 	program_none();
+}
+
+static void
+resize (const unsigned int width, const unsigned int height)
+{
+	// Update texture coordinates:
+	texcoords(width, height);
 }
 
 static bool
@@ -200,6 +203,7 @@ layer_background (void)
 		.init     = &init,
 		.occludes = &occludes,
 		.paint    = &paint,
+		.resize   = &resize,
 		.destroy  = &destroy,
 	};
 
