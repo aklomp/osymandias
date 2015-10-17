@@ -75,27 +75,11 @@ paint_background (void)
 }
 
 static void
-paint (void)
+paint_tiles (void)
 {
-	// Draw 1:1 to screen coordinates, origin bottom left:
-	setup_viewport();
-
-	double world_size = world_get_size();
-
-	// Use the solid program:
-	program_solid_use(&((struct program_solid) {
-		.matrix = mat_proj,
-	}));
-
-	// Paint background:
-	paint_background();
-
-	// Reset program:
-	program_none();
-
-	// Draw tiles from tile picker:
 	int zoom;
 	float x, y, tile_wd, tile_ht, p[4][3];
+	double world_size = world_get_size();
 
 	for (int iter = tilepicker_first(&x, &y, &tile_wd, &tile_ht, &zoom, p); iter; iter = tilepicker_next(&x, &y, &tile_wd, &tile_ht, &zoom, p)) {
 		float zoomcolors[6][3] = {
@@ -121,6 +105,11 @@ paint (void)
 			glVertex2d(x, world_size - y - tile_ht);
 		glEnd();
 	}
+}
+
+static void
+paint_frustum (void)
+{
 	// Draw frustum (view region):
 	double *wx, *wy;
 	viewport_get_frustum(&wx, &wy);
@@ -131,7 +120,11 @@ paint (void)
 		glVertex2d(wx[i], wy[i]);
 	}
 	glEnd();
+}
 
+static void
+paint_center (void)
+{
 	// Actual center:
 	double cx = viewport_get_center_x();
 	double cy = viewport_get_center_y();
@@ -143,7 +136,11 @@ paint (void)
 		glVertex2d(cx, cy - 0.5);
 		glVertex2d(cx, cy + 0.5);
 	glEnd();
+}
 
+static void
+paint_bbox (void)
+{
 	// Draw bounding box:
 	double *bx, *by;
 	viewport_get_bbox(&bx, &by);
@@ -155,6 +152,29 @@ paint (void)
 		glVertex2d(bx[1], by[0]);
 		glVertex2d(bx[0], by[0]);
 	glEnd();
+}
+
+static void
+paint (void)
+{
+	// Draw 1:1 to screen coordinates, origin bottom left:
+	setup_viewport();
+
+	// Use the solid program:
+	program_solid_use(&((struct program_solid) {
+		.matrix = mat_proj,
+	}));
+
+	// Paint background:
+	paint_background();
+
+	// Reset program:
+	program_none();
+
+	paint_tiles();
+	paint_frustum();
+	paint_center();
+	paint_bbox();
 
 	glDisable(GL_BLEND);
 }
