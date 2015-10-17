@@ -3,6 +3,8 @@ struct program_frustum {
 	const float *mat_frustum;
 	float cx;
 	float cy;
+	int world_size;
+	bool spherical;
 };
 
 struct program *program_frustum (void);

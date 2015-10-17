@@ -10,6 +10,8 @@ static struct input inputs[] =
 	, { .name = "mat_frustum", .type = TYPE_UNIFORM }
 	, { .name = "cx",          .type = TYPE_UNIFORM }
 	, { .name = "cy",          .type = TYPE_UNIFORM }
+	, { .name = "world_size",  .type = TYPE_UNIFORM }
+	, { .name = "spherical",   .type = TYPE_UNIFORM }
 	, { .name = "vertex",      .type = TYPE_ATTRIBUTE }
 	, {  NULL }
 	} ;
@@ -30,7 +32,7 @@ program_frustum (void)
 GLint
 program_frustum_loc_vertex (void)
 {
-	return inputs[4].loc;
+	return inputs[6].loc;
 }
 
 void
@@ -41,4 +43,6 @@ program_frustum_use (struct program_frustum *values)
 	glUniformMatrix4fv(inputs[1].loc, 1, GL_FALSE, values->mat_frustum);
 	glUniform1f(inputs[2].loc, values->cx);
 	glUniform1f(inputs[3].loc, values->cy);
+	glUniform1i(inputs[4].loc, values->world_size);
+	glUniform1i(inputs[5].loc, values->spherical);
 }

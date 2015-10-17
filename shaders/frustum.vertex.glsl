@@ -3,6 +3,7 @@
 uniform mat4 mat_proj;
 uniform float cx;
 uniform float cy;
+uniform bool spherical;
 attribute vec2 vertex;
 varying vec4 fpos;
 
@@ -15,5 +16,6 @@ void main (void)
 	gl_Position = mat_proj * fpos;
 
 	/* Translate fpos to camera position: */
-	fpos -= vec4(cx, cy, 0.0, 0.0);
+	if (!spherical)
+		fpos -= vec4(cx, cy, 0.0, 0.0);
 }

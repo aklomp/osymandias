@@ -166,7 +166,9 @@ paint (void)
 		.mat_proj = mat_proj,
 		.mat_frustum = camera_mat_mvp(),
 		.cx = viewport_get_center_x(),
-		.cy = viewport_get_center_y()
+		.cy = viewport_get_center_y(),
+		.world_size = world_get_size(),
+		.spherical = (viewport_mode_get() == VIEWPORT_MODE_SPHERICAL),
 	}));
 
 	paint_background(vao_frustum);
