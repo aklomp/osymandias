@@ -261,14 +261,62 @@ camera_visible_quad (const struct vector *coords[4])
 	if (dot(quad_normal, ray) < 0.0f)
 		return false;
 
-	// Check each frustum plane, at least one point must be visible:
-	for (int i = 0; i < 4; i++) {
-		if (point_in_front_of_plane(vcoords[0], cam.frustum_planes[i])) continue;
-		if (point_in_front_of_plane(vcoords[1], cam.frustum_planes[i])) continue;
-		if (point_in_front_of_plane(vcoords[2], cam.frustum_planes[i])) continue;
-		if (point_in_front_of_plane(vcoords[3], cam.frustum_planes[i])) continue;
+	// Project all four vertices through the frustum:
+	struct vector proj[4];
+
+	mat_vec_multiply(&proj[0].x, matrix.viewproj, (const float *)&vcoords[0]);
+	mat_vec_multiply(&proj[1].x, matrix.viewproj, (const float *)&vcoords[1]);
+	mat_vec_multiply(&proj[2].x, matrix.viewproj, (const float *)&vcoords[2]);
+	mat_vec_multiply(&proj[3].x, matrix.viewproj, (const float *)&vcoords[3]);
+
+	// For each of the dimensions x, y and z, if all the projected vertices
+	// are < -w or > w at the same time, the quad is not visible:
+	//
+	//       -w            w
+	//        |------------|
+	//
+	//   0--0    1-----------1   2--2
+	//             3----3
+	//      4-----------------4
+	//
+	// Of these tiles, only 0 and 2 are not visible, because all of their
+	// points lie past the same outer edge of the clip box.
+
+	if (proj[0].x < -proj[0].w)
+	if (proj[1].x < -proj[1].w)
+	if (proj[2].x < -proj[2].w)
+	if (proj[3].x < -proj[3].w)
 		return false;
-	}
+
+	if (proj[0].x > proj[0].w)
+	if (proj[1].x > proj[1].w)
+	if (proj[2].x > proj[2].w)
+	if (proj[3].x > proj[3].w)
+		return false;
+
+	if (proj[0].y < -proj[0].w)
+	if (proj[1].y < -proj[1].w)
+	if (proj[2].y < -proj[2].w)
+	if (proj[3].y < -proj[3].w)
+		return false;
+
+	if (proj[0].y > proj[0].w)
+	if (proj[1].y > proj[1].w)
+	if (proj[2].y > proj[2].w)
+	if (proj[3].y > proj[3].w)
+		return false;
+
+	if (proj[0].z < -proj[0].w)
+	if (proj[1].z < -proj[1].w)
+	if (proj[2].z < -proj[2].w)
+	if (proj[3].z < -proj[3].w)
+		return false;
+
+	if (proj[0].z > proj[0].w)
+	if (proj[1].z > proj[1].w)
+	if (proj[2].z > proj[2].w)
+	if (proj[3].z > proj[3].w)
+		return false;
 
 	return true;
 }
