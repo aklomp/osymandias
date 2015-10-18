@@ -12,8 +12,6 @@ static struct {
 	float tilt;		// tilt from vertical, in radians
 	float rotate;		// rotation along z axis, in radians
 	float zdist;		// distance from camera to origin (camera height)
-
-	vec4f frustum_planes[4];
 } cam;
 
 static struct {
@@ -30,40 +28,12 @@ static struct {
 	float viewproj[16];	// View-projection matrix
 } matrix;
 
-static void
-extract_frustum_planes (void)
-{
-	// Source: Gribb & Hartmann,
-	// Fast Extraction of Viewing Frustum Planes from the World-View-Projection Matrix
-
-	// Shorthand:
-	float *m = matrix.viewproj;
-
-	// The actual calculations, which we can optimize by collecting terms:
-	// cam.frustum_planes[0] = (vec4f) { m[3] + m[0], m[7] + m[4], m[11] + m[8], m[15] + m[12] };
-	// cam.frustum_planes[1] = (vec4f) { m[3] - m[0], m[7] - m[4], m[11] - m[8], m[15] - m[12] };
-	// cam.frustum_planes[2] = (vec4f) { m[3] + m[1], m[7] + m[5], m[11] + m[9], m[15] + m[13] };
-	// cam.frustum_planes[3] = (vec4f) { m[3] - m[1], m[7] - m[5], m[11] - m[9], m[15] - m[13] };
-
-	const vec4f c = { m[3], m[7], m[11], m[15] };
-	const vec4f u = { m[0], m[4],  m[8], m[12] };
-	const vec4f v = { m[1], m[5],  m[9], m[13] };
-
-	cam.frustum_planes[0] = c + u;
-	cam.frustum_planes[1] = c - u;
-	cam.frustum_planes[2] = c + v;
-	cam.frustum_planes[3] = c - v;
-}
-
 // Update view-projection matrix after view or projection changed:
 static void
 mat_viewproj_update (void)
 {
 	// Generate the view-projection matrix:
 	mat_multiply(matrix.viewproj, matrix.proj, matrix.view);
-
-	// Extract the frustum planes from the updated matrix:
-	extract_frustum_planes();
 }
 
 // Update view matrix after tilt/rot/trans changed:
