@@ -1,4 +1,4 @@
-#version 110
+#version 130
 
 varying vec2 fpos;
 

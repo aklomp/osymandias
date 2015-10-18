@@ -1,4 +1,4 @@
-#version 110
+#version 130
 
 uniform mat4 matrix;
 attribute vec2 vertex;
