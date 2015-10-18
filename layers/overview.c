@@ -82,7 +82,7 @@ static void
 paint_tiles (void)
 {
 	int zoom;
-	float x, y, tile_wd, tile_ht, p[4][3];
+	float x, y, tile_wd, tile_ht, p[4][4];
 	double world_size = world_get_size();
 
 	for (int iter = tilepicker_first(&x, &y, &tile_wd, &tile_ht, &zoom, p); iter; iter = tilepicker_next(&x, &y, &tile_wd, &tile_ht, &zoom, p)) {

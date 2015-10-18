@@ -104,7 +104,7 @@ paint (void)
 {
 	float x, y, tile_wd, tile_ht;
 	int zoom;
-	float p[4][3];
+	float p[4][4];
 	struct quadtree_req req;
 	struct quadtree_req req_tex;
 	int world_zoom = world_get_zoom();

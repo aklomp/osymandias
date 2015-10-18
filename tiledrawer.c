@@ -32,7 +32,7 @@ cutout_texture (float orig_x, float orig_y, float wd, float ht, const struct qua
 }
 
 static void
-draw_tile_planar (GLuint texture_id, const struct texture *t, float p[4][3])
+draw_tile_planar (GLuint texture_id, const struct texture *t, float p[4][4])
 {
 	GLdouble txoffs = (GLdouble)ldexpf(t->offset_x, -8);
 	GLdouble tyoffs = (GLdouble)ldexpf(t->offset_y, -8);
@@ -52,7 +52,7 @@ draw_tile_planar (GLuint texture_id, const struct texture *t, float p[4][3])
 }
 
 static void
-draw_tile_spherical (GLuint texture_id, const struct texture *t, float p[4][3])
+draw_tile_spherical (GLuint texture_id, const struct texture *t, float p[4][4])
 {
 	GLdouble txoffs = (GLdouble)ldexpf(t->offset_x, -8);
 	GLdouble tyoffs = (GLdouble)ldexpf(t->offset_y, -8);
@@ -72,7 +72,7 @@ draw_tile_spherical (GLuint texture_id, const struct texture *t, float p[4][3])
 }
 
 void
-tiledrawer (float tile_x, float tile_y, float tile_wd, float tile_ht, GLuint texture_id, const struct quadtree_req *req, float p[4][3])
+tiledrawer (float tile_x, float tile_y, float tile_wd, float tile_ht, GLuint texture_id, const struct quadtree_req *req, float p[4][4])
 {
 	struct texture t;
 
