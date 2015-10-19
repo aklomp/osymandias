@@ -11,8 +11,7 @@ varying vec4 fpos;
 
 float y_to_lat (float y)
 {
-	float lat = (y / world_size - 0.5) * 2.0 * M_PI;
-	return atan(sinh(lat));
+	return atan(sinh((y / world_size - 0.5) * 2.0 * M_PI));
 }
 
 float x_to_lon (float x)
@@ -25,9 +24,9 @@ vec4 latlon_to_pos (float lat, float lon, float viewlat, float viewlon)
 	float world_radius = world_size / M_PI;
 	vec4 pos;
 
-	pos.x = cos(lat) * sin(lon - viewlon) * world_radius;
-	pos.z = cos(lat) * cos(lon - viewlon) * world_radius;
-	pos.y = sin(lat) * world_radius;
+	pos.x = cos(lat) * sin(lon - viewlon);
+	pos.z = cos(lat) * cos(lon - viewlon);
+	pos.y = sin(lat);
 	pos.w = 1.0;
 
 	/* Rotate the points over lat radians via x axis: */
@@ -36,6 +35,8 @@ vec4 latlon_to_pos (float lat, float lon, float viewlat, float viewlon)
 	pos.y = orig.y * cos(viewlat) - orig.z * sin(viewlat);
 	pos.z = orig.y * sin(viewlat) + orig.z * cos(viewlat);
 
+	pos.xyz *= vec3(world_radius);
+
 	/* Push the world "back" from the camera
 	 * so that the cursor (centerpoint) is at (0,0,0): */
 	pos.z -= world_radius;
@@ -43,22 +44,8 @@ vec4 latlon_to_pos (float lat, float lon, float viewlat, float viewlon)
 	return pos;
 }
 
-bool inside_frustum (void)
+bool inside_frustum (vec4 pos)
 {
-	vec4 pos = fpos;
-
-	/* If point is not planar, must map to sphere: */
-	if (spherical) {
-
-		float lat = y_to_lat(fpos.y);
-		float lon = x_to_lon(fpos.x);
-
-		float viewlat = y_to_lat(cy);
-		float viewlon = x_to_lon(cx);
-
-		pos = latlon_to_pos(lat, lon, viewlat, viewlon);
-	}
-
 	/* Project position through the frustum: */
 	vec4 v = mat_frustum * pos;
 
@@ -75,9 +62,31 @@ bool inside_frustum (void)
 	return true;
 }
 
+bool inside_frustum_spherical (void)
+{
+	float lat = y_to_lat(fpos.y);
+	float lon = x_to_lon(fpos.x);
+
+	float viewlat = y_to_lat(cy);
+	float viewlon = x_to_lon(cx);
+
+	vec4 pos = latlon_to_pos(lat, lon, viewlat, viewlon);
+
+	return inside_frustum(pos);
+}
+
+bool inside_frustum_planar (void)
+{
+	return inside_frustum(fpos);
+}
+
 void main (void)
 {
-	if (!inside_frustum())
+	bool inside = (spherical)
+		? inside_frustum_spherical()
+		: inside_frustum_planar();
+
+	if (!inside)
 		discard;
 
 	gl_FragColor = vec4(1.0, 0.3, 0.3, 0.5);
