@@ -77,7 +77,8 @@ bool inside_frustum (void)
 
 void main (void)
 {
-	gl_FragColor = (inside_frustum())
-		? vec4(1.0, 0.3, 0.3, 0.5)
-		: vec4(0.0);
+	if (!inside_frustum())
+		discard;
+
+	gl_FragColor = vec4(1.0, 0.3, 0.3, 0.5);
 }
