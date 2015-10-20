@@ -28,6 +28,10 @@ cutout_texture (const struct tiledrawer *tile, struct texture *tex)
 {
 	unsigned int zoomdiff = tile->req->world_zoom - tile->req->found_zoom;
 
+	// If we couldn't find the texture at the requested resolution and
+	// had to settle for a lower-res one, we need to cut out the proper
+	// sub-block from the texture. Calculate coords of the block we need:
+
 	// This is the nth block out of parent, counting from top left:
 	float xblock = fmodf(tile->x, (1 << zoomdiff));
 	float yblock = fmodf(tile->y, (1 << zoomdiff));
@@ -40,14 +44,17 @@ cutout_texture (const struct tiledrawer *tile, struct texture *tex)
 }
 
 static void
-draw_tile_planar (const struct tiledrawer *tile, const struct texture *tex)
+draw_tile_planar (const struct tiledrawer *tile)
 {
+	struct texture tex;
 	struct vector *pos = (struct vector *)tile->pos;
 
-	GLdouble txoffs = (GLdouble)ldexpf(tex->offset_x, -8);
-	GLdouble tyoffs = (GLdouble)ldexpf(tex->offset_y, -8);
-	GLdouble twd = (GLdouble)ldexpf(tex->wd, -8);
-	GLdouble tht = (GLdouble)ldexpf(tex->ht, -8);
+	cutout_texture(tile, &tex);
+
+	GLdouble txoffs = (GLdouble)ldexpf(tex.offset_x, -8);
+	GLdouble tyoffs = (GLdouble)ldexpf(tex.offset_y, -8);
+	GLdouble twd = (GLdouble)ldexpf(tex.wd, -8);
+	GLdouble tht = (GLdouble)ldexpf(tex.ht, -8);
 
 	glBindTexture(GL_TEXTURE_2D, tile->texture_id);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -62,14 +69,17 @@ draw_tile_planar (const struct tiledrawer *tile, const struct texture *tex)
 }
 
 static void
-draw_tile_spherical (const struct tiledrawer *tile, const struct texture *tex)
+draw_tile_spherical (const struct tiledrawer *tile)
 {
+	struct texture tex;
 	struct vector *pos = (struct vector *)tile->pos;
 
-	GLdouble txoffs = (GLdouble)ldexpf(tex->offset_x, -8);
-	GLdouble tyoffs = (GLdouble)ldexpf(tex->offset_y, -8);
-	GLdouble twd = (GLdouble)ldexpf(tex->wd, -8);
-	GLdouble tht = (GLdouble)ldexpf(tex->ht, -8);
+	cutout_texture(tile, &tex);
+
+	GLdouble txoffs = (GLdouble)ldexpf(tex.offset_x, -8);
+	GLdouble tyoffs = (GLdouble)ldexpf(tex.offset_y, -8);
+	GLdouble twd = (GLdouble)ldexpf(tex.wd, -8);
+	GLdouble tht = (GLdouble)ldexpf(tex.ht, -8);
 
 	glBindTexture(GL_TEXTURE_2D, tile->texture_id);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -86,22 +96,14 @@ draw_tile_spherical (const struct tiledrawer *tile, const struct texture *tex)
 void
 tiledrawer (const struct tiledrawer *tile)
 {
-	struct texture tex;
-
-	// If we couldn't find the texture at the requested resolution and
-	// had to settle for a lower-res one, we need to cut out the proper
-	// sub-block from the texture. Calculate coords of the block we need:
-	cutout_texture(tile, &tex);
-
-	// With this cutout information in hand, draw the actual tile:
 	switch (viewport_mode_get())
 	{
 	case VIEWPORT_MODE_PLANAR:
-		draw_tile_planar(tile, &tex);
+		draw_tile_planar(tile);
 		break;
 
 	case VIEWPORT_MODE_SPHERICAL:
-		draw_tile_spherical(tile, &tex);
+		draw_tile_spherical(tile);
 		break;
 	}
 }
