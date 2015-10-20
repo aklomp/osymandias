@@ -1,6 +1,16 @@
 #ifndef TILEDRAWER_H
 #define TILEDRAWER_H
 
-void tiledrawer (float tile_x, float tile_y, float tile_wd, float tile_ht, GLuint texture_id, const struct quadtree_req *req, float p[4][4]);
+struct tiledrawer {
+	float x;
+	float y;
+	float wd;
+	float ht;
+	GLuint texture_id;
+	struct quadtree_req *req;
+	float *pos;
+};
+
+void tiledrawer (const struct tiledrawer *);
 
 #endif	/* TILEDRAWER_H */

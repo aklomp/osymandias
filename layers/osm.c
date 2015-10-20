@@ -104,7 +104,7 @@ paint (void)
 {
 	float x, y, tile_wd, tile_ht;
 	int zoom;
-	float p[4][4];
+	float pos[4][4];
 	struct quadtree_req req;
 	struct quadtree_req req_tex;
 	int world_zoom = world_get_zoom();
@@ -123,7 +123,7 @@ paint (void)
 	// The texture colors are multiplied with this value:
 	glColor3f(1.0, 1.0, 1.0);
 
-	for (int iter = tilepicker_first(&x, &y, &tile_wd, &tile_ht, &zoom, p); iter; iter = tilepicker_next(&x, &y, &tile_wd, &tile_ht, &zoom, p))
+	for (int iter = tilepicker_first(&x, &y, &tile_wd, &tile_ht, &zoom, pos); iter; iter = tilepicker_next(&x, &y, &tile_wd, &tile_ht, &zoom, pos))
 	{
 		// If showing the zoom colors overlay, pick proper mixin color:
 		if (overlay_zoom) {
@@ -146,7 +146,17 @@ paint (void)
 			// then we're done; else still try to get the native bitmap:
 			if (req.found_zoom == zoom) {
 				if (colorize_cache) glColor3f(0.3, 1.0, 0.3);
-				tiledrawer(x, y, tile_wd, tile_ht, (GLuint)(ptrdiff_t)req.found_data, &req, p);
+
+				tiledrawer(&((struct tiledrawer) {
+					.x = x,
+					.y = y,
+					.wd = tile_wd,
+					.ht = tile_ht,
+					.texture_id = (GLuint)(ptrdiff_t)req.found_data,
+					.req = &req,
+					.pos = (float *)pos,
+				}));
+
 				if (colorize_cache) glColor3f(1.0, 1.0, 1.0);
 				continue;
 			}
@@ -159,13 +169,33 @@ paint (void)
 			// the bitmap we came back with, use that instead:
 			if (req_tex.found_data != NULL && req_tex.found_zoom >= req.found_zoom) {
 				if (colorize_cache) glColor3f(0.3, 1.0, 0.3);
-				tiledrawer(x, y, tile_wd, tile_ht, (GLuint)(ptrdiff_t)req_tex.found_data, &req_tex, p);
+
+				tiledrawer(&((struct tiledrawer) {
+					.x = x,
+					.y = y,
+					.wd = tile_wd,
+					.ht = tile_ht,
+					.texture_id = (GLuint)(ptrdiff_t)req_tex.found_data,
+					.req = &req_tex,
+					.pos = (float *)pos,
+				}));
+
 				if (colorize_cache) glColor3f(1.0, 1.0, 1.0);
 				continue;
 			}
 			GLuint id = texture_from_rawbits(req.found_data);
 			if (colorize_cache) glColor3f(0.8, 0.0, 0.0);
-			tiledrawer(x, y, tile_wd, tile_ht, id, &req, p);
+
+			tiledrawer(&((struct tiledrawer) {
+				.x = x,
+				.y = y,
+				.wd = tile_wd,
+				.ht = tile_ht,
+				.texture_id = id,
+				.req = &req,
+				.pos = (float *)pos,
+			}));
+
 			if (colorize_cache) glColor3f(1.0, 1.0, 1.0);
 
 			req.zoom = req.found_zoom;
