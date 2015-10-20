@@ -34,6 +34,7 @@ struct tile {
 	float ht;
 	int zoom;
 	struct vector p[4];
+	struct vector normal[4];
 	struct tile *prev;
 	struct tile *next;
 };
@@ -167,18 +168,23 @@ drawlist_detach (struct tile *t)
 }
 
 static inline void
-project_points_planar (struct vector points[], int npoints)
+project_points_planar (struct vector points[], struct vector normals[], int npoints)
 {
 	// Each "point" comes as three floats: x, y and z:
 	for (int i = 0; i < npoints; i++) {
 		points[i].x -= center_x_dbl;
 		points[i].y -= center_y_dbl;
 		points[i].y = -points[i].y;
+
+		normals[i].x = 0.0f;
+		normals[i].y = 0.0f;
+		normals[i].z = 1.0f;
+		normals[i].w = 0.0f;
 	}
 }
 
 static inline void
-project_points_spherical (struct vector points[], int npoints)
+project_points_spherical (struct vector points[], struct vector normals[], int npoints)
 {
 	double cx_lon, sin_cy_lat, cos_cy_lat;
 
@@ -187,7 +193,7 @@ project_points_spherical (struct vector points[], int npoints)
 
 	// Each "point" comes as three floats: x, y and z:
 	for (int i = 0; i < npoints; i++)
-		tilepoint_to_xyz(points[i].x, points[i].y, world_size, cx_lon, sin_cy_lat, cos_cy_lat, &points[i].x);
+		tilepoint_to_xyz(points[i].x, points[i].y, world_size, cx_lon, sin_cy_lat, cos_cy_lat, &points[i].x, &normals[i].x);
 }
 
 static bool
@@ -259,11 +265,11 @@ tilepicker_planar (void)
 					{ tile_x + tilesize, tile_y,            0.0f, 1.0f },
 					{ tile_x + tilesize, tile_y + tilesize, 0.0f, 1.0f },
 					{ tile_x,            tile_y + tilesize, 0.0f, 1.0f }
-				}
+				},
 			};
 			// Must call reduce_block with a tile structure containing
 			// the four projected corner points, so bootstrap:
-			project_points_planar(tile.p, 4);
+			project_points_planar(tile.p, tile.normal, 4);
 
 			// Recursively split this block:
 			reduce_block(&tile, lowzoom, 1.0f);
@@ -304,7 +310,7 @@ tilepicker_spherical (void)
 					{ x,      y + sz, 0.0f, 1.0f }
 				}
 			};
-			project_points_spherical(tile.p, 4);
+			project_points_spherical(tile.p, tile.normal, 4);
 
 			reduce_block(&tile, 0, ldexpf(1.0f, minsize));
 		}
@@ -342,17 +348,28 @@ tilepicker_recalc (void)
 static void
 reduce_block (struct tile *tile, int maxzoom, float minsize)
 {
-	#define inherit_point(a,k) \
-		memcpy(&t.p[a], \
-			  (k == 0) ? &tile->p[0] \
-			: (k == 1) ? &p[0]  \
-			: (k == 2) ? &tile->p[1] \
-			: (k == 3) ? &p[1]  \
-			: (k == 4) ? &tile->p[2] \
-			: (k == 5) ? &p[2]  \
-			: (k == 6) ? &tile->p[3] \
-			: (k == 7) ? &p[3]  \
-			: &p[4] \
+	#define inherit_point(a,k)			\
+		memcpy(&t.p[a],				\
+			  (k == 0) ? &tile->p[0]	\
+			: (k == 1) ? &p[0]		\
+			: (k == 2) ? &tile->p[1]	\
+			: (k == 3) ? &p[1]		\
+			: (k == 4) ? &tile->p[2]	\
+			: (k == 5) ? &p[2]		\
+			: (k == 6) ? &tile->p[3]	\
+			: (k == 7) ? &p[3]		\
+			: &p[4]				\
+			, sizeof(struct vector));	\
+		memcpy(&t.normal[a],			\
+			  (k == 0) ? &tile->normal[0]	\
+			: (k == 1) ? &normal[0]		\
+			: (k == 2) ? &tile->normal[1]	\
+			: (k == 3) ? &normal[1]		\
+			: (k == 4) ? &tile->normal[2]	\
+			: (k == 5) ? &normal[2]		\
+			: (k == 6) ? &tile->normal[3]	\
+			: (k == 7) ? &normal[3]		\
+			: &normal[4]			\
 			, sizeof(struct vector))
 
 	#define setcorners(a,b,c,d) \
@@ -399,9 +416,13 @@ reduce_block (struct tile *tile, int maxzoom, float minsize)
 		{ tile->x,            tile->y + halfsize, 0.0f, 1.0f },	// 7
 		{ tile->x + halfsize, tile->y + halfsize, 0.0f, 1.0f }	// 8
 	};
+
+	// Also save the normals:
+	struct vector normal[5];
+
 	(viewport_mode_get() == VIEWPORT_MODE_PLANAR)
-		? project_points_planar(p, 5)
-		: project_points_spherical(p, 5);
+		? project_points_planar(p, normal, 5)
+		: project_points_spherical(p, normal, 5);
 
 	// And the midpoint zoom, shared by all quadrants in this tile:
 	int mzoom = zoom_point(world_zoom, p[4].x, p[4].y, p[4].z);
@@ -637,7 +658,7 @@ reset:	for (tile1 = drawlist; tile1 != NULL; tile1 = tile1->next)
 }
 
 bool
-tilepicker_next (float *x, float *y, float *wd, float *ht, int *zoom, float p[4][4])
+tilepicker_next (float *x, float *y, float *wd, float *ht, int *zoom, float pos[4][4], float normal[4][4])
 {
 	// Returns true or false depending on whether a tile is available and
 	// returned in the pointer arguments.
@@ -650,19 +671,20 @@ tilepicker_next (float *x, float *y, float *wd, float *ht, int *zoom, float p[4]
 	*ht = drawlist_iter->ht;
 	*zoom = drawlist_iter->zoom;
 
-	memcpy(p, &drawlist_iter->p, sizeof(struct vector[4]));
+	memcpy(pos, &drawlist_iter->p, sizeof(struct vector[4]));
+	memcpy(normal, &drawlist_iter->normal, sizeof(struct vector[4]));
 
 	drawlist_iter = drawlist_iter->next;
 	return true;
 }
 
 bool
-tilepicker_first (float *x, float *y, float *wd, float *ht, int *zoom, float p[4][4])
+tilepicker_first (float *x, float *y, float *wd, float *ht, int *zoom, float pos[4][4], float normal[4][4])
 {
 	// Reset iterator:
 	drawlist_iter = drawlist;
 
-	return tilepicker_next(x, y, wd, ht, zoom, p);
+	return tilepicker_next(x, y, wd, ht, zoom, pos, normal);
 }
 
 void

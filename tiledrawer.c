@@ -26,6 +26,7 @@ tiledrawer (const struct tiledrawer *tile)
 {
 	struct texture tex;
 	struct vector *pos = (struct vector *)tile->pos;
+	struct vector *normal = (struct vector *)tile->normal;
 
 	unsigned int zoomdiff = tile->req->world_zoom - tile->req->found_zoom;
 
@@ -51,9 +52,9 @@ tiledrawer (const struct tiledrawer *tile)
 	glBindTexture(GL_TEXTURE_2D, tile->texture_id);
 
 	glBegin(GL_QUADS);
-		glNormal3fv(&pos[0].x); glTexCoord2f(txoffs,       tyoffs);       glVertex3fv(&pos[0].x);
-		glNormal3fv(&pos[1].x); glTexCoord2f(txoffs + twd, tyoffs);       glVertex3fv(&pos[1].x);
-		glNormal3fv(&pos[2].x); glTexCoord2f(txoffs + twd, tyoffs + tht); glVertex3fv(&pos[2].x);
-		glNormal3fv(&pos[3].x); glTexCoord2f(txoffs,       tyoffs + tht); glVertex3fv(&pos[3].x);
+		glNormal3fv(&normal[0].x); glTexCoord2f(txoffs,       tyoffs);       glVertex3fv(&pos[0].x);
+		glNormal3fv(&normal[1].x); glTexCoord2f(txoffs + twd, tyoffs);       glVertex3fv(&pos[1].x);
+		glNormal3fv(&normal[2].x); glTexCoord2f(txoffs + twd, tyoffs + tht); glVertex3fv(&pos[2].x);
+		glNormal3fv(&normal[3].x); glTexCoord2f(txoffs,       tyoffs + tht); glVertex3fv(&pos[3].x);
 	glEnd();
 }

@@ -19,7 +19,7 @@ tile_y_to_lat (double y, double world_size)
 }
 
 static inline void
-latlon_to_xyz (const double lat, const double lon, const double world_size, const double viewlon, const double sin_viewlat, const double cos_viewlat, float *p)
+latlon_to_xyz (const double lat, const double lon, const double world_size, const double viewlon, const double sin_viewlat, const double cos_viewlat, float *pos, float *normal)
 {
 	const double world_radius = world_size / M_PI;
 
@@ -34,6 +34,12 @@ latlon_to_xyz (const double lat, const double lon, const double world_size, cons
 	y = yorig * cos_viewlat - zorig * sin_viewlat;
 	z = yorig * sin_viewlat + zorig * cos_viewlat;
 
+	// Save the normal:
+	normal[0] = x;
+	normal[1] = y;
+	normal[2] = z;
+	normal[3] = 0.0f;
+
 	// Scale the world to its full size:
 	x *= world_radius;
 	y *= world_radius;
@@ -44,10 +50,10 @@ latlon_to_xyz (const double lat, const double lon, const double world_size, cons
 	z -= world_radius;
 
 	// Convert to float:
-	p[0] = x;
-	p[1] = y;
-	p[2] = -z;
-	p[3] = -1.0f;
+	pos[0] = x;
+	pos[1] = y;
+	pos[2] = -z;
+	pos[3] = -1.0f;
 }
 
 static inline void
@@ -63,11 +69,11 @@ tilepoint_to_xyz_precalc (const double world_size, const double cx, const double
 }
 
 static inline void
-tilepoint_to_xyz (const float x, const float y, const double world_size, const double cx_lon, const double sin_cy_lat, const double cos_cy_lat, float *p)
+tilepoint_to_xyz (const float x, const float y, const double world_size, const double cx_lon, const double sin_cy_lat, const double cos_cy_lat, float *pos, float *normal)
 {
 	// Find the lat/lon to which the tilepoint corresponds:
 	double lon = world_x_to_lon(x, world_size);
 	double lat = tile_y_to_lat(y, world_size);
 
-	latlon_to_xyz(lat, lon, world_size, cx_lon, sin_cy_lat, cos_cy_lat, p);
+	latlon_to_xyz(lat, lon, world_size, cx_lon, sin_cy_lat, cos_cy_lat, pos, normal);
 }

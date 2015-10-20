@@ -82,10 +82,10 @@ static void
 paint_tiles (void)
 {
 	int zoom;
-	float x, y, tile_wd, tile_ht, p[4][4];
+	float x, y, tile_wd, tile_ht, pos[4][4], normal[4][4];
 	double world_size = world_get_size();
 
-	for (int iter = tilepicker_first(&x, &y, &tile_wd, &tile_ht, &zoom, p); iter; iter = tilepicker_next(&x, &y, &tile_wd, &tile_ht, &zoom, p)) {
+	for (int iter = tilepicker_first(&x, &y, &tile_wd, &tile_ht, &zoom, pos, normal); iter; iter = tilepicker_next(&x, &y, &tile_wd, &tile_ht, &zoom, pos, normal)) {
 		float zoomcolors[6][3] = {
 			{ 1.0, 0.0, 0.0 },
 			{ 0.0, 1.0, 0.0 },

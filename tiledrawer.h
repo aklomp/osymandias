@@ -9,6 +9,7 @@ struct tiledrawer {
 	GLuint texture_id;
 	struct quadtree_req *req;
 	float *pos;
+	float *normal;
 };
 
 void tiledrawer (const struct tiledrawer *);
