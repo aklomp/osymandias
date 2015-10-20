@@ -19,29 +19,35 @@ tile_y_to_lat (double y, double world_size)
 }
 
 static inline void
-latlon_to_xyz (const double lat, const double lon, const double world_size, const double viewlon, const double sin_viewlat, const double cos_viewlat, double *x, double *y, double *z)
+latlon_to_xyz (const double lat, const double lon, const double world_size, const double viewlon, const double sin_viewlat, const double cos_viewlat, float *p)
 {
 	const double world_radius = world_size / M_PI;
 
-	*x = cos(lat) * sin(lon - viewlon);
-	*z = cos(lat) * cos(lon - viewlon);
-	*y = sin(lat);
+	double x = cos(lat) * sin(lon - viewlon);
+	double z = cos(lat) * cos(lon - viewlon);
+	double y = sin(lat);
 
 	// Rotate the points over lat radians via x axis:
-	double yorig = *y;
-	double zorig = *z;
+	double yorig = y;
+	double zorig = z;
 
-	*y = yorig * cos_viewlat - zorig * sin_viewlat;
-	*z = yorig * sin_viewlat + zorig * cos_viewlat;
+	y = yorig * cos_viewlat - zorig * sin_viewlat;
+	z = yorig * sin_viewlat + zorig * cos_viewlat;
 
 	// Scale the world to its full size:
-	*x *= world_radius;
-	*y *= world_radius;
-	*z *= world_radius;
+	x *= world_radius;
+	y *= world_radius;
+	z *= world_radius;
 
 	// Translate the world "back" from the camera,
 	// so that the cursor (centerpoint) is at (0,0,0):
-	*z -= world_radius;
+	z -= world_radius;
+
+	// Convert to float:
+	p[0] = x;
+	p[1] = y;
+	p[2] = -z;
+	p[3] = -1.0f;
 }
 
 static inline void
@@ -62,12 +68,6 @@ tilepoint_to_xyz (const float x, const float y, const double world_size, const d
 	// Find the lat/lon to which the tilepoint corresponds:
 	double lon = world_x_to_lon(x, world_size);
 	double lat = tile_y_to_lat(y, world_size);
-	double px, py, pz;
 
-	latlon_to_xyz(lat, lon, world_size, cx_lon, sin_cy_lat, cos_cy_lat, &px, &py, &pz);
-
-	p[0] = px;
-	p[1] = py;
-	p[2] = -pz;
-	p[3] = -1.0f;
+	latlon_to_xyz(lat, lon, world_size, cx_lon, sin_cy_lat, cos_cy_lat, p);
 }
