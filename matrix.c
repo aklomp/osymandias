@@ -79,6 +79,27 @@ mat_rotate (float *matrix, float x, float y, float z, float angle)
 }
 
 void
+mat_scale (float *matrix, float x, float y, float z)
+{
+	matrix[0] = x;
+	matrix[1] = 0;
+	matrix[2] = 0;
+	matrix[3] = 0;
+	matrix[4] = 0;
+	matrix[5] = y;
+	matrix[6] = 0;
+	matrix[7] = 0;
+	matrix[8] = 0;
+	matrix[9] = 0;
+	matrix[10] = z;
+	matrix[11] = 0;
+	matrix[12] = 0;
+	matrix[13] = 0;
+	matrix[14] = 0;
+	matrix[15] = 1;
+}
+
+void
 mat_ortho (float *matrix, float left, float right, float bottom, float top, float near, float far)
 {
 	matrix[0] = 2 / (right - left);
@@ -118,6 +139,23 @@ mat_frustum (float *matrix, float angle_of_view, float aspect_ratio, float z_nea
 	matrix[13] = 0.0f;
 	matrix[14] = -2.0f * z_far * z_near / (z_far - z_near);
 	matrix[15] = 0.0f;
+}
+
+void
+mat_vec_multiply (float *vector, const float *m, const float *v)
+{
+	float result[4];
+	for (int i = 0; i < 4; i++) {
+		float total = 0.0f;
+		for (int j = 0; j < 4; j++) {
+			int p = j * 4 + i;
+			int q = j;
+			total += m[p] * v[q];
+		}
+		result[i] = total;
+	}
+	for (int i = 0; i < 4; i++)
+		vector[i] = result[i];
 }
 
 void
