@@ -167,7 +167,7 @@ paint_tiles (void)
 
 		// Upload vertex data:
 		glBindBuffer(GL_ARRAY_BUFFER, vbo_tiles);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(struct vertex) * t * 4, tile, GL_STREAM_DRAW);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(struct tile) * t, tile, GL_STREAM_DRAW);
 
 		// Draw indices:
 		glBindVertexArray(vao_tiles);
@@ -184,7 +184,7 @@ paint_tiles (void)
 		}
 
 		// Upload modified data:
-		glBufferData(GL_ARRAY_BUFFER, sizeof(struct vertex) * t * 4, tile, GL_STREAM_DRAW);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(struct tile) * t, tile, GL_STREAM_DRAW);
 
 		// Draw line loops:
 		for (int i = 0; i < t; i++)
