@@ -19,8 +19,8 @@
 // Projection matrix:
 static float mat_proj[16];
 
-static GLuint vao_bkgd;
-static GLuint vbo_bkgd;
+static GLuint vao_bkgd, vao_tiles;
+static GLuint vbo_bkgd, vbo_tiles;
 static GLuint vao_frustum;
 
 // Each point has 2D space coordinates and color:
@@ -81,33 +81,114 @@ paint_background (GLuint vao)
 static void
 paint_tiles (void)
 {
+	static float zoomcolors[6][3] = {
+		{ 1.0f, 0.0f, 0.0f },
+		{ 0.0f, 1.0f, 0.0f },
+		{ 0.0f, 0.0f, 1.0f },
+		{ 0.5f, 0.5f, 0.0f },
+		{ 0.0f, 0.5f, 0.5f },
+		{ 0.5f, 0.0f, 0.5f }
+	};
+
 	int zoom;
 	float x, y, tile_wd, tile_ht, pos[4][4], normal[4][4];
+
+	// Draw 50 tiles (200 vertices) at a time:
+	struct tile {
+		struct vertex vertex[4];
+	} __attribute__((packed))
+	tile[50];
+
+	// 50 tiles have 100 triangles with 3 vertices each:
+	struct {
+		struct {
+			GLubyte a;
+			GLubyte b;
+			GLubyte c;
+		} __attribute__((packed))
+		tri[2];
+	} __attribute__((packed))
+	index[50];
+
+	// Populate indices with two triangles (0-1-3 and 1-2-3):
+	for (int t = 0; t < 50; t++) {
+		index[t].tri[0].a = t * 4 + 0;
+		index[t].tri[0].b = t * 4 + 1;
+		index[t].tri[0].c = t * 4 + 3;
+
+		index[t].tri[1].a = t * 4 + 1;
+		index[t].tri[1].b = t * 4 + 2;
+		index[t].tri[1].c = t * 4 + 3;
+	}
+
 	double world_size = world_get_size();
 
-	for (int iter = tilepicker_first(&x, &y, &tile_wd, &tile_ht, &zoom, pos, normal); iter; iter = tilepicker_next(&x, &y, &tile_wd, &tile_ht, &zoom, pos, normal)) {
-		float zoomcolors[6][3] = {
-			{ 1.0, 0.0, 0.0 },
-			{ 0.0, 1.0, 0.0 },
-			{ 0.0, 0.0, 1.0 },
-			{ 0.5, 0.5, 0.0 },
-			{ 0.0, 0.5, 0.5 },
-			{ 0.5, 0.0, 0.5 }
-		};
-		glColor4f(zoomcolors[zoom % 3][0], zoomcolors[zoom % 3][1], zoomcolors[zoom % 3][2], 0.5);
-		glBegin(GL_QUADS);
-			glVertex2f(x, world_size - y);
-			glVertex2f(x + tile_wd, world_size - y);
-			glVertex2f(x + tile_wd, world_size - y - tile_ht);
-			glVertex2f(x, world_size - y - tile_ht);
-		glEnd();
-		glColor4f(1.0, 1.0, 1.0, 0.5);
-		glBegin(GL_LINE_LOOP);
-			glVertex2d(x, world_size - y);
-			glVertex2d(x + tile_wd, world_size - y);
-			glVertex2d(x + tile_wd, world_size - y - tile_ht);
-			glVertex2d(x, world_size - y - tile_ht);
-		glEnd();
+	// First draw tiles with solid background:
+	bool iter = tilepicker_first(&x, &y, &tile_wd, &tile_ht, &zoom, pos, normal);
+
+	while (iter)
+	{
+		int t;
+
+		// Fetch 50 tiles at most:
+		for (t = 0; iter && t < 50; t++)
+		{
+			// Bottom left:
+			tile[t].vertex[0].x = x;
+			tile[t].vertex[0].y = world_size - y;
+
+			// Bottom right:
+			tile[t].vertex[1].x = x + tile_wd;
+			tile[t].vertex[1].y = world_size - y;
+
+			// Top right:
+			tile[t].vertex[2].x = x + tile_wd;
+			tile[t].vertex[2].y = world_size - y - tile_ht;
+
+			// Top left:
+			tile[t].vertex[3].x = x;
+			tile[t].vertex[3].y = world_size - y - tile_ht;
+
+			// Solid fill color:
+			float r = zoomcolors[zoom % 3][0];
+			float g = zoomcolors[zoom % 3][1];
+			float b = zoomcolors[zoom % 3][2];
+			float a = 0.5f;
+
+			for (int i = 0; i < 4; i++) {
+				tile[t].vertex[i].r = r;
+				tile[t].vertex[i].g = g;
+				tile[t].vertex[i].b = b;
+				tile[t].vertex[i].a = a;
+			}
+
+			iter = tilepicker_next(&x, &y, &tile_wd, &tile_ht, &zoom, pos, normal);
+		}
+
+		// Upload vertex data:
+		glBindBuffer(GL_ARRAY_BUFFER, vbo_tiles);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(struct vertex) * t * 4, tile, GL_STREAM_DRAW);
+
+		// Draw indices:
+		glBindVertexArray(vao_tiles);
+		glDrawElements(GL_TRIANGLES, t * 6, GL_UNSIGNED_BYTE, index);
+
+		// Change color to white:
+		for (int i = 0; i < t; i++) {
+			for (int v = 0; v < 4; v++) {
+				tile[i].vertex[v].r = 1.0f;
+				tile[i].vertex[v].g = 1.0f;
+				tile[i].vertex[v].b = 1.0f;
+				tile[i].vertex[v].a = 0.5f;
+			}
+		}
+
+		// Upload modified data:
+		glBufferData(GL_ARRAY_BUFFER, sizeof(struct vertex) * t * 4, tile, GL_STREAM_DRAW);
+
+		// Draw line loops:
+		for (int i = 0; i < t; i++)
+			glDrawArrays(GL_LINE_LOOP, i * 4, 4);
 	}
 }
 
@@ -156,9 +237,7 @@ paint (void)
 
 	paint_background(vao_bkgd);
 
-	// Reset program:
-	program_none();
-
+	// Paint tiles using solid program:
 	paint_tiles();
 
 	// Paint background using frustum program:
@@ -218,11 +297,13 @@ zoom (const unsigned int zoom)
 static bool
 init (void)
 {
-	// Generate vertex buffer object:
+	// Generate vertex buffer objects:
 	glGenBuffers(1, &vbo_bkgd);
+	glGenBuffers(1, &vbo_tiles);
 
 	// Generate vertex array objects:
 	glGenVertexArrays(1, &vao_bkgd);
+	glGenVertexArrays(1, &vao_tiles);
 	glGenVertexArrays(1, &vao_frustum);
 
 	// Bind buffer and vertex array:
@@ -248,6 +329,22 @@ init (void)
 		sizeof(struct vertex),
 		(void *)(&((struct vertex *)0)->x));
 
+	// Bind buffer and vertex array:
+	glBindBuffer(GL_ARRAY_BUFFER, vbo_tiles);
+	glBindVertexArray(vao_tiles);
+
+	// Add pointer to 'vertex' attribute:
+	glEnableVertexAttribArray(program_solid_loc_vertex());
+	glVertexAttribPointer(program_solid_loc_vertex(), 2, GL_FLOAT, GL_FALSE,
+		sizeof(struct vertex),
+		(void *)(&((struct vertex *)0)->x));
+
+	// Add pointer to 'color' attribute:
+	glEnableVertexAttribArray(program_solid_loc_color());
+	glVertexAttribPointer(program_solid_loc_color(), 4, GL_FLOAT, GL_FALSE,
+		sizeof(struct vertex),
+		(void *)(&((struct vertex *)0)->r));
+
 	zoom(0);
 
 	return true;
@@ -258,10 +355,12 @@ destroy (void)
 {
 	// Delete vertex array objects:
 	glDeleteVertexArrays(1, &vao_bkgd);
+	glDeleteVertexArrays(1, &vao_tiles);
 	glDeleteVertexArrays(1, &vao_frustum);
 
-	// Delete vertex buffer:
+	// Delete vertex buffers:
 	glDeleteBuffers(1, &vbo_bkgd);
+	glDeleteBuffers(1, &vbo_tiles);
 }
 
 struct layer *
