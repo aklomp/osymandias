@@ -1,4 +1,5 @@
 #include <stdbool.h>
+#include <string.h>
 #include <GL/gl.h>
 
 #include "../vector.h"
@@ -81,14 +82,17 @@ paint_background (GLuint vao)
 static void
 paint_tiles (void)
 {
-	static float zoomcolors[6][3] = {
-		{ 1.0f, 0.0f, 0.0f },
-		{ 0.0f, 1.0f, 0.0f },
-		{ 0.0f, 0.0f, 1.0f },
-		{ 0.5f, 0.5f, 0.0f },
-		{ 0.0f, 0.5f, 0.5f },
-		{ 0.5f, 0.0f, 0.5f }
+	static float zoomcolors[6][4] = {
+		{ 1.0f, 0.0f, 0.0f, 0.5f },
+		{ 0.0f, 1.0f, 0.0f, 0.5f },
+		{ 0.0f, 0.0f, 1.0f, 0.5f },
+		{ 0.5f, 0.5f, 0.0f, 0.5f },
+		{ 0.0f, 0.5f, 0.5f, 0.5f },
+		{ 0.5f, 0.0f, 0.5f, 0.5f },
 	};
+
+	static float white[4] =
+		{ 1.0f, 1.0f, 1.0f, 0.5f };
 
 	int zoom;
 	float x, y, tile_wd, tile_ht, pos[4][4], normal[4][4];
@@ -150,17 +154,9 @@ paint_tiles (void)
 			tile[t].vertex[3].y = world_size - y - tile_ht;
 
 			// Solid fill color:
-			float r = zoomcolors[zoom % 3][0];
-			float g = zoomcolors[zoom % 3][1];
-			float b = zoomcolors[zoom % 3][2];
-			float a = 0.5f;
-
-			for (int i = 0; i < 4; i++) {
-				tile[t].vertex[i].r = r;
-				tile[t].vertex[i].g = g;
-				tile[t].vertex[i].b = b;
-				tile[t].vertex[i].a = a;
-			}
+			float *color = zoomcolors[zoom % 3];
+			for (int i = 0; i < 4; i++)
+				memcpy(&tile[t].vertex[i].r, color, sizeof(float[4]));
 
 			iter = tilepicker_next(&x, &y, &tile_wd, &tile_ht, &zoom, pos, normal);
 		}
@@ -173,20 +169,16 @@ paint_tiles (void)
 		glBindVertexArray(vao_tiles);
 		glDrawElements(GL_TRIANGLES, t * 6, GL_UNSIGNED_BYTE, index);
 
-		// Change color to white:
-		for (int i = 0; i < t; i++) {
-			for (int v = 0; v < 4; v++) {
-				tile[i].vertex[v].r = 1.0f;
-				tile[i].vertex[v].g = 1.0f;
-				tile[i].vertex[v].b = 1.0f;
-				tile[i].vertex[v].a = 0.5f;
-			}
-		}
+		// Change colors to white:
+		float *color = white;
+		for (int i = 0; i < t; i++)
+			for (int v = 0; v < 4; v++)
+				memcpy(&tile[i].vertex[v].r, color, sizeof(float[4]));
 
 		// Upload modified data:
 		glBufferData(GL_ARRAY_BUFFER, sizeof(struct tile) * t, tile, GL_STREAM_DRAW);
 
-		// Draw line loops:
+		// Draw as line loops:
 		for (int i = 0; i < t; i++)
 			glDrawArrays(GL_LINE_LOOP, i * 4, 4);
 	}
