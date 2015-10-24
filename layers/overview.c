@@ -235,7 +235,7 @@ paint (void)
 	// Paint background using frustum program:
 	program_frustum_use(&((struct program_frustum) {
 		.mat_proj = mat_proj,
-		.mat_frustum = camera_mat_mvp(),
+		.mat_frustum = camera_mat_viewproj(),
 		.cx = viewport_get_center_x(),
 		.cy = viewport_get_center_y(),
 		.world_size = world_get_size(),

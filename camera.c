@@ -6,28 +6,29 @@
 #include "vector3d.h"
 #include "matrix.h"
 
-struct camera
-{
+struct {
 	vec4f pos;	// position in world space
 
 	float tilt;	// tilt from vertical, in degrees
-	float rot;	// rotation along z axis, in degrees
+	float rotate;	// rotation along z axis, in degrees
 	float zdist;	// distance from camera to cursor in z units (camera height)
 
-	float clip_near;
-	float clip_far;
-
 	vec4f frustum_planes[4];
+} cam;
 
-	float mat_tilt[16];	// Tilt matrix
-	float mat_rot[16];	// Rotate matrix
-	float mat_trans[16];	// Translation out of origin
-	float mat_view[16];	// View matrix
-	float mat_proj[16];	// Projection matrix
-	float mat_mvp[16];	// Model-view-projection matrix
-};
+struct {
+	float near;
+	float far;
+} clip;
 
-static struct camera cam;
+struct {
+	float tilt[16];		// Tilt matrix
+	float rotate[16];	// Rotate matrix
+	float translate[16];	// Translation from origin
+	float view[16];		// View matrix
+	float proj[16];		// Projection matrix
+	float viewproj[16];	// View-projection matrix
+} matrix;
 
 static void
 extract_frustum_planes (void)
@@ -36,7 +37,7 @@ extract_frustum_planes (void)
 	// Fast Extraction of Viewing Frustum Planes from the World-View-Projection Matrix
 
 	// Shorthand:
-	float *m = cam.mat_mvp;
+	float *m = matrix.viewproj;
 
 	// The actual calculations, which we can optimize by collecting terms:
 	// cam.frustum_planes[0] = (vec4f) { m[3] + m[0], m[7] + m[4], m[11] + m[8], m[15] + m[12] };
@@ -54,14 +55,14 @@ extract_frustum_planes (void)
 	cam.frustum_planes[3] = c - v;
 }
 
-// Update model-view-projection matrix after view or projection changed:
+// Update view-projection matrix after view or projection changed:
 static void
-mat_mvp_update (void)
+mat_viewproj_update (void)
 {
-	// Generate the MVP matrix:
-	mat_multiply(cam.mat_mvp, cam.mat_proj, cam.mat_view);
+	// Generate the view-projection matrix:
+	mat_multiply(matrix.viewproj, matrix.proj, matrix.view);
 
-	// Extract the frustum planes from the updated MVP matrix:
+	// Extract the frustum planes from the updated matrix:
 	extract_frustum_planes();
 }
 
@@ -70,21 +71,21 @@ static void
 mat_view_update (void)
 {
 	// Compose view matrix from individual matrices:
-	mat_multiply(cam.mat_view, cam.mat_tilt, cam.mat_rot);
-	mat_multiply(cam.mat_view, cam.mat_trans, cam.mat_view);
+	mat_multiply(matrix.view, matrix.tilt, matrix.rotate);
+	mat_multiply(matrix.view, matrix.translate, matrix.view);
 
 	// This was reverse-engineered by observing that the values in the
 	// third row of the matrix matched the normalized camera position.
 	// TODO: derive this properly.
 	cam.pos = (vec4f) {
-		cam.mat_view[2]  * cam.mat_view[14],
-		cam.mat_view[6]  * cam.mat_view[14],
-		cam.mat_view[10] * cam.mat_view[14],
+		matrix.view[2]  * matrix.view[14],
+		matrix.view[6]  * matrix.view[14],
+		matrix.view[10] * matrix.view[14],
 		1.0f
 	};
 
 	// This changes the MVP matrix:
-	mat_mvp_update();
+	mat_viewproj_update();
 }
 
 // Recaculate the projection matrix when screen size changes:
@@ -104,10 +105,10 @@ camera_projection (const int screen_wd, const int screen_ht)
 	float angle = atanf(halfwd / cam.zdist);
 
 	// Generate projection matrix:
-	mat_frustum(cam.mat_proj, angle, aspect, cam.clip_near, cam.clip_far);
+	mat_frustum(matrix.proj, angle, aspect, clip.near, clip.far);
 
 	// This changes the MVP matrix:
-	mat_mvp_update();
+	mat_viewproj_update();
 }
 
 void
@@ -124,7 +125,7 @@ camera_tilt (const float radians)
 		cam.tilt = 0.0f;
 
 	// Tilt occurs around the x axis:
-	mat_rotate(cam.mat_tilt, 1, 0, 0, cam.tilt);
+	mat_rotate(matrix.tilt, 1, 0, 0, cam.tilt);
 
 	// Update view matrix:
 	mat_view_update();
@@ -133,10 +134,10 @@ camera_tilt (const float radians)
 void
 camera_rotate (const float radians)
 {
-	cam.rot += radians;
+	cam.rotate += radians;
 
 	// Rotate occurs around the z axis:
-	mat_rotate(cam.mat_rot, 0, 0, 1, cam.rot);
+	mat_rotate(matrix.rotate, 0, 0, 1, cam.rotate);
 
 	// Update view matrix:
 	mat_view_update();
@@ -147,11 +148,11 @@ camera_setup (void)
 {
 	// Upload the projection matrix:
 	glMatrixMode(GL_PROJECTION);
-	glLoadMatrixf(cam.mat_proj);
+	glLoadMatrixf(matrix.proj);
 
 	// Upload the view matrix:
 	glMatrixMode(GL_MODELVIEW);
-	glLoadMatrixf(cam.mat_view);
+	glLoadMatrixf(matrix.view);
 }
 
 float
@@ -274,13 +275,13 @@ camera_is_tilted (void)
 bool
 camera_is_rotated (void)
 {
-	return (cam.rot != 0.0f);
+	return (cam.rotate != 0.0f);
 }
 
 const float *
-camera_mat_mvp (void)
+camera_mat_viewproj (void)
 {
-	return cam.mat_mvp;
+	return matrix.viewproj;
 }
 
 void
@@ -292,21 +293,21 @@ bool
 camera_init (void)
 {
 	// Initial position in space:
-	cam.zdist = 4;
+	cam.zdist = 4.0f;
 	cam.pos = (vec4f){ 0, 0, cam.zdist, 0 };
 
 	// Initial attitude:
-	cam.tilt = 0;
-	cam.rot  = 0;
+	cam.tilt = 0.0f;
+	cam.rotate  = 0.0f;
 
 	// Clip planes:
-	cam.clip_near =   1.0;
-	cam.clip_far  = 100.0;
+	clip.near =   1.0f;
+	clip.far  = 100.0f;
 
 	// Initialize tilt, rotate and translate matrices:
-	mat_identity(cam.mat_rot);
-	mat_identity(cam.mat_tilt);
-	mat_translate(cam.mat_trans, 0, 0, cam.zdist);
+	mat_identity(matrix.rotate);
+	mat_identity(matrix.tilt);
+	mat_translate(matrix.translate, 0, 0, cam.zdist);
 
 	// Initialize view matrix:
 	mat_view_update();
