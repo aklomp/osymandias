@@ -1,7 +1,10 @@
 #include <stdbool.h>
 
-#define ZOOM_MAX	18
+// At zoom level 0, the world is 1 tile wide.
+// At zoom level 1, it's two tiles.
+// At zoom level 2, it's four tiles, etc.
 #define ZOOM_SIZE(z)	(1U << (z))
+#define ZOOM_MAX	18
 
 static struct {
 	unsigned int zoom;
@@ -11,20 +14,13 @@ static struct {
 	.size = ZOOM_SIZE(0),
 };
 
-// NB: the current world contracts and expands based on zoom level.
-// The world is measured in tile units (which subdivide into 256 pixels).
-// We previously measured directly in pixels, but it turned out that floats
-// were not precise enough to perform pixel-perfect operations at the highest
-// zoom levels.
-
 unsigned int
 world_get_size (void)
 {
-	// Return the current world size in pixels:
 	return world.size;
 }
 
-int
+unsigned int
 world_get_zoom (void)
 {
 	return world.zoom;
@@ -36,8 +32,7 @@ world_zoom_in (void)
 	if (world.zoom == ZOOM_MAX)
 		return false;
 
-	world.zoom++;
-	world.size = 1U << world.zoom;
+	world.size = ZOOM_SIZE(++world.zoom);
 	return true;
 }
 
@@ -47,7 +42,6 @@ world_zoom_out (void)
 	if (world.zoom == 0)
 		return false;
 
-	world.zoom--;
-	world.size = 1U << world.zoom;
+	world.size = ZOOM_SIZE(--world.zoom);
 	return true;
 }
