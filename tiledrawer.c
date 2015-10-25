@@ -11,8 +11,10 @@
 struct texture {
 	float wd;
 	float ht;
-	float offset_x;
-	float offset_y;
+	struct {
+		float x;
+		float y;
+	} offset;
 };
 
 void
@@ -31,22 +33,36 @@ tiledrawer (const struct tiledrawer *tile)
 	float yblock = fmodf(tile->y, (1 << zoomdiff));
 
 	// Multiplication before division, avoid clipping:
-	tex.offset_x = ldexpf(xblock, 8 - zoomdiff);
-	tex.offset_y = ldexpf(yblock, 8 - zoomdiff);
+	tex.offset.x = ldexpf(xblock, 8 - zoomdiff);
+	tex.offset.y = ldexpf(yblock, 8 - zoomdiff);
 	tex.wd = ldexpf(tile->wd, 8 - zoomdiff);
 	tex.ht = ldexpf(tile->ht, 8 - zoomdiff);
 
-	GLdouble txoffs = (GLdouble)ldexpf(tex.offset_x, -8);
-	GLdouble tyoffs = (GLdouble)ldexpf(tex.offset_y, -8);
-	GLdouble twd = (GLdouble)ldexpf(tex.wd, -8);
-	GLdouble tht = (GLdouble)ldexpf(tex.ht, -8);
+	float txoffs = ldexpf(tex.offset.x, -8);
+	float tyoffs = ldexpf(tex.offset.y, -8);
+	float twd = ldexpf(tex.wd, -8);
+	float tht = ldexpf(tex.ht, -8);
 
+	struct {
+		float x;
+		float y;
+	} __attribute__((packed))
+	texcoord[4] = {
+		{ txoffs,       tyoffs       },
+		{ txoffs + twd, tyoffs       },
+		{ txoffs + twd, tyoffs + tht },
+		{ txoffs,       tyoffs + tht },
+	};
+
+	// Bind texture:
 	glBindTexture(GL_TEXTURE_2D, tile->texture_id);
 
+	// Submit normal, texture and space coords for vertex:
 	glBegin(GL_QUADS);
-		glNormal3fv((float *)&tile->normal[0]); glTexCoord2f(txoffs,       tyoffs);       glVertex3fv((float *)&tile->coords[0]);
-		glNormal3fv((float *)&tile->normal[1]); glTexCoord2f(txoffs + twd, tyoffs);       glVertex3fv((float *)&tile->coords[1]);
-		glNormal3fv((float *)&tile->normal[2]); glTexCoord2f(txoffs + twd, tyoffs + tht); glVertex3fv((float *)&tile->coords[2]);
-		glNormal3fv((float *)&tile->normal[3]); glTexCoord2f(txoffs,       tyoffs + tht); glVertex3fv((float *)&tile->coords[3]);
+	for (int i = 0; i < 4; i++) {
+		glNormal3fv((float *)&tile->normal[i]);
+		glTexCoord2fv((float *)&texcoord[i]);
+		glVertex3fv((float *)&tile->coords[i]);
+	}
 	glEnd();
 }
