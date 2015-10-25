@@ -7,7 +7,7 @@
 #include "matrix.h"
 
 struct {
-	vec4f pos;	// position in world space
+	struct vector pos;	// position in world space
 
 	float tilt;	// tilt from vertical, in degrees
 	float rotate;	// rotation along z axis, in degrees
@@ -77,12 +77,10 @@ mat_view_update (void)
 	// This was reverse-engineered by observing that the values in the
 	// third row of the matrix matched the normalized camera position.
 	// TODO: derive this properly.
-	cam.pos = (vec4f) {
-		matrix.view[2]  * matrix.view[14],
-		matrix.view[6]  * matrix.view[14],
-		matrix.view[10] * matrix.view[14],
-		1.0f
-	};
+	cam.pos.x = matrix.view[2]  * matrix.view[14];
+	cam.pos.y = matrix.view[6]  * matrix.view[14];
+	cam.pos.z = matrix.view[10] * matrix.view[14];
+	cam.pos.w = 1.0f;
 
 	// This changes the MVP matrix:
 	mat_viewproj_update();
@@ -158,8 +156,11 @@ camera_setup (void)
 float
 camera_distance_squared_point (const vec4f a)
 {
+	// Convert position to vec4f:
+	vec4f pos = *(vec4f *)&cam.pos;
+
 	// Difference vector:
-	vec4f d = a - cam.pos;
+	vec4f d = a - pos;
 
 	// d[0] * d[0] + d[1] * d[1] + d[2] * d[2]
 	return vec4f_hsum(d * d);
@@ -169,9 +170,9 @@ vec4f
 camera_distance_squared_quad (const vec4f x, const vec4f y, const vec4f z)
 {
 	// Difference vectors:
-	vec4f dx = x - vec4f_shuffle(cam.pos, 0, 0, 0, 0);
-	vec4f dy = y - vec4f_shuffle(cam.pos, 1, 1, 1, 1);
-	vec4f dz = z - vec4f_shuffle(cam.pos, 2, 2, 2, 2);
+	vec4f dx = x - vec4f_float(cam.pos.x);
+	vec4f dy = y - vec4f_float(cam.pos.y);
+	vec4f dz = z - vec4f_float(cam.pos.z);
 
 	return (dx * dx) + (dy * dy) + (dz * dz);
 }
@@ -197,9 +198,9 @@ camera_distance_squared_quadedge (const vec4f x, const vec4f y, const vec4f z)
 	vec4f zdiff = vec4f_shuffle(z, 1, 2, 3, 0) - z;
 
 	// Get "difference vectors" between camera position and first edge point:
-	vec4f xdiffcam = x - vec4f_shuffle(cam.pos, 0, 0, 0, 0);
-	vec4f ydiffcam = y - vec4f_shuffle(cam.pos, 1, 1, 1, 1);
-	vec4f zdiffcam = z - vec4f_shuffle(cam.pos, 2, 2, 2, 2);
+	vec4f xdiffcam = x - vec4f_float(cam.pos.x);
+	vec4f ydiffcam = y - vec4f_float(cam.pos.y);
+	vec4f zdiffcam = z - vec4f_float(cam.pos.z);
 
 	// Dot products of (xdiff, ydiff, zdiff) and (xdiffcam, ydiffcam, zdiffcam):
 	vec4f dots = (xdiff * xdiffcam) + (ydiff * ydiffcam) + (zdiff * zdiffcam);
@@ -238,11 +239,14 @@ camera_visible_quad (const vec4f a, const vec4f b, const vec4f c, const vec4f d)
 	//  |   |   b = (x, y, z, _)
 	//  d---c   ...
 
+	// Convert camera position to vector:
+	vec4f pos = *(vec4f *)&cam.pos;
+
 	// Vector between corner points and camera:
-	const vec4f a_delta = a - cam.pos;
-	const vec4f b_delta = b - cam.pos;
-	const vec4f c_delta = c - cam.pos;
-	const vec4f d_delta = d - cam.pos;
+	const vec4f a_delta = a - pos;
+	const vec4f b_delta = b - pos;
+	const vec4f c_delta = c - pos;
+	const vec4f d_delta = d - pos;
 
 	// Check sign of cross product of delta vector and quad edges;
 	// if any of the signs is positive, the quad is visible.
@@ -294,7 +298,10 @@ camera_init (void)
 {
 	// Initial position in space:
 	cam.zdist = 4.0f;
-	cam.pos = (vec4f){ 0, 0, cam.zdist, 0 };
+	cam.pos.x = 0.0f;
+	cam.pos.y = 0.0f;
+	cam.pos.z = cam.zdist;
+	cam.pos.w = 1.0f;
 
 	// Initial attitude:
 	cam.tilt = 0.0f;
