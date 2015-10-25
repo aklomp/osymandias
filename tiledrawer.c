@@ -6,6 +6,7 @@
 #include "quadtree.h"
 #include "world.h"
 #include "tiledrawer.h"
+#include "vector.h"
 
 struct texture {
 	float wd;
@@ -14,19 +15,10 @@ struct texture {
 	float offset_y;
 };
 
-struct vector {
-	float x;
-	float y;
-	float z;
-	float w;
-} __attribute__((packed));
-
 void
 tiledrawer (const struct tiledrawer *tile)
 {
 	struct texture tex;
-	struct vector *pos = (struct vector *)tile->pos;
-	struct vector *normal = (struct vector *)tile->normal;
 
 	unsigned int zoomdiff = tile->req->world_zoom - tile->req->found_zoom;
 
@@ -52,9 +44,9 @@ tiledrawer (const struct tiledrawer *tile)
 	glBindTexture(GL_TEXTURE_2D, tile->texture_id);
 
 	glBegin(GL_QUADS);
-		glNormal3fv(&normal[0].x); glTexCoord2f(txoffs,       tyoffs);       glVertex3fv(&pos[0].x);
-		glNormal3fv(&normal[1].x); glTexCoord2f(txoffs + twd, tyoffs);       glVertex3fv(&pos[1].x);
-		glNormal3fv(&normal[2].x); glTexCoord2f(txoffs + twd, tyoffs + tht); glVertex3fv(&pos[2].x);
-		glNormal3fv(&normal[3].x); glTexCoord2f(txoffs,       tyoffs + tht); glVertex3fv(&pos[3].x);
+		glNormal3fv((float *)&tile->normal[0]); glTexCoord2f(txoffs,       tyoffs);       glVertex3fv((float *)&tile->coords[0]);
+		glNormal3fv((float *)&tile->normal[1]); glTexCoord2f(txoffs + twd, tyoffs);       glVertex3fv((float *)&tile->coords[1]);
+		glNormal3fv((float *)&tile->normal[2]); glTexCoord2f(txoffs + twd, tyoffs + tht); glVertex3fv((float *)&tile->coords[2]);
+		glNormal3fv((float *)&tile->normal[3]); glTexCoord2f(txoffs,       tyoffs + tht); glVertex3fv((float *)&tile->coords[3]);
 	glEnd();
 }

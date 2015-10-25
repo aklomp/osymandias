@@ -8,6 +8,7 @@
 #include "../bitmap_mgr.h"
 #include "../world.h"
 #include "../viewport.h"
+#include "../vector.h"
 #include "../tilepicker.h"
 #include "../tiledrawer.h"
 #include "../layers.h"
@@ -107,8 +108,8 @@ paint (void)
 {
 	float x, y, tile_wd, tile_ht;
 	int zoom;
-	float pos[4][4];
-	float normal[4][4];
+	struct vector coords[4];
+	struct vector normal[4];
 	struct quadtree_req req;
 	struct quadtree_req req_tex;
 	int world_zoom = world_get_zoom();
@@ -127,7 +128,7 @@ paint (void)
 	// The texture colors are multiplied with this value:
 	glColor3f(1.0, 1.0, 1.0);
 
-	for (int iter = tilepicker_first(&x, &y, &tile_wd, &tile_ht, &zoom, pos, normal); iter; iter = tilepicker_next(&x, &y, &tile_wd, &tile_ht, &zoom, pos, normal))
+	for (int iter = tilepicker_first(&x, &y, &tile_wd, &tile_ht, &zoom, coords, normal); iter; iter = tilepicker_next(&x, &y, &tile_wd, &tile_ht, &zoom, coords, normal))
 	{
 		// If showing the zoom colors overlay, pick proper mixin color:
 		if (overlay_zoom) {
@@ -158,8 +159,8 @@ paint (void)
 					.ht = tile_ht,
 					.texture_id = (GLuint)(ptrdiff_t)req.found_data,
 					.req = &req,
-					.pos = (float *)pos,
-					.normal = (float *)normal,
+					.coords = coords,
+					.normal = normal,
 				}));
 
 				if (colorize_cache) glColor3f(1.0, 1.0, 1.0);
@@ -182,8 +183,8 @@ paint (void)
 					.ht = tile_ht,
 					.texture_id = (GLuint)(ptrdiff_t)req_tex.found_data,
 					.req = &req_tex,
-					.pos = (float *)pos,
-					.normal = (float *)normal,
+					.coords = coords,
+					.normal = normal,
 				}));
 
 				if (colorize_cache) glColor3f(1.0, 1.0, 1.0);
@@ -199,8 +200,8 @@ paint (void)
 				.ht = tile_ht,
 				.texture_id = id,
 				.req = &req,
-				.pos = (float *)pos,
-				.normal = (float *)normal,
+				.coords = coords,
+				.normal = normal,
 			}));
 
 			if (colorize_cache) glColor3f(1.0, 1.0, 1.0);

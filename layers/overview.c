@@ -95,7 +95,9 @@ paint_tiles (void)
 		{ 1.0f, 1.0f, 1.0f, 0.5f };
 
 	int zoom;
-	float x, y, tile_wd, tile_ht, pos[4][4], normal[4][4];
+	float x, y, tile_wd, tile_ht;
+	struct vector coords[4];
+	struct vector normal[4];
 
 	// Draw 50 tiles (200 vertices) at a time:
 	struct tile {
@@ -128,7 +130,7 @@ paint_tiles (void)
 	double world_size = world_get_size();
 
 	// First draw tiles with solid background:
-	bool iter = tilepicker_first(&x, &y, &tile_wd, &tile_ht, &zoom, pos, normal);
+	bool iter = tilepicker_first(&x, &y, &tile_wd, &tile_ht, &zoom, coords, normal);
 
 	while (iter)
 	{
@@ -158,7 +160,7 @@ paint_tiles (void)
 			for (int i = 0; i < 4; i++)
 				memcpy(&tile[t].vertex[i].r, color, sizeof(float[4]));
 
-			iter = tilepicker_next(&x, &y, &tile_wd, &tile_ht, &zoom, pos, normal);
+			iter = tilepicker_next(&x, &y, &tile_wd, &tile_ht, &zoom, coords, normal);
 		}
 
 		// Upload vertex data:

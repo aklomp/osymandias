@@ -155,6 +155,7 @@ viewport_destroy (void)
 	camera_destroy();
 	layers_destroy();
 	programs_destroy();
+	tilepicker_destroy();
 }
 
 void

@@ -20,13 +20,6 @@
 // (2 << MIN_SUBDIVISIONS) subdivisions.
 #define MIN_SUBDIVISIONS 4
 
-struct vector {
-	float x;
-	float y;
-	float z;
-	float w;
-} __attribute__((packed));
-
 struct tile {
 	float x;
 	float y;
@@ -658,7 +651,7 @@ reset:	for (tile1 = drawlist; tile1 != NULL; tile1 = tile1->next)
 }
 
 bool
-tilepicker_next (float *x, float *y, float *wd, float *ht, int *zoom, float pos[4][4], float normal[4][4])
+tilepicker_next (float *x, float *y, float *wd, float *ht, int *zoom, struct vector coords[4], struct vector normal[4])
 {
 	// Returns true or false depending on whether a tile is available and
 	// returned in the pointer arguments.
@@ -671,7 +664,7 @@ tilepicker_next (float *x, float *y, float *wd, float *ht, int *zoom, float pos[
 	*ht = drawlist_iter->ht;
 	*zoom = drawlist_iter->zoom;
 
-	memcpy(pos, &drawlist_iter->p, sizeof(struct vector[4]));
+	memcpy(coords, &drawlist_iter->p, sizeof(struct vector[4]));
 	memcpy(normal, &drawlist_iter->normal, sizeof(struct vector[4]));
 
 	drawlist_iter = drawlist_iter->next;
@@ -679,12 +672,12 @@ tilepicker_next (float *x, float *y, float *wd, float *ht, int *zoom, float pos[
 }
 
 bool
-tilepicker_first (float *x, float *y, float *wd, float *ht, int *zoom, float pos[4][4], float normal[4][4])
+tilepicker_first (float *x, float *y, float *wd, float *ht, int *zoom, struct vector coords[4], struct vector normal[4])
 {
 	// Reset iterator:
 	drawlist_iter = drawlist;
 
-	return tilepicker_next(x, y, wd, ht, zoom, pos, normal);
+	return tilepicker_next(x, y, wd, ht, zoom, coords, normal);
 }
 
 void

@@ -1,3 +1,11 @@
+// This struct is binary compatible with float[4] and SSE registers:
+struct vector {
+	float x;
+	float y;
+	float z;
+	float w;
+} __attribute__((packed));
+
 typedef int16_t vec8i __attribute__ ((vector_size(sizeof(int16_t) * 8))) __attribute__ ((aligned));
 typedef int32_t vec4i __attribute__ ((vector_size(sizeof(int32_t) * 4))) __attribute__ ((aligned));
 typedef float vec4f __attribute__ ((vector_size(sizeof(float) * 4))) __attribute__ ((aligned));

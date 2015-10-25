@@ -9,7 +9,6 @@
 #include "framerate.h"
 #include "autoscroll.h"
 #include "viewport.h"
-#include "tilepicker.h"
 
 struct signal {
 	const gchar	*signal;
@@ -197,7 +196,6 @@ main (int argc, char **argv)
 	gtk_main();
 
 	framerate_destroy();
-	tilepicker_destroy();
 
 	ret = 0;
 
