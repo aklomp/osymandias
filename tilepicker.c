@@ -418,7 +418,7 @@ reduce_block (struct tile *tile, int maxzoom, float minsize)
 		: project_points_spherical(p, normal, 5);
 
 	// And the midpoint zoom, shared by all quadrants in this tile:
-	int mzoom = zoom_point(world_zoom, p[4].x, p[4].y, p[4].z);
+	int mzoom = zoom_point(world_zoom, &p[4]);
 
 	// Sign test of the four corner points: all x's or all y's should lie
 	// to one side of the center, else split up in four quadrants of the same zoom level:

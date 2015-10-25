@@ -55,7 +55,7 @@ tile2d_get_zoom (int x, int y, float center_x, float center_y, int world_zoom)
 	vec4f point = tile_to_world((vec4f){ x + 0.5, y + 0.5, 0, 0 }, center_x, center_y);
 
 	// Calculate squared distance from camera position, scale to zoomlevel:
-	int dist = camera_distance_squared_point(point) / ZOOM_DECAY;
+	int dist = camera_distance_squared((struct vector *)&point) / ZOOM_DECAY;
 
 	// Find absolute zoomlevel by subtracting it from the current world zoom:
 	int zoom = world_zoom - dist;
@@ -109,9 +109,9 @@ zoom_edges_highest (int world_zoom, const vec4f x, const vec4f y, const vec4f z)
 }
 
 static inline int
-zoom_point (int world_zoom, const float x, const float y, const float z)
+zoom_point (int world_zoom, const struct vector *v)
 {
-	float f = camera_distance_squared_point((vec4f){ x, y, z, 0 });
+	float f = camera_distance_squared(v);
 	int r = world_zoom - (f / ZOOM_DECAY);
 
 	return (r < 0) ? 0 : r;

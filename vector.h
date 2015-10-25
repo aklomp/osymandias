@@ -99,6 +99,16 @@ vec4f_hsum (const vec4f v)
 #endif
 }
 
+static inline float
+vec_distance_squared (const struct vector *a, const struct vector *b)
+{
+	vec4f va = *(vec4f *)a;
+	vec4f vb = *(vec4f *)b;
+	vec4f dv = va - vb;
+
+	return vec4f_hsum(dv * dv);
+}
+
 // Integer vectors:
 
 static inline vec4i

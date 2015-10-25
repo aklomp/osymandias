@@ -154,16 +154,9 @@ camera_setup (void)
 }
 
 float
-camera_distance_squared_point (const vec4f a)
+camera_distance_squared (const struct vector *v)
 {
-	// Convert position to vec4f:
-	vec4f pos = *(vec4f *)&cam.pos;
-
-	// Difference vector:
-	vec4f d = a - pos;
-
-	// d[0] * d[0] + d[1] * d[1] + d[2] * d[2]
-	return vec4f_hsum(d * d);
+	return vec_distance_squared(v, &cam.pos);
 }
 
 vec4f
