@@ -4,11 +4,16 @@ struct vector {
 	float y;
 	float z;
 	float w;
-} __attribute__((packed));
+}
+__attribute__ ((packed))
+__attribute__ ((aligned (16)));
 
 typedef int16_t vec8i __attribute__ ((vector_size(sizeof(int16_t) * 8))) __attribute__ ((aligned));
 typedef int32_t vec4i __attribute__ ((vector_size(sizeof(int32_t) * 4))) __attribute__ ((aligned));
 typedef float vec4f __attribute__ ((vector_size(sizeof(float) * 4))) __attribute__ ((aligned));
+
+// Cast a float[4] or struct vector to vec4f:
+#define VEC4F(x)	(*(vec4f *)&(x))
 
 #if defined __SSE3__
 	#include <pmmintrin.h>
@@ -102,8 +107,8 @@ vec4f_hsum (const vec4f v)
 static inline float
 vec_distance_squared (const struct vector *a, const struct vector *b)
 {
-	vec4f va = *(vec4f *)a;
-	vec4f vb = *(vec4f *)b;
+	vec4f va = VEC4F(*a);
+	vec4f vb = VEC4F(*b);
 	vec4f dv = va - vb;
 
 	return vec4f_hsum(dv * dv);

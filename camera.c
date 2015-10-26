@@ -233,7 +233,7 @@ camera_visible_quad (const vec4f a, const vec4f b, const vec4f c, const vec4f d)
 	//  d---c   ...
 
 	// Convert camera position to vector:
-	vec4f pos = *(vec4f *)&cam.pos;
+	vec4f pos = VEC4F(cam.pos);
 
 	// Vector between corner points and camera:
 	const vec4f a_delta = a - pos;
