@@ -226,38 +226,48 @@ camera_distance_squared_quadedge (const vec4f x, const vec4f y, const vec4f z)
 }
 
 bool
-camera_visible_quad (const vec4f a, const vec4f b, const vec4f c, const vec4f d)
+camera_visible_quad (const struct vector *coords)
 {
 	//  a---b   a = (x, y, z, _)
 	//  |   |   b = (x, y, z, _)
 	//  d---c   ...
 
 	// Convert camera position to vector:
-	vec4f pos = VEC4F(cam.pos);
+	vec4f vcam = VEC4F(cam.pos);
 
-	// Vector between corner points and camera:
-	const vec4f a_delta = a - pos;
-	const vec4f b_delta = b - pos;
-	const vec4f c_delta = c - pos;
-	const vec4f d_delta = d - pos;
+	// Convert coords to vector:
+	const vec4f vpos[4] = {
+		VEC4F(coords[0]),
+		VEC4F(coords[1]),
+		VEC4F(coords[2]),
+		VEC4F(coords[3]),
+	};
+
+	// Vectors between corner points and camera:
+	const vec4f ray[4] = {
+		vpos[0] - vcam,
+		vpos[1] - vcam,
+		vpos[2] - vcam,
+		vpos[3] - vcam,
+	};
 
 	// Check sign of cross product of delta vector and quad edges;
 	// if any of the signs is positive, the quad is visible.
 	// TODO: this is glitchy at globe edges because it uses the flat normal,
 	// not the actual sphere normal at the corner points.
 	for (;;) {
-		if (dot(vector3d_cross(a - b, a - d), a_delta) > 0) break;
-		if (dot(vector3d_cross(b - c, b - a), b_delta) > 0) break;
-		if (dot(vector3d_cross(c - d, c - b), c_delta) > 0) break;
-		if (dot(vector3d_cross(d - a, d - c), d_delta) > 0) break;
+		if (dot(vector3d_cross(vpos[0] - vpos[1], vpos[0] - vpos[3]), ray[0]) > 0) break;
+		if (dot(vector3d_cross(vpos[1] - vpos[2], vpos[1] - vpos[0]), ray[1]) > 0) break;
+		if (dot(vector3d_cross(vpos[2] - vpos[3], vpos[2] - vpos[1]), ray[2]) > 0) break;
+		if (dot(vector3d_cross(vpos[3] - vpos[0], vpos[3] - vpos[2]), ray[3]) > 0) break;
 		return false;
 	}
 	// Check each frustum plane, at least one point must be visible:
 	for (int i = 0; i < 4; i++) {
-		if (point_in_front_of_plane(a, cam.frustum_planes[i])) continue;
-		if (point_in_front_of_plane(b, cam.frustum_planes[i])) continue;
-		if (point_in_front_of_plane(c, cam.frustum_planes[i])) continue;
-		if (point_in_front_of_plane(d, cam.frustum_planes[i])) continue;
+		if (point_in_front_of_plane(vpos[0], cam.frustum_planes[i])) continue;
+		if (point_in_front_of_plane(vpos[1], cam.frustum_planes[i])) continue;
+		if (point_in_front_of_plane(vpos[2], cam.frustum_planes[i])) continue;
+		if (point_in_front_of_plane(vpos[3], cam.frustum_planes[i])) continue;
 		return false;
 	}
 	return true;

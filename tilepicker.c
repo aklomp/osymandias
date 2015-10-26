@@ -192,12 +192,7 @@ project_points_spherical (struct vector points[], struct vector normals[], int n
 static bool
 tile_is_visible (struct tile *const tile)
 {
-	return camera_visible_quad(
-		(vec4f){ tile->p[0].x, tile->p[0].y, tile->p[0].z, tile->p[0].w },
-		(vec4f){ tile->p[1].x, tile->p[1].y, tile->p[1].z, tile->p[1].w },
-		(vec4f){ tile->p[2].x, tile->p[2].y, tile->p[2].z, tile->p[2].w },
-		(vec4f){ tile->p[3].x, tile->p[3].y, tile->p[3].z, tile->p[3].w }
-	);
+	return camera_visible_quad(&tile->p[0]);
 }
 
 static void
