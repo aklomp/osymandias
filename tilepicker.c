@@ -186,7 +186,7 @@ project_points_spherical (struct vector points[], struct vector normals[], int n
 
 	// Each "point" comes as three floats: x, y and z:
 	for (int i = 0; i < npoints; i++)
-		tilepoint_to_xyz(points[i].x, points[i].y, world_size, cx_lon, sin_cy_lat, cos_cy_lat, &points[i].x, &normals[i].x);
+		tilepoint_to_xyz(points[i].x, points[i].y, world_size, cx_lon, sin_cy_lat, cos_cy_lat, &points[i], &normals[i]);
 }
 
 static bool
