@@ -6,22 +6,22 @@
 #include "vector3d.h"
 #include "matrix.h"
 
-struct {
+static struct {
 	struct vector pos;	// position in world space
 
-	float tilt;	// tilt from vertical, in degrees
-	float rotate;	// rotation along z axis, in degrees
-	float zdist;	// distance from camera to cursor in z units (camera height)
+	float tilt;		// tilt from vertical, in radians
+	float rotate;		// rotation along z axis, in radians
+	float zdist;		// distance from camera to origin (camera height)
 
 	vec4f frustum_planes[4];
 } cam;
 
-struct {
+static struct {
 	float near;
 	float far;
 } clip;
 
-struct {
+static struct {
 	float tilt[16];		// Tilt matrix
 	float rotate[16];	// Rotate matrix
 	float translate[16];	// Translation from origin
@@ -82,7 +82,7 @@ mat_view_update (void)
 	cam.pos.z = matrix.view[10] * matrix.view[14];
 	cam.pos.w = 1.0f;
 
-	// This changes the MVP matrix:
+	// This changes the view-projection matrix:
 	mat_viewproj_update();
 }
 
@@ -105,7 +105,7 @@ camera_projection (const int screen_wd, const int screen_ht)
 	// Generate projection matrix:
 	mat_frustum(matrix.proj, angle, aspect, clip.near, clip.far);
 
-	// This changes the MVP matrix:
+	// This changes the view-projection matrix:
 	mat_viewproj_update();
 }
 
@@ -123,7 +123,7 @@ camera_tilt (const float radians)
 		cam.tilt = 0.0f;
 
 	// Tilt occurs around the x axis:
-	mat_rotate(matrix.tilt, 1, 0, 0, cam.tilt);
+	mat_rotate(matrix.tilt, 1.0f, 0.0f, 0.0f, cam.tilt);
 
 	// Update view matrix:
 	mat_view_update();
@@ -135,7 +135,7 @@ camera_rotate (const float radians)
 	cam.rotate += radians;
 
 	// Rotate occurs around the z axis:
-	mat_rotate(matrix.rotate, 0, 0, 1, cam.rotate);
+	mat_rotate(matrix.rotate, 0.0f, 0.0f, 1.0f, cam.rotate);
 
 	// Update view matrix:
 	mat_view_update();
@@ -208,7 +208,7 @@ camera_distance_squared_quadedge (const vec4f x, const vec4f y, const vec4f z)
 	t = (vec4f)((vec4i)t & (t >= vec4f_zero()));
 
 	// Clamp: if t > 1, t = 1:
-	vec4f ones = vec4f_float(1.0);
+	vec4f ones = vec4f_float(1.0f);
 	vec4i mask = (t <= ones);
 	vec4i left = (vec4i)ones & ~mask;
 	t = (vec4f)((vec4i)t & mask);
@@ -317,7 +317,7 @@ camera_init (void)
 	// Initialize tilt, rotate and translate matrices:
 	mat_identity(matrix.rotate);
 	mat_identity(matrix.tilt);
-	mat_translate(matrix.translate, 0, 0, cam.zdist);
+	mat_translate(matrix.translate, 0.0f, 0.0f, cam.zdist);
 
 	// Initialize view matrix:
 	mat_view_update();
