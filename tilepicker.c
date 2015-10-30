@@ -20,14 +20,23 @@
 // (2 << MIN_SUBDIVISIONS) subdivisions.
 #define MIN_SUBDIVISIONS 4
 
+struct vertex {
+	int zoom;
+	struct {
+		float x;
+		float y;
+	} tile;
+	struct vector coords;
+	struct vector normal;
+};
+
 struct tile {
 	float x;
 	float y;
 	float wd;
 	float ht;
 	int zoom;
-	struct vector coords[4];
-	struct vector normal[4];
+	struct vertex vertex[4];
 	struct tile *prev;
 	struct tile *next;
 };
@@ -161,24 +170,21 @@ drawlist_detach (struct tile *t)
 }
 
 static inline void
-project_points_planar (struct vector coords[], struct vector normals[], int npoints)
+project_planar (struct vertex *v)
 {
-	// Each "point" comes as three floats: x, y and z:
-	for (int i = 0; i < npoints; i++) {
-		coords[i].x -= center_x_dbl;
-		coords[i].y = center_y_dbl - coords[i].y;
-		coords[i].z = 0.0f;
-		coords[i].w = 1.0f;
+	v->coords.x = v->tile.x - center_x_dbl;
+	v->coords.y = center_y_dbl - v->tile.y;
+	v->coords.z = 0.0f;
+	v->coords.w = 1.0f;
 
-		normals[i].x = 0.0f;
-		normals[i].y = 0.0f;
-		normals[i].z = 1.0f;
-		normals[i].w = 0.0f;
-	}
+	v->normal.x = 0.0f;
+	v->normal.y = 0.0f;
+	v->normal.z = 1.0f;
+	v->normal.w = 0.0f;
 }
 
 static inline void
-project_points_spherical (struct vector coords[], struct vector normals[], int npoints)
+project_spherical (struct vertex *v)
 {
 	double cx_lon, sin_cy_lat, cos_cy_lat;
 
@@ -186,14 +192,20 @@ project_points_spherical (struct vector coords[], struct vector normals[], int n
 	tilepoint_to_xyz_precalc(world_size, center_x_dbl, center_y_dbl, &cx_lon, &sin_cy_lat, &cos_cy_lat);
 
 	// Each "point" comes as three floats: x, y and z:
-	for (int i = 0; i < npoints; i++)
-		tilepoint_to_xyz(coords[i].x, coords[i].y, world_size, cx_lon, sin_cy_lat, cos_cy_lat, &coords[i], &normals[i]);
+	tilepoint_to_xyz(v->tile.x, v->tile.y, world_size, cx_lon, sin_cy_lat, cos_cy_lat, &v->coords, &v->normal);
 }
 
 static bool
 tile_is_visible (struct tile *const tile)
 {
-	return camera_visible_quad(&tile->coords[0]);
+	struct vector coords[4] = {
+		tile->vertex[0].coords,
+		tile->vertex[1].coords,
+		tile->vertex[2].coords,
+		tile->vertex[3].coords,
+	};
+
+	return camera_visible_quad(coords);
 }
 
 static void
@@ -217,9 +229,9 @@ tile_edges_agree (struct tile *const tile)
 {
 	return (tile->zoom == zoom_edges_highest(
 		world_zoom,
-		(vec4f){ tile->coords[0].x, tile->coords[1].x, tile->coords[2].x, tile->coords[3].x },
-		(vec4f){ tile->coords[0].y, tile->coords[1].y, tile->coords[2].y, tile->coords[3].y },
-		(vec4f){ tile->coords[0].z, tile->coords[1].z, tile->coords[2].z, tile->coords[3].z }));
+		(vec4f){ tile->vertex[0].coords.x, tile->vertex[1].coords.x, tile->vertex[2].coords.x, tile->vertex[3].coords.x },
+		(vec4f){ tile->vertex[0].coords.y, tile->vertex[1].coords.y, tile->vertex[2].coords.y, tile->vertex[3].coords.y },
+		(vec4f){ tile->vertex[0].coords.z, tile->vertex[1].coords.z, tile->vertex[2].coords.z, tile->vertex[3].coords.z }));
 }
 
 static void
@@ -249,16 +261,18 @@ tilepicker_planar (void)
 				.y = tile_y,
 				.wd = tilesize,
 				.ht = tilesize,
-				.coords = {
-					{ tile_x,            tile_y,            0.0f, 1.0f },
-					{ tile_x + tilesize, tile_y,            0.0f, 1.0f },
-					{ tile_x + tilesize, tile_y + tilesize, 0.0f, 1.0f },
-					{ tile_x,            tile_y + tilesize, 0.0f, 1.0f }
+				.vertex = {
+					{ .tile = { tile_x,            tile_y            } },
+					{ .tile = { tile_x + tilesize, tile_y            } },
+					{ .tile = { tile_x + tilesize, tile_y + tilesize } },
+					{ .tile = { tile_x,            tile_y + tilesize } },
 				},
 			};
+
 			// Must call reduce_block with a tile structure containing
 			// the four projected corner points, so bootstrap:
-			project_points_planar(tile.coords, tile.normal, 4);
+			for (int i = 0; i < 4; i++)
+				project_planar(&tile.vertex[i]);
 
 			// Recursively split this block:
 			reduce_block(&tile, lowzoom, 1.0f);
@@ -292,14 +306,15 @@ tilepicker_spherical (void)
 				.y = y,
 				.wd = sz,
 				.ht = sz,
-				.coords = {
-					{ x,      y,      0.0f, 1.0f },
-					{ x + sz, y,      0.0f, 1.0f },
-					{ x + sz, y + sz, 0.0f, 1.0f },
-					{ x,      y + sz, 0.0f, 1.0f }
+				.vertex = {
+					{ .tile = { x,      y,     } },
+					{ .tile = { x + sz, y,     } },
+					{ .tile = { x + sz, y + sz } },
+					{ .tile = { x,      y + sz } },
 				}
 			};
-			project_points_spherical(tile.coords, tile.normal, 4);
+			for (int i = 0; i < 4; i++)
+				project_spherical(&tile.vertex[i]);
 
 			reduce_block(&tile, 0, ldexpf(1.0f, minsize));
 		}
@@ -337,35 +352,24 @@ tilepicker_recalc (void)
 static void
 reduce_block (struct tile *tile, int maxzoom, float minsize)
 {
-	#define inherit_point(a,k)			\
-		memcpy(&t.coords[a],			\
-			  (k == 0) ? &tile->coords[0]	\
-			: (k == 1) ? &coords[0]		\
-			: (k == 2) ? &tile->coords[1]	\
-			: (k == 3) ? &coords[1]		\
-			: (k == 4) ? &tile->coords[2]	\
-			: (k == 5) ? &coords[2]		\
-			: (k == 6) ? &tile->coords[3]	\
-			: (k == 7) ? &coords[3]		\
-			: &coords[4]			\
-			, sizeof(struct vector));	\
-		memcpy(&t.normal[a],			\
-			  (k == 0) ? &tile->normal[0]	\
-			: (k == 1) ? &normal[0]		\
-			: (k == 2) ? &tile->normal[1]	\
-			: (k == 3) ? &normal[1]		\
-			: (k == 4) ? &tile->normal[2]	\
-			: (k == 5) ? &normal[2]		\
-			: (k == 6) ? &tile->normal[3]	\
-			: (k == 7) ? &normal[3]		\
-			: &normal[4]			\
-			, sizeof(struct vector))
+	#define inherit_vertex(a,k)			\
+		memcpy(&t.vertex[a],			\
+			  (k == 0) ? &tile->vertex[0]	\
+			: (k == 1) ? &vertex[0]		\
+			: (k == 2) ? &tile->vertex[1]	\
+			: (k == 3) ? &vertex[1]		\
+			: (k == 4) ? &tile->vertex[2]	\
+			: (k == 5) ? &vertex[2]		\
+			: (k == 6) ? &tile->vertex[3]	\
+			: (k == 7) ? &vertex[3]		\
+			: &vertex[4]			\
+			, sizeof(struct vertex));
 
-	#define setcorners(a,b,c,d) \
-		inherit_point(0,a); \
-		inherit_point(1,b); \
-		inherit_point(2,c); \
-		inherit_point(3,d);
+	#define setcorners(a,b,c,d)  \
+		inherit_vertex(0,a); \
+		inherit_vertex(1,b); \
+		inherit_vertex(2,c); \
+		inherit_vertex(3,d);
 
 	// Caller passes us a struct tile, with at least the x, y, wd, ht,
 	// and coords[4] fields set. The latter are the *world-projected*
@@ -379,9 +383,9 @@ reduce_block (struct tile *tile, int maxzoom, float minsize)
 	if (tile->wd <= minsize) {
 		vec4i vzooms = zooms_quad(
 			world_zoom,
-			(vec4f){ tile->coords[0].x, tile->coords[1].x, tile->coords[2].x, tile->coords[3].x },
-			(vec4f){ tile->coords[0].y, tile->coords[1].y, tile->coords[2].y, tile->coords[3].y },
-			(vec4f){ tile->coords[0].z, tile->coords[1].z, tile->coords[2].z, tile->coords[3].z }
+			(vec4f){ tile->vertex[0].coords.x, tile->vertex[1].coords.x, tile->vertex[2].coords.x, tile->vertex[3].coords.x },
+			(vec4f){ tile->vertex[0].coords.y, tile->vertex[1].coords.y, tile->vertex[2].coords.y, tile->vertex[3].coords.y },
+			(vec4f){ tile->vertex[0].coords.z, tile->vertex[1].coords.z, tile->vertex[2].coords.z, tile->vertex[3].coords.z }
 		);
 		tile->zoom = vec4i_hmax(vzooms);
 		drawlist_add(tile);
@@ -398,23 +402,40 @@ reduce_block (struct tile *tile, int maxzoom, float minsize)
 	//  6--5--4
 	//
 	// Need to project points 1, 3, 5, 7, and 8, and find their zoom levels:
-	struct vector coords[5] = {
-		{ tile->x + halfsize, tile->y,            0.0f, 1.0f },	// 1
-		{ tile->x + tile->wd, tile->y + halfsize, 0.0f, 1.0f },	// 3
-		{ tile->x + halfsize, tile->y + tile->ht, 0.0f, 1.0f },	// 5
-		{ tile->x,            tile->y + halfsize, 0.0f, 1.0f },	// 7
-		{ tile->x + halfsize, tile->y + halfsize, 0.0f, 1.0f }	// 8
+	struct vertex vertex[5] = {
+		{ .tile = { tile->x + halfsize, tile->y,           } },	// 1
+		{ .tile = { tile->x + tile->wd, tile->y + halfsize } },	// 3
+		{ .tile = { tile->x + halfsize, tile->y + tile->ht } },	// 5
+		{ .tile = { tile->x,            tile->y + halfsize } },	// 7
+		{ .tile = { tile->x + halfsize, tile->y + halfsize } },	// 8
 	};
 
-	// Also save the normals:
-	struct vector normal[5];
+	switch (viewport_mode_get())
+	{
+	case VIEWPORT_MODE_PLANAR:
+		for (int i = 0; i < 5; i++)
+			project_planar(&vertex[i]);
+		break;
 
-	(viewport_mode_get() == VIEWPORT_MODE_PLANAR)
-		? project_points_planar(coords, normal, 5)
-		: project_points_spherical(coords, normal, 5);
+	case VIEWPORT_MODE_SPHERICAL:
+		for (int i = 0; i < 5; i++)
+			project_spherical(&vertex[i]);
+		break;
+	}
 
 	// And the midpoint zoom, shared by all quadrants in this tile:
-	int mzoom = zoom_point(world_zoom, &coords[4]);
+	vertex[4].zoom = zoom_point(world_zoom, &vertex[4].coords);
+
+	// For the four quads, define corner vertices:
+	struct {
+		struct vertex *vertex[4];
+	}
+	quad[4] = {
+		{ { &tile->vertex[0], &vertex[0], &vertex[4], &vertex[3] } },
+		{ { &vertex[0], &tile->vertex[1], &vertex[1], &vertex[4] } },
+		{ { &vertex[4], &vertex[1], &tile->vertex[2], &vertex[2] } },
+		{ { &vertex[3], &vertex[4], &vertex[2], &tile->vertex[3] } },
+	};
 
 	// Sign test of the four corner points: all x's or all y's should lie
 	// to one side of the center, else split up in four quadrants of the same zoom level:
@@ -423,25 +444,21 @@ reduce_block (struct tile *tile, int maxzoom, float minsize)
 
 	// If the mzoom is larger than the max allowed zoom, we must recurse to the next zoom level.
 	// If the tile is under the cursor, we must also split it:
-	if (mzoom > maxzoom || (!(signs_x_equal || signs_y_equal))) {
+	if (vertex[4].zoom > maxzoom || (!(signs_x_equal || signs_y_equal))) {
 		// Double the minsize:
 		if (minsize < 1.0f) {
 			minsize = ldexpf(minsize, 1);
 		}
-		{	struct tile t = { .x = tile->x, .y = tile->y, .wd = halfsize, .ht = halfsize };
-			setcorners(0, 1, 8, 7);
-			reduce_block(&t, maxzoom + 1, minsize);
-		}
-		{	struct tile t = { .x = tile->x + halfsize, .y = tile->y, .wd = halfsize, .ht = halfsize };
-			setcorners(1, 2, 3, 8);
-			reduce_block(&t, maxzoom + 1, minsize);
-		}
-		{	struct tile t = { .x = tile->x + halfsize, .y = tile->y + halfsize, .wd = halfsize, .ht = halfsize };
-			setcorners(8, 3, 4, 5);
-			reduce_block(&t, maxzoom + 1, minsize);
-		}
-		{	struct tile t = { .x = tile->x, .y = tile->y + halfsize, .wd = halfsize, .ht = halfsize };
-			setcorners(7, 8, 5, 6);
+		for (int i = 0; i < 4; i++) {
+			struct tile t = {
+				.x = quad[i].vertex[0]->tile.x,
+				.y = quad[i].vertex[0]->tile.y,
+				.wd = halfsize,
+				.ht = halfsize,
+			};
+			for (int j = 0; j < 4; j++)
+				memcpy(&t.vertex[j], quad[i].vertex[j], sizeof(struct vertex));
+
 			reduce_block(&t, maxzoom + 1, minsize);
 		}
 		return;
@@ -449,29 +466,29 @@ reduce_block (struct tile *tile, int maxzoom, float minsize)
 	// Get vertex zoomlevels:
 	vec4i vzooms = zooms_quad(
 		world_zoom,
-		(vec4f){ tile->coords[0].x, tile->coords[1].x, tile->coords[2].x, tile->coords[3].x },
-		(vec4f){ tile->coords[0].y, tile->coords[1].y, tile->coords[2].y, tile->coords[3].y },
-		(vec4f){ tile->coords[0].z, tile->coords[1].z, tile->coords[2].z, tile->coords[3].z }
+		(vec4f){ tile->vertex[0].coords.x, tile->vertex[1].coords.x, tile->vertex[2].coords.x, tile->vertex[3].coords.x },
+		(vec4f){ tile->vertex[0].coords.y, tile->vertex[1].coords.y, tile->vertex[2].coords.y, tile->vertex[3].coords.y },
+		(vec4f){ tile->vertex[0].coords.z, tile->vertex[1].coords.z, tile->vertex[2].coords.z, tile->vertex[3].coords.z }
 	);
 	// If the whole tile has the same zoom level, add:
-	if (vec4i_all_same(vzooms) && vzooms[0] == mzoom
+	if (vec4i_all_same(vzooms) && vzooms[0] == vertex[4].zoom
 	&& zoom_edges_highest(
 		world_zoom,
-		(vec4f){ tile->coords[0].x, tile->coords[1].x, tile->coords[2].x, tile->coords[3].x },
-		(vec4f){ tile->coords[0].y, tile->coords[1].y, tile->coords[2].y, tile->coords[3].y },
-		(vec4f){ tile->coords[0].z, tile->coords[1].z, tile->coords[2].z, tile->coords[3].z }
-	) == mzoom) {
-		tile->zoom = mzoom;
+		(vec4f){ tile->vertex[0].coords.x, tile->vertex[1].coords.x, tile->vertex[2].coords.x, tile->vertex[3].coords.x },
+		(vec4f){ tile->vertex[0].coords.y, tile->vertex[1].coords.y, tile->vertex[2].coords.y, tile->vertex[3].coords.y },
+		(vec4f){ tile->vertex[0].coords.z, tile->vertex[1].coords.z, tile->vertex[2].coords.z, tile->vertex[3].coords.z }
+	) == vertex[4].zoom) {
+		tile->zoom = vertex[4].zoom;
 		drawlist_add(tile);
 		return;
 	}
-	// 4/9 of the points are in tile.coords, the rest is in coords.
-	// Let's get zooms for the points in coords:
+	// 4/9 of the points are in tile.vertex, the rest is in vertex.
+	// Let's get zooms for the points in vertex:
 	vec4i pzooms = zooms_quad(
 		world_zoom,
-		(vec4f){ coords[0].x, coords[1].x, coords[2].x, coords[3].x },
-		(vec4f){ coords[0].y, coords[1].y, coords[2].y, coords[3].y },
-		(vec4f){ coords[0].z, coords[1].z, coords[2].z, coords[3].z }
+		(vec4f){ vertex[0].coords.x, vertex[1].coords.x, vertex[2].coords.x, vertex[3].coords.x },
+		(vec4f){ vertex[0].coords.y, vertex[1].coords.y, vertex[2].coords.y, vertex[3].coords.y },
+		(vec4f){ vertex[0].coords.z, vertex[1].coords.z, vertex[2].coords.z, vertex[3].coords.z }
 	);
 	// Combine vzooms and pzooms into one vec8i:
 	vec8i zooms = vec8i_from_vec4i(vzooms, pzooms);
@@ -487,7 +504,7 @@ reduce_block (struct tile *tile, int maxzoom, float minsize)
 	vec8i q3 = { 0x00, 0x00, 0x00, 0xff, 0x00, 0x00, 0xff, 0xff };
 
 	// Subtract the zoom for point 8 from all these points:
-	zooms -= vec8i_int(mzoom);
+	zooms -= vec8i_int(vertex[4].zoom);
 
 	// Now we start having fun. If zooms is now all zero, the whole
 	// quad has the same zoomlevel:
@@ -496,7 +513,7 @@ reduce_block (struct tile *tile, int maxzoom, float minsize)
 	// OK, split tile up in four quadrants:
 	// Check the top two quadrants, q0 and q1, for same zoom:
 	if (vec8i_all_zero((q0 | q1) & zooms)) {
-		struct tile t = { .x = tile->x, .y = tile->y, .wd = tile->wd, .ht = halfsize, .zoom = mzoom };
+		struct tile t = { .x = tile->x, .y = tile->y, .wd = tile->wd, .ht = halfsize, .zoom = vertex[4].zoom };
 		setcorners(0, 2, 3, 7);
 		if (tile_is_visible(&t) && tile_edges_agree(&t)) {
 			drawlist_add(&t);
@@ -505,7 +522,7 @@ reduce_block (struct tile *tile, int maxzoom, float minsize)
 	}
 	// Check bottom two quadrants, q2 and q3, for same zoom:
 	if (vec8i_all_zero((q2 | q3) & zooms)) {
-		struct tile t = { .x = tile->x, .y = tile->y + halfsize, .wd = tile->wd, .ht = halfsize, .zoom = mzoom };
+		struct tile t = { .x = tile->x, .y = tile->y + halfsize, .wd = tile->wd, .ht = halfsize, .zoom = vertex[4].zoom };
 		setcorners(7, 3, 4, 6);
 		if (tile_is_visible(&t) && tile_edges_agree(&t)) {
 			drawlist_add(&t);
@@ -514,7 +531,7 @@ reduce_block (struct tile *tile, int maxzoom, float minsize)
 	}
 	// Check left two quadrants, q0 and q3, for same zoom:
 	if (free[0] && free[3] && vec8i_all_zero((q0 | q3) & zooms)) {
-		struct tile t = { .x = tile->x, .y = tile->y, .wd = halfsize, .ht = tile->ht, .zoom = mzoom };
+		struct tile t = { .x = tile->x, .y = tile->y, .wd = halfsize, .ht = tile->ht, .zoom = vertex[4].zoom };
 		setcorners(0, 1, 5, 6);
 		if (tile_is_visible(&t) && tile_edges_agree(&t)) {
 			drawlist_add(&t);
@@ -523,7 +540,7 @@ reduce_block (struct tile *tile, int maxzoom, float minsize)
 	}
 	// Check right two quadrants, q1 and q2, for same zoom:
 	if (free[1] && free[2] && vec8i_all_zero((q1 | q2) & zooms)) {
-		struct tile t = { .x = tile->x + halfsize, .y = tile->y, .wd = halfsize, .ht = tile->ht, .zoom = mzoom };
+		struct tile t = { .x = tile->x + halfsize, .y = tile->y, .wd = halfsize, .ht = tile->ht, .zoom = vertex[4].zoom };
 		setcorners(1, 2, 4, 5);
 		if (tile_is_visible(&t) && tile_edges_agree(&t)) {
 			drawlist_add(&t);
@@ -536,7 +553,7 @@ reduce_block (struct tile *tile, int maxzoom, float minsize)
 	}
 	// Check the individual, still-free quadrants:
 	if (free[0]) {
-		struct tile t = { .x = tile->x, .y = tile->y, .wd = halfsize, .ht = halfsize, .zoom = mzoom };
+		struct tile t = { .x = tile->x, .y = tile->y, .wd = halfsize, .ht = halfsize, .zoom = vertex[4].zoom };
 		setcorners(0, 1, 8, 7);
 		if (vec8i_all_zero(q0 & zooms) && tile_is_visible(&t) && tile_edges_agree(&t)) {
 			drawlist_add(&t);
@@ -544,7 +561,7 @@ reduce_block (struct tile *tile, int maxzoom, float minsize)
 		else reduce_block(&t, maxzoom + 1, minsize);
 	}
 	if (free[1]) {
-		struct tile t = { .x = tile->x + halfsize, .y = tile->y, .wd = halfsize, .ht = halfsize, .zoom = mzoom };
+		struct tile t = { .x = tile->x + halfsize, .y = tile->y, .wd = halfsize, .ht = halfsize, .zoom = vertex[4].zoom };
 		setcorners(1, 2, 3, 8);
 		if (vec8i_all_zero(q1 & zooms) && tile_is_visible(&t) && tile_edges_agree(&t)) {
 			drawlist_add(&t);
@@ -552,7 +569,7 @@ reduce_block (struct tile *tile, int maxzoom, float minsize)
 		else reduce_block(&t, maxzoom + 1, minsize);
 	}
 	if (free[2]) {
-		struct tile t = { .x = tile->x + halfsize, .y = tile->y + halfsize, .wd = halfsize, .ht = halfsize, .zoom = mzoom };
+		struct tile t = { .x = tile->x + halfsize, .y = tile->y + halfsize, .wd = halfsize, .ht = halfsize, .zoom = vertex[4].zoom };
 		setcorners(8, 3, 4, 5);
 		if (vec8i_all_zero(q2 & zooms) && tile_is_visible(&t) && tile_edges_agree(&t)) {
 			drawlist_add(&t);
@@ -560,7 +577,7 @@ reduce_block (struct tile *tile, int maxzoom, float minsize)
 		else reduce_block(&t, maxzoom + 1, minsize);
 	}
 	if (free[3]) {
-		struct tile t = { .x = tile->x, .y = tile->y + halfsize, .wd = halfsize, .ht = halfsize, .zoom = mzoom };
+		struct tile t = { .x = tile->x, .y = tile->y + halfsize, .wd = halfsize, .ht = halfsize, .zoom = vertex[4].zoom };
 		setcorners(7, 8, 5, 6);
 		if (vec8i_all_zero(q3 & zooms) && tile_is_visible(&t) && tile_edges_agree(&t)) {
 			drawlist_add(&t);
@@ -578,8 +595,8 @@ optimize_block (int x, int y, int relzoom)
 	struct tile *tile1, *tile2;
 
 	#define inherit_vertices(a,b,u,v)							\
-		memcpy(&tile##a->coords[u], &tile##b->coords[u], sizeof(struct vector));	\
-		memcpy(&tile##a->coords[v], &tile##b->coords[v], sizeof(struct vector))
+		memcpy(&tile##a->vertex[u], &tile##b->vertex[u], sizeof(struct vertex));	\
+		memcpy(&tile##a->vertex[v], &tile##b->vertex[v], sizeof(struct vertex))
 
 reset:	for (tile1 = drawlist; tile1 != NULL; tile1 = tile1->next)
 	{
@@ -660,8 +677,10 @@ tilepicker_next (float *x, float *y, float *wd, float *ht, int *zoom, struct vec
 	*ht = drawlist_iter->ht;
 	*zoom = drawlist_iter->zoom;
 
-	memcpy(coords, &drawlist_iter->coords, sizeof(struct vector[4]));
-	memcpy(normal, &drawlist_iter->normal, sizeof(struct vector[4]));
+	for (int i = 0; i < 4; i++) {
+		memcpy(&coords[i], &drawlist_iter->vertex[i].coords, sizeof(struct vector));
+		memcpy(&normal[i], &drawlist_iter->vertex[i].normal, sizeof(struct vector));
+	}
 
 	drawlist_iter = drawlist_iter->next;
 	return true;
