@@ -68,6 +68,24 @@ static int mempool_idx = 0;
 static void reduce_block (struct tile *tile, int maxzoom, float minsize);
 static void optimize_block (int x, int y, int relzoom);
 
+static inline vec4f
+vertex_all_x (const struct vertex *v)
+{
+	return (vec4f){ v[0].coords.x, v[1].coords.x, v[2].coords.x, v[3].coords.x };
+}
+
+static inline vec4f
+vertex_all_y (const struct vertex *v)
+{
+	return (vec4f){ v[0].coords.y, v[1].coords.y, v[2].coords.y, v[3].coords.y };
+}
+
+static inline vec4f
+vertex_all_z (const struct vertex *v)
+{
+	return (vec4f){ v[0].coords.z, v[1].coords.z, v[2].coords.z, v[3].coords.z };
+}
+
 static struct tile *
 mempool_request_tile (void)
 {
@@ -229,9 +247,9 @@ tile_edges_agree (struct tile *const tile)
 {
 	return (tile->zoom == zoom_edges_highest(
 		world_zoom,
-		(vec4f){ tile->vertex[0].coords.x, tile->vertex[1].coords.x, tile->vertex[2].coords.x, tile->vertex[3].coords.x },
-		(vec4f){ tile->vertex[0].coords.y, tile->vertex[1].coords.y, tile->vertex[2].coords.y, tile->vertex[3].coords.y },
-		(vec4f){ tile->vertex[0].coords.z, tile->vertex[1].coords.z, tile->vertex[2].coords.z, tile->vertex[3].coords.z }));
+		vertex_all_x(tile->vertex),
+		vertex_all_y(tile->vertex),
+		vertex_all_z(tile->vertex)));
 }
 
 static void
@@ -383,9 +401,9 @@ reduce_block (struct tile *tile, int maxzoom, float minsize)
 	if (tile->wd <= minsize) {
 		vec4i vzooms = zooms_quad(
 			world_zoom,
-			(vec4f){ tile->vertex[0].coords.x, tile->vertex[1].coords.x, tile->vertex[2].coords.x, tile->vertex[3].coords.x },
-			(vec4f){ tile->vertex[0].coords.y, tile->vertex[1].coords.y, tile->vertex[2].coords.y, tile->vertex[3].coords.y },
-			(vec4f){ tile->vertex[0].coords.z, tile->vertex[1].coords.z, tile->vertex[2].coords.z, tile->vertex[3].coords.z }
+			vertex_all_x(tile->vertex),
+			vertex_all_y(tile->vertex),
+			vertex_all_z(tile->vertex)
 		);
 		tile->zoom = vec4i_hmax(vzooms);
 		drawlist_add(tile);
@@ -466,17 +484,17 @@ reduce_block (struct tile *tile, int maxzoom, float minsize)
 	// Get vertex zoomlevels:
 	vec4i vzooms = zooms_quad(
 		world_zoom,
-		(vec4f){ tile->vertex[0].coords.x, tile->vertex[1].coords.x, tile->vertex[2].coords.x, tile->vertex[3].coords.x },
-		(vec4f){ tile->vertex[0].coords.y, tile->vertex[1].coords.y, tile->vertex[2].coords.y, tile->vertex[3].coords.y },
-		(vec4f){ tile->vertex[0].coords.z, tile->vertex[1].coords.z, tile->vertex[2].coords.z, tile->vertex[3].coords.z }
+		vertex_all_x(tile->vertex),
+		vertex_all_y(tile->vertex),
+		vertex_all_z(tile->vertex)
 	);
 	// If the whole tile has the same zoom level, add:
 	if (vec4i_all_same(vzooms) && vzooms[0] == vertex[4].zoom
 	&& zoom_edges_highest(
 		world_zoom,
-		(vec4f){ tile->vertex[0].coords.x, tile->vertex[1].coords.x, tile->vertex[2].coords.x, tile->vertex[3].coords.x },
-		(vec4f){ tile->vertex[0].coords.y, tile->vertex[1].coords.y, tile->vertex[2].coords.y, tile->vertex[3].coords.y },
-		(vec4f){ tile->vertex[0].coords.z, tile->vertex[1].coords.z, tile->vertex[2].coords.z, tile->vertex[3].coords.z }
+		vertex_all_x(tile->vertex),
+		vertex_all_y(tile->vertex),
+		vertex_all_z(tile->vertex)
 	) == vertex[4].zoom) {
 		tile->zoom = vertex[4].zoom;
 		drawlist_add(tile);
@@ -486,9 +504,9 @@ reduce_block (struct tile *tile, int maxzoom, float minsize)
 	// Let's get zooms for the points in vertex:
 	vec4i pzooms = zooms_quad(
 		world_zoom,
-		(vec4f){ vertex[0].coords.x, vertex[1].coords.x, vertex[2].coords.x, vertex[3].coords.x },
-		(vec4f){ vertex[0].coords.y, vertex[1].coords.y, vertex[2].coords.y, vertex[3].coords.y },
-		(vec4f){ vertex[0].coords.z, vertex[1].coords.z, vertex[2].coords.z, vertex[3].coords.z }
+		vertex_all_x(vertex),
+		vertex_all_y(vertex),
+		vertex_all_z(vertex)
 	);
 	// Combine vzooms and pzooms into one vec8i:
 	vec8i zooms = vec8i_from_vec4i(vzooms, pzooms);
