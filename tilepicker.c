@@ -30,6 +30,34 @@ struct vertex {
 	struct vector normal;
 };
 
+// A tile is split up into four quadrants. Each quadrant has four vertices:
+//
+//   +--+--+
+//   | 0| 1|
+//   +--+--+
+//   | 3| 2|
+//   +--+--+
+//
+struct quad {
+	bool used;			// Quad has been output already
+	struct vertex *vertex[4];	// Corner vertices
+};
+
+// Also define four rectangles which are made up of two quads each:
+//
+//   +-----+   +--+--+
+//   |  0  |   |  |  |
+//   +-----+   | 2| 3|
+//   |  1  |   |  |  |
+//   +-----+   +--+--+
+//
+struct rect {
+	float wd;
+	float ht;
+	struct quad *quad[2];		// Component quads
+	struct vertex *vertex[4];	// Corner vertices
+};
+
 struct tile {
 	float x;
 	float y;
@@ -252,6 +280,32 @@ tile_edges_agree (struct tile *const tile)
 		vertex_all_z(tile->vertex)));
 }
 
+static inline bool
+quad_has_single_zoomlevel (const struct quad *quad)
+{
+	for (int i = 1; i < 4; i++)
+		if (quad->vertex[i]->zoom != quad->vertex[0]->zoom)
+			return false;
+
+	return true;
+}
+
+static inline bool
+rect_has_single_zoomlevel (const struct rect *rect)
+{
+	// Check all zooms against this one:
+	int baseline = rect->quad[0]->vertex[0]->zoom;
+
+	for (int i = 0; i < 2; i++) {
+		struct quad *quad = rect->quad[i];
+		for (int j = 0; j < 4; j++)
+			if (quad->vertex[j]->zoom != baseline)
+				return false;
+	}
+
+	return true;
+}
+
 static void
 tilepicker_planar (void)
 {
@@ -370,25 +424,6 @@ tilepicker_recalc (void)
 static void
 reduce_block (struct tile *tile, int maxzoom, float minsize)
 {
-	#define inherit_vertex(a,k)			\
-		memcpy(&t.vertex[a],			\
-			  (k == 0) ? &tile->vertex[0]	\
-			: (k == 1) ? &vertex[0]		\
-			: (k == 2) ? &tile->vertex[1]	\
-			: (k == 3) ? &vertex[1]		\
-			: (k == 4) ? &tile->vertex[2]	\
-			: (k == 5) ? &vertex[2]		\
-			: (k == 6) ? &tile->vertex[3]	\
-			: (k == 7) ? &vertex[3]		\
-			: &vertex[4]			\
-			, sizeof(struct vertex));
-
-	#define setcorners(a,b,c,d)  \
-		inherit_vertex(0,a); \
-		inherit_vertex(1,b); \
-		inherit_vertex(2,c); \
-		inherit_vertex(3,d);
-
 	// Caller passes us a struct tile, with at least the x, y, wd, ht,
 	// and coords[4] fields set. The latter are the *world-projected*
 	// coordinates of the tile corners.
@@ -429,15 +464,26 @@ reduce_block (struct tile *tile, int maxzoom, float minsize)
 	};
 
 	// For the four quads, define corner vertices:
-	struct {
-		bool used;
-		struct vertex *vertex[4];
-	}
-	quad[4] = {
+	struct quad quad[4] = {
 		{ false, { &tile->vertex[0], &vertex[0], &vertex[4], &vertex[3] } },
 		{ false, { &vertex[0], &tile->vertex[1], &vertex[1], &vertex[4] } },
 		{ false, { &vertex[4], &vertex[1], &tile->vertex[2], &vertex[2] } },
 		{ false, { &vertex[3], &vertex[4], &vertex[2], &tile->vertex[3] } },
+	};
+
+	// Also define four rectangles which are made up of two quads each:
+	//
+	//   +-----+   +--+--+
+	//   |  0  |   |  |  |
+	//   +-----+   | 2| 3|
+	//   |  1  |   |  |  |
+	//   +-----+   +--+--+
+	//
+	struct rect rect[4] = {
+		{ tile->wd, halfsize, { &quad[0], &quad[1] }, { &tile->vertex[0], &tile->vertex[1], &vertex[1], &vertex[3] } },
+		{ tile->wd, halfsize, { &quad[3], &quad[2] }, { &vertex[3], &vertex[1], &tile->vertex[2], &tile->vertex[3] } },
+		{ halfsize, tile->ht, { &quad[0], &quad[3] }, { &tile->vertex[0], &vertex[0], &vertex[2], &tile->vertex[3] } },
+		{ halfsize, tile->ht, { &quad[1], &quad[2] }, { &vertex[0], &tile->vertex[1], &tile->vertex[2], &vertex[2] } },
 	};
 
 	switch (viewport_mode_get())
@@ -509,67 +555,43 @@ reduce_block (struct tile *tile, int maxzoom, float minsize)
 		vertex_all_y(vertex),
 		vertex_all_z(vertex)
 	);
-	// Combine vzooms and pzooms into one vec8i:
-	vec8i zooms = vec8i_from_vec4i(vzooms, pzooms);
 
-	// zooms now contains the zoomlevels of the eight points in a
-	// strange order: { 0, 2, 4, 6, 1, 3, 5, 7 }
+	// Assign zooms to vertices:
+	for (int i = 0; i < 4; i++) {
+		tile->vertex[i].zoom = vzooms[i];
+		vertex[i].zoom = pzooms[i];
+	}
 
-	// Define quad masks. Each quad uses point 8, but also these:
-	// point #   0     2     4     6     1     3     5     7
-	vec8i q[4] =
-		{ { 0xff, 0x00, 0x00, 0x00, 0xff, 0x00, 0x00, 0xff }
-		, { 0x00, 0xff, 0x00, 0x00, 0xff, 0xff, 0x00, 0x00 }
-		, { 0x00, 0x00, 0xff, 0x00, 0x00, 0xff, 0xff, 0x00 }
-		, { 0x00, 0x00, 0x00, 0xff, 0x00, 0x00, 0xff, 0xff } };
+	// Loop over all rectangles:
+	for (int i = 0; i < 4; i++)
+	{
+		// Skip if either of the member quads is already used:
+		if (rect[i].quad[0]->used || rect[i].quad[1]->used)
+			continue;
 
-	// Subtract the zoom for point 8 from all these points:
-	zooms -= vec8i_int(vertex[4].zoom);
+		// If not all vertices in the rect have the same zoomlevel,
+		// the rect is not "homogeneous" and we need to split it:
+		if (!rect_has_single_zoomlevel(&rect[i]))
+			continue;
 
-	// Now we start having fun. If zooms is now all zero, the whole
-	// quad has the same zoomlevel:
+		struct tile t = {
+			.x = rect[i].vertex[0]->tile.x,
+			.y = rect[i].vertex[0]->tile.y,
+			.wd = rect[i].wd,
+			.ht = rect[i].ht,
+			.zoom = vertex[4].zoom,
+		};
 
-	// OK, split tile up in four quadrants:
-	// Check the top two quadrants, q0 and q1, for same zoom:
-	if (vec8i_all_zero((q[0] | q[1]) & zooms)) {
-		struct tile t = { .x = tile->x, .y = tile->y, .wd = tile->wd, .ht = halfsize, .zoom = vertex[4].zoom };
-		setcorners(0, 2, 3, 7);
+		for (int j = 0; j < 4; j++)
+			memcpy(&t.vertex[j], rect[i].vertex[j], sizeof(struct vertex));
+
 		if (tile_is_visible(&t) && tile_edges_agree(&t)) {
 			drawlist_add(&t);
-			quad[0].used = true;
-			quad[1].used = true;
+			rect[i].quad[0]->used = true;
+			rect[i].quad[1]->used = true;
 		}
 	}
-	// Check bottom two quadrants, q2 and q3, for same zoom:
-	if (vec8i_all_zero((q[2] | q[3]) & zooms)) {
-		struct tile t = { .x = tile->x, .y = tile->y + halfsize, .wd = tile->wd, .ht = halfsize, .zoom = vertex[4].zoom };
-		setcorners(7, 3, 4, 6);
-		if (tile_is_visible(&t) && tile_edges_agree(&t)) {
-			drawlist_add(&t);
-			quad[2].used = true;
-			quad[3].used = true;
-		}
-	}
-	// Check left two quadrants, q0 and q3, for same zoom:
-	if (!quad[0].used && !quad[3].used && vec8i_all_zero((q[0] | q[3]) & zooms)) {
-		struct tile t = { .x = tile->x, .y = tile->y, .wd = halfsize, .ht = tile->ht, .zoom = vertex[4].zoom };
-		setcorners(0, 1, 5, 6);
-		if (tile_is_visible(&t) && tile_edges_agree(&t)) {
-			drawlist_add(&t);
-			quad[0].used = true;
-			quad[3].used = true;
-		}
-	}
-	// Check right two quadrants, q1 and q2, for same zoom:
-	if (!quad[1].used && !quad[2].used && vec8i_all_zero((q[1] | q[2]) & zooms)) {
-		struct tile t = { .x = tile->x + halfsize, .y = tile->y, .wd = halfsize, .ht = tile->ht, .zoom = vertex[4].zoom };
-		setcorners(1, 2, 4, 5);
-		if (tile_is_visible(&t) && tile_edges_agree(&t)) {
-			drawlist_add(&t);
-			quad[1].used = true;
-			quad[2].used = true;
-		}
-	}
+
 	// Double the minsize:
 	if (minsize < 1.0f)
 		minsize = ldexpf(minsize, 1);
@@ -587,11 +609,12 @@ reduce_block (struct tile *tile, int maxzoom, float minsize)
 			.ht = halfsize,
 			.zoom = vertex[4].zoom,
 		};
+
 		for (int j = 0; j < 4; j++)
 			memcpy(&t.vertex[j], quad[i].vertex[j], sizeof(struct vertex));
 
 		// If this quadrant is not divisible, add to drawlist:
-		if (vec8i_all_zero(q[i] & zooms) && tile_is_visible(&t) && tile_edges_agree(&t)) {
+		if (quad_has_single_zoomlevel(&quad[i]) && tile_is_visible(&t) && tile_edges_agree(&t)) {
 			drawlist_add(&t);
 			continue;
 		}
