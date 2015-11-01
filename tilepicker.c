@@ -454,8 +454,9 @@ reduce_block (struct tile *tile, int maxzoom, float minsize)
 	//  | 3| 2|
 	//  6--5--4
 	//
-	// Need to project points 1, 3, 5, 7, and 8, and find their zoom levels:
-	struct vertex vertex[5] = {
+	// We inherit vertices 0, 2, 4 and 6 from the parent tile.
+	// The other vertices need to be generated and projected:
+	struct vertex vertex_new[5] = {
 		{ .tile = { tile->x + halfsize, tile->y,           } },	// 1
 		{ .tile = { tile->x + tile->wd, tile->y + halfsize } },	// 3
 		{ .tile = { tile->x + halfsize, tile->y + tile->ht } },	// 5
@@ -463,44 +464,59 @@ reduce_block (struct tile *tile, int maxzoom, float minsize)
 		{ .tile = { tile->x + halfsize, tile->y + halfsize } },	// 8
 	};
 
+	// Generate a list of vertices combining the parent tile with
+	// the new vertices, numbered according to the diagram above:
+	struct vertex *vertex[9] = {
+		&tile->vertex[0],
+		&vertex_new[0],
+		&tile->vertex[1],
+		&vertex_new[1],
+		&tile->vertex[2],
+		&vertex_new[2],
+		&tile->vertex[3],
+		&vertex_new[3],
+		&vertex_new[4],
+	};
+
 	// For the four quads, define corner vertices:
 	struct quad quad[4] = {
-		{ false, { &tile->vertex[0], &vertex[0], &vertex[4], &vertex[3] } },
-		{ false, { &vertex[0], &tile->vertex[1], &vertex[1], &vertex[4] } },
-		{ false, { &vertex[4], &vertex[1], &tile->vertex[2], &vertex[2] } },
-		{ false, { &vertex[3], &vertex[4], &vertex[2], &tile->vertex[3] } },
+		{ false, { vertex[0], vertex[1], vertex[8], vertex[7] } },
+		{ false, { vertex[1], vertex[2], vertex[3], vertex[8] } },
+		{ false, { vertex[8], vertex[3], vertex[4], vertex[5] } },
+		{ false, { vertex[7], vertex[8], vertex[5], vertex[6] } },
 	};
 
 	// Also define four rectangles which are made up of two quads each:
 	//
-	//   +-----+   +--+--+
+	//   0-----2   0--1--2
 	//   |  0  |   |  |  |
-	//   +-----+   | 2| 3|
+	//   7-----3   | 2| 3|
 	//   |  1  |   |  |  |
-	//   +-----+   +--+--+
+	//   6-----4   6--5--4
 	//
 	struct rect rect[4] = {
-		{ tile->wd, halfsize, { &quad[0], &quad[1] }, { &tile->vertex[0], &tile->vertex[1], &vertex[1], &vertex[3] } },
-		{ tile->wd, halfsize, { &quad[3], &quad[2] }, { &vertex[3], &vertex[1], &tile->vertex[2], &tile->vertex[3] } },
-		{ halfsize, tile->ht, { &quad[0], &quad[3] }, { &tile->vertex[0], &vertex[0], &vertex[2], &tile->vertex[3] } },
-		{ halfsize, tile->ht, { &quad[1], &quad[2] }, { &vertex[0], &tile->vertex[1], &tile->vertex[2], &vertex[2] } },
+		{ tile->wd, halfsize, { &quad[0], &quad[1] }, { vertex[0], vertex[2], vertex[3], vertex[7] } },
+		{ tile->wd, halfsize, { &quad[3], &quad[2] }, { vertex[7], vertex[3], vertex[4], vertex[6] } },
+		{ halfsize, tile->ht, { &quad[0], &quad[3] }, { vertex[0], vertex[1], vertex[5], vertex[6] } },
+		{ halfsize, tile->ht, { &quad[1], &quad[2] }, { vertex[1], vertex[2], vertex[4], vertex[5] } },
 	};
 
+	// Project the new vertices:
 	switch (viewport_mode_get())
 	{
 	case VIEWPORT_MODE_PLANAR:
 		for (int i = 0; i < 5; i++)
-			project_planar(&vertex[i]);
+			project_planar(&vertex_new[i]);
 		break;
 
 	case VIEWPORT_MODE_SPHERICAL:
 		for (int i = 0; i < 5; i++)
-			project_spherical(&vertex[i]);
+			project_spherical(&vertex_new[i]);
 		break;
 	}
 
 	// And the midpoint zoom, shared by all quadrants in this tile:
-	vertex[4].zoom = zoom_point(world_zoom, &vertex[4].coords);
+	vertex[8]->zoom = zoom_point(world_zoom, &vertex[8]->coords);
 
 	// Sign test of the four corner points: all x's or all y's should lie
 	// to one side of the center, else split up in four quadrants of the same zoom level:
@@ -509,7 +525,7 @@ reduce_block (struct tile *tile, int maxzoom, float minsize)
 
 	// If the mzoom is larger than the max allowed zoom, we must recurse to the next zoom level.
 	// If the tile is under the cursor, we must also split it:
-	if (vertex[4].zoom > maxzoom || (!(signs_x_equal || signs_y_equal))) {
+	if (vertex[8]->zoom > maxzoom || (!(signs_x_equal || signs_y_equal))) {
 		// Double the minsize:
 		if (minsize < 1.0f) {
 			minsize = ldexpf(minsize, 1);
@@ -536,30 +552,30 @@ reduce_block (struct tile *tile, int maxzoom, float minsize)
 		vertex_all_z(tile->vertex)
 	);
 	// If the whole tile has the same zoom level, add:
-	if (vec4i_all_same(vzooms) && vzooms[0] == vertex[4].zoom
+	if (vec4i_all_same(vzooms) && vzooms[0] == vertex[8]->zoom
 	&& zoom_edges_highest(
 		world_zoom,
 		vertex_all_x(tile->vertex),
 		vertex_all_y(tile->vertex),
 		vertex_all_z(tile->vertex)
-	) == vertex[4].zoom) {
-		tile->zoom = vertex[4].zoom;
+	) == vertex[8]->zoom) {
+		tile->zoom = vertex[8]->zoom;
 		drawlist_add(tile);
 		return;
 	}
-	// 4/9 of the points are in tile.vertex, the rest is in vertex.
+	// 4/9 of the points are in tile.vertex, the rest is in vertex_new.
 	// Let's get zooms for the points in vertex:
 	vec4i pzooms = zooms_quad(
 		world_zoom,
-		vertex_all_x(vertex),
-		vertex_all_y(vertex),
-		vertex_all_z(vertex)
+		vertex_all_x(vertex_new),
+		vertex_all_y(vertex_new),
+		vertex_all_z(vertex_new)
 	);
 
 	// Assign zooms to vertices:
 	for (int i = 0; i < 4; i++) {
 		tile->vertex[i].zoom = vzooms[i];
-		vertex[i].zoom = pzooms[i];
+		vertex_new[i].zoom = pzooms[i];
 	}
 
 	// Loop over all rectangles:
@@ -579,7 +595,7 @@ reduce_block (struct tile *tile, int maxzoom, float minsize)
 			.y = rect[i].vertex[0]->tile.y,
 			.wd = rect[i].wd,
 			.ht = rect[i].ht,
-			.zoom = vertex[4].zoom,
+			.zoom = vertex[8]->zoom,
 		};
 
 		for (int j = 0; j < 4; j++)
@@ -607,7 +623,7 @@ reduce_block (struct tile *tile, int maxzoom, float minsize)
 			.y = quad[i].vertex[0]->tile.y,
 			.wd = halfsize,
 			.ht = halfsize,
-			.zoom = vertex[4].zoom,
+			.zoom = vertex[8]->zoom,
 		};
 
 		for (int j = 0; j < 4; j++)
