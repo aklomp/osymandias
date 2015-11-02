@@ -30,7 +30,7 @@ struct vertex {
 	struct vector normal;
 };
 
-// A tile is split up into four quadrants. Each quadrant has four vertices:
+// A tile is split up into four quadrants:
 //
 //   +---+---+
 //   | 0 | 1 |
@@ -43,18 +43,18 @@ struct quad {
 	struct vertex *vertex[4];	// Corner vertices
 };
 
-// Also define four rectangles which are made up of two quads each:
+// Also define four rectangles which are made of up to four quads each:
 //
-//   +-------+   +---+---+
-//   |   0   |   |   |   |
-//   +-------+   | 2 | 3 |
-//   |   1   |   |   |   |
-//   +-------+   +---+---+
+//   0-------2   0-------2   0---1---2   0---1---2
+//   |       |   |   1   |   |   |   |   | 5 | 6 |
+//   |   0   |   7-------3   | 3 | 4 |   7---8---3
+//   |       |   |   2   |   |   |   |   | 8 | 7 |
+//   6-------4   6-------4   6---5---4   6---5---4
 //
 struct rect {
 	float wd;
 	float ht;
-	struct quad *quad[2];		// Component quads
+	struct quad *quad[4];		// Component quads
 	struct vertex *vertex[4];	// Corner vertices
 };
 
@@ -281,29 +281,52 @@ tile_edges_agree (struct tile *const tile)
 }
 
 static inline bool
-quad_has_single_zoomlevel (const struct quad *quad)
-{
-	for (int i = 1; i < 4; i++)
-		if (quad->vertex[i]->zoom != quad->vertex[0]->zoom)
-			return false;
-
-	return true;
-}
-
-static inline bool
 rect_has_single_zoomlevel (const struct rect *rect)
 {
 	// Check all zooms against this one:
 	int baseline = rect->quad[0]->vertex[0]->zoom;
 
-	for (int i = 0; i < 2; i++) {
+	for (int i = 0; i < 4; i++) {
 		struct quad *quad = rect->quad[i];
+
+		if (quad == NULL)
+			break;
+
 		for (int j = 0; j < 4; j++)
 			if (quad->vertex[j]->zoom != baseline)
 				return false;
 	}
 
 	return true;
+}
+
+static inline bool
+rect_quads_unused (const struct rect *rect)
+{
+	for (int i = 0; i < 4; i++) {
+		struct quad *quad = rect->quad[i];
+
+		if (quad == NULL)
+			break;
+
+		if (quad->used)
+			return false;
+	}
+
+	return true;
+}
+
+static inline void
+rect_quads_mark_used (const struct rect *rect)
+{
+	for (int i = 0; i < 4; i++) {
+		struct quad *quad = rect->quad[i];
+
+		if (quad == NULL)
+			return;
+
+		quad->used = true;
+	}
 }
 
 static void
@@ -343,8 +366,11 @@ tilepicker_planar (void)
 
 			// Must call reduce_block with a tile structure containing
 			// the four projected corner points, so bootstrap:
-			for (int i = 0; i < 4; i++)
-				project_planar(&tile.vertex[i]);
+			for (int i = 0; i < 4; i++) {
+				struct vertex *vertex = &tile.vertex[i];
+				project_planar(vertex);
+				vertex->zoom = zoom_point(world_zoom, &vertex->coords);
+			}
 
 			// Recursively split this block:
 			reduce_block(&tile, lowzoom, 1.0f);
@@ -385,8 +411,11 @@ tilepicker_spherical (void)
 					{ .tile = { x,      y + sz } },
 				}
 			};
-			for (int i = 0; i < 4; i++)
-				project_spherical(&tile.vertex[i]);
+			for (int i = 0; i < 4; i++) {
+				struct vertex *vertex = &tile.vertex[i];
+				project_spherical(vertex);
+				vertex->zoom = zoom_point(world_zoom, &vertex->coords);
+			}
 
 			reduce_block(&tile, 0, ldexpf(1.0f, minsize));
 		}
@@ -429,9 +458,9 @@ reduce_block (struct tile *tile, int maxzoom, float minsize)
 	// coordinates of the tile corners.
 
 	// Not even visible? Give up:
-	if (!tile_is_visible(tile)) {
+	if (!tile_is_visible(tile))
 		return;
-	}
+
 	// Tile is already the smallest possible size, cannot split, must accept:
 	if (tile->wd <= minsize) {
 		vec4i vzooms = zooms_quad(
@@ -486,19 +515,24 @@ reduce_block (struct tile *tile, int maxzoom, float minsize)
 		{ false, { vertex[7], vertex[8], vertex[5], vertex[6] } },
 	};
 
-	// Also define four rectangles which are made up of two quads each:
+	// Also define nine rectangles made up out of various quads:
 	//
-	//   0-------2   0---1---2
-	//   |   0   |   |   |   |
-	//   7-------3   | 2 | 3 |
-	//   |   1   |   |   |   |
-	//   6-------4   6---5---4
+	//   0-------2   0-------2   0---1---2   0---1---2
+	//   |       |   |   1   |   |   |   |   | 5 | 6 |
+	//   |   0   |   7-------3   | 3 | 4 |   7---8---3
+	//   |       |   |   2   |   |   |   |   | 8 | 7 |
+	//   6-------4   6-------4   6---5---4   6---5---4
 	//
-	struct rect rect[4] = {
-		{ tile->wd, halfsize, { &quad[0], &quad[1] }, { vertex[0], vertex[2], vertex[3], vertex[7] } },
-		{ tile->wd, halfsize, { &quad[3], &quad[2] }, { vertex[7], vertex[3], vertex[4], vertex[6] } },
-		{ halfsize, tile->ht, { &quad[0], &quad[3] }, { vertex[0], vertex[1], vertex[5], vertex[6] } },
-		{ halfsize, tile->ht, { &quad[1], &quad[2] }, { vertex[1], vertex[2], vertex[4], vertex[5] } },
+	struct rect rect[9] = {
+		{ tile->wd, tile->ht, { &quad[0], &quad[1], &quad[2], &quad[3] }, { vertex[0], vertex[2], vertex[4], vertex[6] } },
+		{ tile->wd, halfsize, { &quad[0], &quad[1], NULL, NULL }, { vertex[0], vertex[2], vertex[3], vertex[7] } },
+		{ tile->wd, halfsize, { &quad[3], &quad[2], NULL, NULL }, { vertex[7], vertex[3], vertex[4], vertex[6] } },
+		{ halfsize, tile->ht, { &quad[0], &quad[3], NULL, NULL }, { vertex[0], vertex[1], vertex[5], vertex[6] } },
+		{ halfsize, tile->ht, { &quad[1], &quad[2], NULL, NULL }, { vertex[1], vertex[2], vertex[4], vertex[5] } },
+		{ halfsize, halfsize, { &quad[0], NULL, NULL, NULL }, { vertex[0], vertex[1], vertex[8], vertex[7] } },
+		{ halfsize, halfsize, { &quad[1], NULL, NULL, NULL }, { vertex[1], vertex[2], vertex[3], vertex[8] } },
+		{ halfsize, halfsize, { &quad[2], NULL, NULL, NULL }, { vertex[8], vertex[3], vertex[4], vertex[5] } },
+		{ halfsize, halfsize, { &quad[3], NULL, NULL, NULL }, { vertex[7], vertex[8], vertex[5], vertex[6] } },
 	};
 
 	// Project the new vertices:
@@ -515,81 +549,36 @@ reduce_block (struct tile *tile, int maxzoom, float minsize)
 		break;
 	}
 
-	// And the midpoint zoom, shared by all quadrants in this tile:
-	vertex[8]->zoom = zoom_point(world_zoom, &vertex[8]->coords);
-
-	// Sign test of the four corner points: all x's or all y's should lie
-	// to one side of the center, else split up in four quadrants of the same zoom level:
-	bool signs_x_equal = ((tile->x < center_x) == ((tile->x + tile->wd) < center_x));
-	bool signs_y_equal = ((tile->y < center_y) == ((tile->y + tile->ht) < center_y));
-
-	// If the mzoom is larger than the max allowed zoom, we must recurse to the next zoom level.
-	// If the tile is under the cursor, we must also split it:
-	if (vertex[8]->zoom > maxzoom || (!(signs_x_equal || signs_y_equal))) {
-		// Double the minsize:
-		if (minsize < 1.0f) {
-			minsize = ldexpf(minsize, 1);
-		}
-		for (int i = 0; i < 4; i++) {
-			struct tile t = {
-				.x = quad[i].vertex[0]->tile.x,
-				.y = quad[i].vertex[0]->tile.y,
-				.wd = halfsize,
-				.ht = halfsize,
-			};
-			for (int j = 0; j < 4; j++)
-				memcpy(&t.vertex[j], quad[i].vertex[j], sizeof(struct vertex));
-
-			reduce_block(&t, maxzoom + 1, minsize);
-		}
-		return;
-	}
-
-	// Get vertex zoomlevels:
-	vec4i vzooms = zooms_quad(
-		world_zoom,
-		vertex_all_x(tile->vertex),
-		vertex_all_y(tile->vertex),
-		vertex_all_z(tile->vertex)
-	);
-
-	// If the whole tile has the same zoom level, add:
-	if (vec4i_all_same(vzooms)) {
-		if (vzooms[0] == vertex[8]->zoom) {
-			int edgezoom = zoom_edges_highest(
-				world_zoom,
-				vertex_all_x(tile->vertex),
-				vertex_all_y(tile->vertex),
-				vertex_all_z(tile->vertex));
-
-			if (edgezoom == vertex[8]->zoom) {
-				tile->zoom = vertex[8]->zoom;
-				drawlist_add(tile);
-				return;
-			}
-		}
-	}
-
-	// 4/9 of the points are in tile.vertex, the rest is in vertex_new.
-	// Let's get zooms for the points in vertex:
-	vec4i pzooms = zooms_quad(
+	// Get zooms for new vertices:
+	vec4i zooms_new = zooms_quad(
 		world_zoom,
 		vertex_all_x(vertex_new),
 		vertex_all_y(vertex_new),
 		vertex_all_z(vertex_new)
 	);
 
-	// Assign zooms to vertices:
-	for (int i = 0; i < 4; i++) {
-		tile->vertex[i].zoom = vzooms[i];
-		vertex_new[i].zoom = pzooms[i];
-	}
-
-	// Loop over all rectangles:
+	// Assign zooms:
 	for (int i = 0; i < 4; i++)
+		vertex_new[i].zoom = zooms_new[i];
+
+	// Don't forget the zoom for the midpoint:
+	vertex_new[4].zoom = zoom_point(world_zoom, &vertex_new[4].coords);
+
+	// Loop over all rects:
+	for (int i = 0; i < 9; i++)
 	{
-		// Skip if either of the member quads is already used:
-		if (rect[i].quad[0]->used || rect[i].quad[1]->used)
+		float rect_x = rect[i].vertex[0]->tile.x;
+		float rect_y = rect[i].vertex[0]->tile.y;
+
+		// Sign test of the four corner points: all x's or all y's should lie
+		// to one side of the center, else do not accept:
+		bool signs_x_equal = ((rect_x < center_x) == ((rect_x + rect[i].wd) < center_x));
+		bool signs_y_equal = ((rect_y < center_y) == ((rect_y + rect[i].ht) < center_y));
+
+		if (!signs_x_equal && !signs_y_equal)
+			continue;
+
+		if (!rect_quads_unused(&rect[i]))
 			continue;
 
 		// If not all vertices in the rect have the same zoomlevel,
@@ -598,8 +587,8 @@ reduce_block (struct tile *tile, int maxzoom, float minsize)
 			continue;
 
 		struct tile t = {
-			.x = rect[i].vertex[0]->tile.x,
-			.y = rect[i].vertex[0]->tile.y,
+			.x = rect_x,
+			.y = rect_y,
 			.wd = rect[i].wd,
 			.ht = rect[i].ht,
 			.zoom = rect[i].vertex[0]->zoom,
@@ -615,15 +604,14 @@ reduce_block (struct tile *tile, int maxzoom, float minsize)
 			continue;
 
 		drawlist_add(&t);
-		rect[i].quad[0]->used = true;
-		rect[i].quad[1]->used = true;
+		rect_quads_mark_used(&rect[i]);
 	}
 
 	// Double the minsize:
 	if (minsize < 1.0f)
 		minsize = ldexpf(minsize, 1);
 
-	// Check if the still-unused quadrants have uniform zoom:
+	// Split all remaining quads recursively:
 	for (int i = 0; i < 4; i++)
 	{
 		if (quad[i].used)
@@ -640,20 +628,9 @@ reduce_block (struct tile *tile, int maxzoom, float minsize)
 		for (int j = 0; j < 4; j++)
 			memcpy(&t.vertex[j], quad[i].vertex[j], sizeof(struct vertex));
 
-		// If this quad is not visible, give up on it:
-		if (!tile_is_visible(&t))
-			continue;
-
-		// If the quad has uniform zoom, add it to the list:
-		if (quad_has_single_zoomlevel(&quad[i])) {
-			if (tile_edges_agree(&t)) {
-				drawlist_add(&t);
-				continue;
-			}
-		}
-
-		// Else recursively divide:
-		reduce_block(&t, maxzoom + 1, minsize);
+		// If quad is visible, recursively divide it:
+		if (tile_is_visible(&t))
+			reduce_block(&t, maxzoom + 1, minsize);
 	}
 }
 
