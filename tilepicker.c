@@ -244,11 +244,11 @@ project_spherical (struct vertex *v)
 static bool
 tile_is_visible (struct tile *const tile)
 {
-	struct vector coords[4] = {
-		tile->vertex[0].coords,
-		tile->vertex[1].coords,
-		tile->vertex[2].coords,
-		tile->vertex[3].coords,
+	const struct vector *coords[4] = {
+		&tile->vertex[0].coords,
+		&tile->vertex[1].coords,
+		&tile->vertex[2].coords,
+		&tile->vertex[3].coords,
 	};
 
 	return camera_visible_quad(coords);
@@ -273,11 +273,13 @@ tile_farthest_get_zoom (int *zoom)
 static bool
 tile_edges_agree (struct tile *const tile)
 {
-	return (tile->zoom == zoom_edges_highest(
+	const int zoom_highest = zoom_edges_highest(
 		world_zoom,
 		vertex_all_x(tile->vertex),
 		vertex_all_y(tile->vertex),
-		vertex_all_z(tile->vertex)));
+		vertex_all_z(tile->vertex));
+
+	return (tile->zoom == zoom_highest);
 }
 
 static inline bool

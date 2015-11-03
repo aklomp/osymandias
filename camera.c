@@ -226,7 +226,7 @@ camera_distance_squared_quadedge (const vec4f x, const vec4f y, const vec4f z)
 }
 
 bool
-camera_visible_quad (const struct vector *coords)
+camera_visible_quad (const struct vector *coords[4])
 {
 	//  a---b   a = (x, y, z, _)
 	//  |   |   b = (x, y, z, _)
@@ -237,10 +237,10 @@ camera_visible_quad (const struct vector *coords)
 
 	// Convert coords to vector:
 	const vec4f vpos[4] = {
-		VEC4F(coords[0]),
-		VEC4F(coords[1]),
-		VEC4F(coords[2]),
-		VEC4F(coords[3]),
+		VEC4F(*coords[0]),
+		VEC4F(*coords[1]),
+		VEC4F(*coords[2]),
+		VEC4F(*coords[3]),
 	};
 
 	// Vectors between corner points and camera:
