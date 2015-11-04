@@ -9,39 +9,50 @@
 static struct {
 	unsigned int zoom;
 	unsigned int size;
-} world = {
-	.zoom = 0,
-	.size = ZOOM_SIZE(0),
-};
+} state;
 
 unsigned int
 world_get_size (void)
 {
-	return world.size;
+	return state.size;
 }
 
 unsigned int
 world_get_zoom (void)
 {
-	return world.zoom;
+	return state.zoom;
 }
 
 bool
 world_zoom_in (void)
 {
-	if (world.zoom == ZOOM_MAX)
+	if (state.zoom == ZOOM_MAX)
 		return false;
 
-	world.size = ZOOM_SIZE(++world.zoom);
+	state.size = ZOOM_SIZE(++state.zoom);
 	return true;
 }
 
 bool
 world_zoom_out (void)
 {
-	if (world.zoom == 0)
+	if (state.zoom == 0)
 		return false;
 
-	world.size = ZOOM_SIZE(--world.zoom);
+	state.size = ZOOM_SIZE(--state.zoom);
+	return true;
+}
+
+void
+world_destroy (void)
+{
+}
+
+bool
+world_init (const unsigned int zoom)
+{
+	state.zoom = zoom;
+	state.size = ZOOM_SIZE(zoom);
+
 	return true;
 }

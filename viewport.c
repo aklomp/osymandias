@@ -134,6 +134,9 @@ center_set (const double world_x, const double world_y)
 bool
 viewport_init (void)
 {
+	if (!world_init(0))
+		return false;
+
 	viewport_mode_set(VIEWPORT_MODE_SPHERICAL);
 	center_x = center_y = (double)world_get_size() / 2.0;
 
@@ -155,6 +158,7 @@ viewport_destroy (void)
 	camera_destroy();
 	layers_destroy();
 	programs_destroy();
+	world_destroy();
 	tilepicker_destroy();
 }
 
