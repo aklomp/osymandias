@@ -220,11 +220,9 @@ camera_visible_quad (const struct vector *coords[4])
 	// Normal of quad is cross product of its diagonals:
 	const vec4f quad_normal = vector3d_cross(vcoords[2] - vcoords[0], vcoords[3] - vcoords[1]);
 
-	// The centerpoint lies halfway a diagonal:
-	const vec4f quad_center = vcoords[0] + (vcoords[2] - vcoords[0]) / vec4f_float(2.0f);
-
-	// The "ray" between camera and centerpoint:
-	const vec4f ray = quad_center - vcam;
+	// The "ray" between camera and a random vertex;
+	// if one vertex is visible, they all are:
+	const vec4f ray = vcoords[0] - vcam;
 
 	// If the dot product of this vector and the quad normal is negative,
 	// the quad is not visible:
