@@ -171,9 +171,11 @@ camera_distance_squared_quad (const vec4f x, const vec4f y, const vec4f z)
 }
 
 static inline float
-dot (vec4f a, vec4f b)
+dot (const vec4f a, const vec4f b)
 {
-	return vec4f_hsum(a * b);
+	// Disregard w value:
+	const vec4f c = a * b;
+	return vec4f_hsum(vec4f_shuffle(c, 0, 1, 2, -1));
 }
 
 vec4f
@@ -228,48 +230,46 @@ camera_distance_squared_quadedge (const vec4f x, const vec4f y, const vec4f z)
 bool
 camera_visible_quad (const struct vector *coords[4])
 {
-	//  a---b   a = (x, y, z, _)
-	//  |   |   b = (x, y, z, _)
-	//  d---c   ...
-
 	// Convert camera position to vector:
-	vec4f vcam = VEC4F(cam.pos);
+	const vec4f vcam = VEC4F(cam.pos);
 
 	// Convert coords to vector:
-	const vec4f vpos[4] = {
+	vec4f vcoords[4] = {
 		VEC4F(*coords[0]),
 		VEC4F(*coords[1]),
 		VEC4F(*coords[2]),
 		VEC4F(*coords[3]),
 	};
 
-	// Vectors between corner points and camera:
-	const vec4f ray[4] = {
-		vpos[0] - vcam,
-		vpos[1] - vcam,
-		vpos[2] - vcam,
-		vpos[3] - vcam,
-	};
+	// FIXME HACK: till we project correctly, divide position by w:
+	vcoords[0] /= vec4f_float(coords[0]->w);
+	vcoords[1] /= vec4f_float(coords[1]->w);
+	vcoords[2] /= vec4f_float(coords[2]->w);
+	vcoords[3] /= vec4f_float(coords[3]->w);
 
-	// Check sign of cross product of delta vector and quad edges;
-	// if any of the signs is positive, the quad is visible.
-	// TODO: this is glitchy at globe edges because it uses the flat normal,
-	// not the actual sphere normal at the corner points.
-	for (;;) {
-		if (dot(vector3d_cross(vpos[0] - vpos[1], vpos[0] - vpos[3]), ray[0]) > 0) break;
-		if (dot(vector3d_cross(vpos[1] - vpos[2], vpos[1] - vpos[0]), ray[1]) > 0) break;
-		if (dot(vector3d_cross(vpos[2] - vpos[3], vpos[2] - vpos[1]), ray[2]) > 0) break;
-		if (dot(vector3d_cross(vpos[3] - vpos[0], vpos[3] - vpos[2]), ray[3]) > 0) break;
+	// Normal of quad is cross product of its diagonals:
+	const vec4f quad_normal = vector3d_cross(vcoords[2] - vcoords[0], vcoords[3] - vcoords[1]);
+
+	// The centerpoint lies halfway a diagonal:
+	const vec4f quad_center = vcoords[0] + (vcoords[2] - vcoords[0]) / vec4f_float(2.0f);
+
+	// The "ray" between camera and centerpoint:
+	const vec4f ray = quad_center - vcam;
+
+	// If the dot product of this vector and the quad normal is negative,
+	// the quad is not visible:
+	if (dot(quad_normal, ray) < 0.0f)
 		return false;
-	}
+
 	// Check each frustum plane, at least one point must be visible:
 	for (int i = 0; i < 4; i++) {
-		if (point_in_front_of_plane(vpos[0], cam.frustum_planes[i])) continue;
-		if (point_in_front_of_plane(vpos[1], cam.frustum_planes[i])) continue;
-		if (point_in_front_of_plane(vpos[2], cam.frustum_planes[i])) continue;
-		if (point_in_front_of_plane(vpos[3], cam.frustum_planes[i])) continue;
+		if (point_in_front_of_plane(vcoords[0], cam.frustum_planes[i])) continue;
+		if (point_in_front_of_plane(vcoords[1], cam.frustum_planes[i])) continue;
+		if (point_in_front_of_plane(vcoords[2], cam.frustum_planes[i])) continue;
+		if (point_in_front_of_plane(vcoords[3], cam.frustum_planes[i])) continue;
 		return false;
 	}
+
 	return true;
 }
 
