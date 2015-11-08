@@ -1,1 +1,1 @@
-struct layer *layer_osm (void);
+const struct layer *layer_osm (void);

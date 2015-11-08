@@ -82,7 +82,7 @@ paint (void)
 	glDisable(GL_FOG);
 }
 
-struct layer *
+const struct layer *
 layer_blanktile (void)
 {
 	static struct layer layer = {

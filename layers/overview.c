@@ -357,7 +357,7 @@ destroy (void)
 	glDeleteBuffers(1, &vbo_tiles);
 }
 
-struct layer *
+const struct layer *
 layer_overview (void)
 {
 	static struct layer layer = {

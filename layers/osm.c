@@ -227,7 +227,7 @@ zoom (const unsigned int zoom)
 	bitmap_zoom_change(zoom);
 }
 
-struct layer *
+const struct layer *
 layer_osm (void)
 {
 	static struct layer layer = {

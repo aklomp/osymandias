@@ -1,1 +1,1 @@
-struct layer *layer_background (void);
+const struct layer *layer_background (void);

@@ -196,7 +196,7 @@ destroy (void)
 	glDeleteBuffers(1, &vbo);
 }
 
-struct layer *
+const struct layer *
 layer_background (void)
 {
 	static struct layer layer = {

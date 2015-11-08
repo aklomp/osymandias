@@ -1,1 +1,1 @@
-struct layer *layer_blanktile (void);
+const struct layer *layer_blanktile (void);

@@ -64,7 +64,7 @@ layers_destroy (void)
 bool
 layers_init (void)
 {
-	struct layer *l[] = {
+	const struct layer *l[] = {
 		layer_background(),
 		layer_blanktile(),
 		layer_osm(),
