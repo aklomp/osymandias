@@ -47,9 +47,9 @@ mat_view_update (void)
 	// This was reverse-engineered by observing that the values in the
 	// third row of the matrix matched the normalized camera position.
 	// TODO: derive this properly.
-	cam.pos.x = matrix.view[2]  * matrix.view[14];
-	cam.pos.y = matrix.view[6]  * matrix.view[14];
-	cam.pos.z = matrix.view[10] * matrix.view[14];
+	cam.pos.x = -matrix.view[2]  * matrix.view[14];
+	cam.pos.y = -matrix.view[6]  * matrix.view[14];
+	cam.pos.z = -matrix.view[10] * matrix.view[14];
 	cam.pos.w = 1.0f;
 
 	// This changes the view-projection matrix:
@@ -85,11 +85,11 @@ camera_tilt (const float radians)
 	cam.tilt += radians;
 
 	// Always keep a small angle to the map:
-	if (cam.tilt < -1.4f)
-		cam.tilt = -1.4f;
+	if (cam.tilt > 1.4f)
+		cam.tilt = 1.4f;
 
 	// If almost vertical, snap to perfectly vertical:
-	if (cam.tilt > -0.005f)
+	if (cam.tilt < 0.005f)
 		cam.tilt = 0.0f;
 
 	// Tilt occurs around the x axis:
@@ -323,8 +323,8 @@ camera_init (void)
 	cam.pos.w = 1.0f;
 
 	// Initial attitude:
-	cam.tilt = 0.0f;
-	cam.rotate  = 0.0f;
+	cam.tilt   = 0.0f;
+	cam.rotate = 0.0f;
 
 	// Clip planes:
 	clip.near =   1.0f;
@@ -333,7 +333,7 @@ camera_init (void)
 	// Initialize tilt, rotate and translate matrices:
 	mat_identity(matrix.rotate);
 	mat_identity(matrix.tilt);
-	mat_translate(matrix.translate, 0.0f, 0.0f, cam.zdist);
+	mat_translate(matrix.translate, 0.0f, 0.0f, -cam.zdist);
 
 	// Initialize view matrix:
 	mat_view_update();

@@ -133,8 +133,8 @@ mat_frustum (float *matrix, float angle_of_view, float aspect_ratio, float z_nea
 	matrix[7] = 0.0f;
 	matrix[8] = 0.0f;
 	matrix[9] = 0.0f;
-	matrix[10] = (z_far + z_near) / (z_far - z_near);
-	matrix[11] = 1.0f;
+	matrix[10] = -(z_far + z_near) / (z_far - z_near);
+	matrix[11] = -1.0f;
 	matrix[12] = 0.0f;
 	matrix[13] = 0.0f;
 	matrix[14] = -2.0f * z_far * z_near / (z_far - z_near);

@@ -290,7 +290,7 @@ viewport_tilt (const int dy)
 {
 	if (dy == 0) return;
 
-	camera_tilt(dy * -0.005f);
+	camera_tilt(dy * 0.005f);
 
 	// This warps the frustum:
 	frustum_changed_shape();

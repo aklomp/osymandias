@@ -52,8 +52,8 @@ latlon_to_xyz (const double lat, const double lon, const double world_size, cons
 	// Convert to float:
 	coords->x = x;
 	coords->y = y;
-	coords->z = -z;
-	coords->w = -1.0f;
+	coords->z = z;
+	coords->w = 1.0f;
 }
 
 static inline void
