@@ -202,11 +202,48 @@ viewport_zoom_out (const int screen_x, const int screen_y)
 	frustum_changed_shape();
 }
 
+static void
+screen_to_world (double sx, double sy, double *wx, double *wy)
+{
+	// Shortcut: if we know the world is orthogonal, use simpler
+	// calculations; this also lets us "bootstrap" the world before
+	// the first OpenGL projection:
+	if (!camera_is_tilted() && !camera_is_rotated()) {
+		*wx = center_x + (sx - (double)screen_wd / 2.0) / 256.0;
+		*wy = center_y + (sy - (double)screen_ht / 2.0) / 256.0;
+		return;
+	}
+	GLdouble wax, way, waz;
+	GLdouble wbx, wby, wbz;
+	GLint viewport[4] = { 0, 0, screen_wd, screen_ht };
+
+	// Project two points at different z index to get a vector in world space:
+	gluUnProject(sx, sy, 0.75, modelview, projection, viewport, &wax, &way, &waz);
+	gluUnProject(sx, sy, 1.0, modelview, projection, viewport, &wbx, &wby, &wbz);
+
+	// Project this vector onto the world plane to get the world coordinates;
+	//
+	//     (p0 - l0) . n
+	// t = -------------
+	//        l . n
+	//
+	// n = normal vector of plane = (0, 0, 1);
+	// p0 = point in plane, (0, 0, 0);
+	// l0 = point on line, (wax, way, waz);
+	// l = point on line, (wbx, wby, wbz);
+	//
+	// This can be rewritten as:
+	double t = -waz / wbz;
+
+	*wx = wax + t * (wbx - wax) + center_x;
+	*wy = way + t * (wby - way) + center_y;
+}
+
 void
 viewport_hold_start (const int screen_x, const int screen_y)
 {
 	// Save current world coordinates for later reference:
-	viewport_screen_to_world(screen_x, screen_y, &hold_x, &hold_y);
+	screen_to_world(screen_x, screen_y, &hold_x, &hold_y);
 }
 
 void
@@ -217,7 +254,7 @@ viewport_hold_move (const int screen_x, const int screen_y)
 	double wx, wy;
 
 	// Point currently under mouse:
-	viewport_screen_to_world(screen_x, screen_y, &wx, &wy);
+	screen_to_world(screen_x, screen_y, &wx, &wy);
 
 	center_x += hold_x - wx;
 	center_y += hold_y - wy;
@@ -231,7 +268,7 @@ viewport_scroll (const int dx, const int dy)
 	// Find out which world coordinate will be in the center of the screen
 	// after the offsets have been applied, then set the center to that
 	// value:
-	viewport_screen_to_world(screen_wd / 2 + dx, screen_ht / 2 + dy, &world_x, &world_y);
+	screen_to_world(screen_wd / 2 + dx, screen_ht / 2 + dy, &world_x, &world_y);
 	center_set(world_x, world_y);
 }
 
@@ -240,7 +277,7 @@ viewport_center_at (const int screen_x, const int screen_y)
 {
 	double world_x, world_y;
 
-	viewport_screen_to_world(screen_x, screen_y, &world_x, &world_y);
+	screen_to_world(screen_x, screen_y, &world_x, &world_y);
 	center_set(world_x, world_y);
 }
 
@@ -301,10 +338,10 @@ viewport_calc_frustum (void)
 	// values are read out with viewport_get_frustum().
 
 	// NB: screen coordinates: (0,0) is left bottom:
-	viewport_screen_to_world(0.0,       screen_ht, &frustum_x[0], &frustum_y[0]);
-	viewport_screen_to_world(screen_wd, screen_ht, &frustum_x[1], &frustum_y[1]);
-	viewport_screen_to_world(screen_wd, 0.0,       &frustum_x[2], &frustum_y[2]);
-	viewport_screen_to_world(0.0,       0.0,       &frustum_x[3], &frustum_y[3]);
+	screen_to_world(0.0,       screen_ht, &frustum_x[0], &frustum_y[0]);
+	screen_to_world(screen_wd, screen_ht, &frustum_x[1], &frustum_y[1]);
+	screen_to_world(screen_wd, 0.0,       &frustum_x[2], &frustum_y[2]);
+	screen_to_world(0.0,       0.0,       &frustum_x[3], &frustum_y[3]);
 
 	// Sometimes the far points of the frustum (0 at left top and 1 at right top)
 	// will cross the horizon and be flipped; use the property that the bottom two
@@ -559,57 +596,6 @@ int
 viewport_mode_get (void)
 {
 	return viewport_mode;
-}
-
-void
-viewport_screen_to_world (double sx, double sy, double *wx, double *wy)
-{
-	// Shortcut: if we know the world is orthogonal, use simpler
-	// calculations; this also lets us "bootstrap" the world before
-	// the first OpenGL projection:
-	if (!camera_is_tilted() && !camera_is_rotated()) {
-		*wx = center_x + (sx - (double)screen_wd / 2.0) / 256.0;
-		*wy = center_y + (sy - (double)screen_ht / 2.0) / 256.0;
-		return;
-	}
-	GLdouble wax, way, waz;
-	GLdouble wbx, wby, wbz;
-	GLint viewport[4] = { 0, 0, screen_wd, screen_ht };
-
-	// Project two points at different z index to get a vector in world space:
-	gluUnProject(sx, sy, 0.75, modelview, projection, viewport, &wax, &way, &waz);
-	gluUnProject(sx, sy, 1.0, modelview, projection, viewport, &wbx, &wby, &wbz);
-
-	// Project this vector onto the world plane to get the world coordinates;
-	//
-	//     (p0 - l0) . n
-	// t = -------------
-	//        l . n
-	//
-	// n = normal vector of plane = (0, 0, 1);
-	// p0 = point in plane, (0, 0, 0);
-	// l0 = point on line, (wax, way, waz);
-	// l = point on line, (wbx, wby, wbz);
-	//
-	// This can be rewritten as:
-	double t = -waz / wbz;
-
-	*wx = wax + t * (wbx - wax) + center_x;
-	*wy = way + t * (wby - way) + center_y;
-}
-
-void
-viewport_world_to_screen (double wx, double wy, double *sx, double *sy)
-{
-	if (!camera_is_tilted() && !camera_is_rotated()) {
-		*sx = (double)screen_wd / 2.0 + (wx - center_x) * 256.0;
-		*sy = (double)screen_ht / 2.0 + (wy - center_y) * 256.0;
-		return;
-	}
-	GLdouble sz;
-	GLint viewport[4] = { 0, 0, screen_wd, screen_ht };
-
-	gluProject(wx - center_x, wy - center_y, 0.0, modelview, projection, viewport, sx, sy, &sz);
 }
 
 void
