@@ -20,14 +20,18 @@
 
 static double center_x;		// in world coordinates
 static double center_y;		// in world coordinates
-static unsigned int screen_wd;	// screen dimension
-static unsigned int screen_ht;	// screen dimension
 static double hold_x;		// Mouse hold/drag at this world coordinate
 static double hold_y;
 static double frustum_x[4] = { 0.0, 0.0, 0.0, 0.0 };
 static double frustum_y[4] = { 0.0, 0.0, 0.0, 0.0 };
 static double bbox_x[2] = { 0.0, 0.0 };
 static double bbox_y[2] = { 0.0, 0.0 };
+
+// Screen dimensions:
+static struct {
+	unsigned int width;
+	unsigned int height;
+} screen;
 
 static int tile_top;
 static int tile_left;
@@ -174,8 +178,8 @@ viewport_zoom_in (const int screen_x, const int screen_y)
 
 	// Keep same point under mouse cursor:
 	if (viewport_mode == VIEWPORT_MODE_PLANAR) {
-		int dx = screen_x - screen_wd / 2;
-		int dy = screen_y - screen_ht / 2;
+		int dx = screen_x - screen.width / 2;
+		int dy = screen_y - screen.height / 2;
 		viewport_scroll(dx, dy);
 	}
 	// Frustum got smaller:
@@ -194,8 +198,8 @@ viewport_zoom_out (const int screen_x, const int screen_y)
 
 	// Keep same point under mouse cursor:
 	if (viewport_mode == VIEWPORT_MODE_PLANAR) {
-		int dx = screen_x - screen_wd / 2;
-		int dy = screen_y - screen_ht / 2;
+		int dx = screen_x - screen.width / 2;
+		int dy = screen_y - screen.height / 2;
 		viewport_scroll(-dx / 2, -dy / 2);
 	}
 	// Frustum got larger:
@@ -209,13 +213,13 @@ screen_to_world (double sx, double sy, double *wx, double *wy)
 	// calculations; this also lets us "bootstrap" the world before
 	// the first OpenGL projection:
 	if (!camera_is_tilted() && !camera_is_rotated()) {
-		*wx = center_x + (sx - (double)screen_wd / 2.0) / 256.0;
-		*wy = center_y + (sy - (double)screen_ht / 2.0) / 256.0;
+		*wx = center_x + (sx - (double)screen.width / 2.0) / 256.0;
+		*wy = center_y + (sy - (double)screen.height / 2.0) / 256.0;
 		return;
 	}
 	GLdouble wax, way, waz;
 	GLdouble wbx, wby, wbz;
-	GLint viewport[4] = { 0, 0, screen_wd, screen_ht };
+	GLint viewport[4] = { 0, 0, screen.width, screen.height };
 
 	// Project two points at different z index to get a vector in world space:
 	gluUnProject(sx, sy, 0.75, modelview, projection, viewport, &wax, &way, &waz);
@@ -268,7 +272,7 @@ viewport_scroll (const int dx, const int dy)
 	// Find out which world coordinate will be in the center of the screen
 	// after the offsets have been applied, then set the center to that
 	// value:
-	screen_to_world(screen_wd / 2 + dx, screen_ht / 2 + dy, &world_x, &world_y);
+	screen_to_world(screen.width / 2 + dx, screen.height / 2 + dy, &world_x, &world_y);
 	center_set(world_x, world_y);
 }
 
@@ -308,11 +312,11 @@ viewport_resize (const unsigned int width, const unsigned int height)
 {
 	int dx, dy;
 
-	if (autoscroll_update(&dx, &dy)) {
+	if (autoscroll_update(&dx, &dy))
 		viewport_scroll(-dx, -dy);
-	}
-	screen_wd = width;
-	screen_ht = height;
+
+	screen.width = width;
+	screen.height = height;
 
 	// Update camera's projection matrix:
 	camera_projection(width, height);
@@ -338,10 +342,10 @@ viewport_calc_frustum (void)
 	// values are read out with viewport_get_frustum().
 
 	// NB: screen coordinates: (0,0) is left bottom:
-	screen_to_world(0.0,       screen_ht, &frustum_x[0], &frustum_y[0]);
-	screen_to_world(screen_wd, screen_ht, &frustum_x[1], &frustum_y[1]);
-	screen_to_world(screen_wd, 0.0,       &frustum_x[2], &frustum_y[2]);
-	screen_to_world(0.0,       0.0,       &frustum_x[3], &frustum_y[3]);
+	screen_to_world(0.0,          screen.height, &frustum_x[0], &frustum_y[0]);
+	screen_to_world(screen.width, screen.height, &frustum_x[1], &frustum_y[1]);
+	screen_to_world(screen.width, 0.0,           &frustum_x[2], &frustum_y[2]);
+	screen_to_world(0.0,          0.0,           &frustum_x[3], &frustum_y[3]);
 
 	// Sometimes the far points of the frustum (0 at left top and 1 at right top)
 	// will cross the horizon and be flipped; use the property that the bottom two
@@ -375,7 +379,7 @@ flip:	;
 	// flipped vectors and extending them "far enough" in the other
 	// direction. This creates a finite viewport that extends well beyond
 	// the world area:
-	double extend = world_get_size() * ((screen_ht > screen_wd) ? screen_ht : screen_wd) / 256.0;
+	double extend = world_get_size() * ((screen.height > screen.width) ? screen.height : screen.width) / 256.0;
 
 	frustum_x[0] = frustum_x[3] + extend * (frustum_x[3] - frustum_x[0]);
 	frustum_y[0] = frustum_y[3] + extend * (frustum_y[3] - frustum_y[0]);
@@ -486,7 +490,7 @@ void
 viewport_gl_setup_world (void)
 {
 	// Setup viewport:
-	glViewport(0, 0, screen_wd, screen_ht);
+	glViewport(0, 0, screen.width, screen.height);
 
 	// Setup camera:
 	camera_setup();
@@ -560,13 +564,13 @@ viewport_within_world_bounds (void)
 unsigned int
 viewport_get_wd (void)
 {
-	return screen_wd;
+	return screen.width;
 }
 
 unsigned int
 viewport_get_ht (void)
 {
-	return screen_ht;
+	return screen.height;
 }
 
 double
