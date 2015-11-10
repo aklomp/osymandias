@@ -211,12 +211,6 @@ camera_visible_quad (const struct vector *coords[4])
 		VEC4F(*coords[3]),
 	};
 
-	// FIXME HACK: till we project correctly, divide position by w:
-	vcoords[0] /= vec4f_float(coords[0]->w);
-	vcoords[1] /= vec4f_float(coords[1]->w);
-	vcoords[2] /= vec4f_float(coords[2]->w);
-	vcoords[3] /= vec4f_float(coords[3]->w);
-
 	// Normal of quad is cross product of its diagonals:
 	const vec4f quad_normal = vector3d_cross(vcoords[2] - vcoords[0], vcoords[3] - vcoords[1]);
 
@@ -285,6 +279,11 @@ camera_visible_quad (const struct vector *coords[4])
 	if (proj[2].z > proj[2].w)
 	if (proj[3].z > proj[3].w)
 		return false;
+
+	// These checks are not sufficient: some tiles (in the planar world)
+	// are still marked as visible, even though none of their area is
+	// inside the frustum. Will need a proper intersection check for those
+	// cases, such as Sutherland-Hodgman polygon clipping.
 
 	return true;
 }
