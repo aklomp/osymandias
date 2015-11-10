@@ -5,9 +5,12 @@ uniform int world_size;
 uniform bool spherical;
 uniform float cx;
 uniform float cy;
+uniform vec4 camera;
 varying vec4 fpos;
 
 #define M_PI 3.1415926535897932384626433832795
+
+vec4 normal;
 
 float y_to_lat (float y)
 {
@@ -34,6 +37,8 @@ vec4 latlon_to_pos (float lat, float lon, float viewlat, float viewlon)
 
 	pos.y = orig.y * cos(viewlat) - orig.z * sin(viewlat);
 	pos.z = orig.y * sin(viewlat) + orig.z * cos(viewlat);
+
+	normal = pos;
 
 	pos.xyz *= vec3(world_radius);
 
@@ -71,6 +76,9 @@ bool inside_frustum_spherical (void)
 	float viewlon = x_to_lon(cx);
 
 	vec4 pos = latlon_to_pos(lat, lon, viewlat, viewlon);
+
+	if (dot(camera.xyz - pos.xyz, normal.xyz) < 0)
+		return false;
 
 	return inside_frustum(pos);
 }

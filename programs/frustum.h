@@ -5,6 +5,7 @@ struct program_frustum {
 	float cy;
 	int world_size;
 	bool spherical;
+	const float *camera;
 };
 
 struct program *program_frustum (void);

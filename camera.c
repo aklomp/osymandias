@@ -306,6 +306,12 @@ camera_mat_viewproj (void)
 	return matrix.viewproj;
 }
 
+const float *
+camera_pos (void)
+{
+	return &cam.pos.x;
+}
+
 void
 camera_destroy (void)
 {

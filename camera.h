@@ -11,3 +11,4 @@ float camera_distance_squared (const struct vector *);
 vec4f camera_distance_squared_quad (const vec4f x, const vec4f y, const vec4f z);
 vec4f camera_distance_squared_quadedge (const vec4f x, const vec4f y, const vec4f z);
 const float *camera_mat_viewproj (void);
+const float *camera_pos (void);
