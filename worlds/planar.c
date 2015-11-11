@@ -23,8 +23,8 @@ static struct {
 static inline void
 latlon_to_world (float *x, float *y, const float lat, const float lon)
 {
-	*x = state.size * (lon / (2.0f * M_PI) + 0.5f);
-	*y = state.size * atanhf(sinf(lat));
+	*x = state.size * (0.5f + lon / (2.0f * M_PI));
+	*y = state.size * (0.5f + atanhf(sinf(lat)) / (2.0f * M_PI));
 }
 
 static void
@@ -45,8 +45,8 @@ project (float *vertex, float *normal, const float lat, const float lon)
 	n->w = 0.0f;
 
 	// Apply model matrix:
-	mat_vec_multiply(vertex, matrix.model, vertex);
-	mat_vec_multiply(normal, matrix.model, normal);
+	mat_vec_multiply(&v->x, matrix.model, &v->x);
+	mat_vec_multiply(&n->x, matrix.model, &n->x);
 }
 
 static void

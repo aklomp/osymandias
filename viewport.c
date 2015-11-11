@@ -138,7 +138,7 @@ center_set (const double world_x, const double world_y)
 bool
 viewport_init (void)
 {
-	if (!worlds_init(0))
+	if (!worlds_init(0, 0.0f, 0.0f))
 		return false;
 
 	viewport_mode_set(VIEWPORT_MODE_SPHERICAL);
