@@ -2,7 +2,7 @@
 
 #include <GL/gl.h>
 
-#include "../world.h"
+#include "../worlds.h"
 #include "../viewport.h"
 #include "../layers.h"
 

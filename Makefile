@@ -10,10 +10,10 @@ GTKGL_LDFLAGS = `pkg-config --libs gtkglext-1.0 gdkglext-1.0`
 PROG = osymandias
 
 OBJS = \
-  world.o \
   camera.o \
   matrix.o \
   layers.o \
+  worlds.o \
   quadtree.o \
   diskcache.o \
   pngloader.o \
@@ -23,6 +23,7 @@ OBJS = \
   threadpool.o \
   tiledrawer.o \
   tilepicker.o \
+  $(patsubst %.c,%.o,$(wildcard worlds/*.c))
 
 OBJS_GTK = \
   mouse.o \

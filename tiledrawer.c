@@ -4,7 +4,7 @@
 #include <GL/gl.h>
 
 #include "quadtree.h"
-#include "world.h"
+#include "worlds.h"
 #include "tiledrawer.h"
 #include "vector.h"
 

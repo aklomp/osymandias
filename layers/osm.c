@@ -6,7 +6,7 @@
 
 #include "../quadtree.h"
 #include "../bitmap_mgr.h"
-#include "../world.h"
+#include "../worlds.h"
 #include "../viewport.h"
 #include "../vector.h"
 #include "../tilepicker.h"

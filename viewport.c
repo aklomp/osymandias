@@ -10,7 +10,7 @@
 #include "vector.h"
 #include "matrix.h"
 #include "autoscroll.h"
-#include "world.h"
+#include "worlds.h"
 #include "camera.h"
 #include "tilepicker.h"
 #include "layers.h"
@@ -138,7 +138,7 @@ center_set (const double world_x, const double world_y)
 bool
 viewport_init (void)
 {
-	if (!world_init(0))
+	if (!worlds_init(0))
 		return false;
 
 	viewport_mode_set(VIEWPORT_MODE_SPHERICAL);
@@ -162,7 +162,7 @@ viewport_destroy (void)
 	camera_destroy();
 	layers_destroy();
 	programs_destroy();
-	world_destroy();
+	worlds_destroy();
 	tilepicker_destroy();
 }
 
