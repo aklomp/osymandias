@@ -19,12 +19,7 @@ static const struct world *worlds[2];
 static enum worlds current;
 
 // Current state of world:
-static struct {
-	unsigned int zoom;
-	unsigned int size;
-	float lat;
-	float lon;
-} state;
+static struct world_state state;
 
 void
 world_tile_to_latlon (float *lat, float *lon, const float x, const float y)
@@ -46,8 +41,8 @@ world_set (const enum worlds world)
 	current = world;
 
 	// Update new world's zoom and position:
-	worlds[current]->moveto(state.lat, state.lon);
-	worlds[current]->zoom(state.zoom, state.size);
+	worlds[current]->move(&state);
+	worlds[current]->zoom(&state);
 }
 
 enum worlds
@@ -76,7 +71,7 @@ world_zoom_in (void)
 
 	state.size = ZOOM_SIZE(++state.zoom);
 
-	worlds[current]->zoom(state.zoom, state.size);
+	worlds[current]->zoom(&state);
 	return true;
 }
 
@@ -88,7 +83,7 @@ world_zoom_out (void)
 
 	state.size = ZOOM_SIZE(--state.zoom);
 
-	worlds[current]->zoom(state.zoom, state.size);
+	worlds[current]->zoom(&state);
 	return true;
 }
 
@@ -99,7 +94,7 @@ world_moveto_tile (const float x, const float y)
 	world_tile_to_latlon(&state.lat, &state.lon, x, y);
 
 	// Move:
-	worlds[current]->moveto(state.lat, state.lon);
+	worlds[current]->move(&state);
 }
 
 void
@@ -110,28 +105,26 @@ world_moveto_latlon (const float lat, const float lon)
 	state.lon = lon;
 
 	// Move:
-	worlds[current]->moveto(lat, lon);
+	worlds[current]->move(&state);
 }
 
 void
 world_project_tile (float *vertex, float *normal, const float x, const float y)
 {
-	// Save new lat/lon:
-	world_tile_to_latlon(&state.lat, &state.lon, x, y);
+	float lat, lon;
+
+	// Convert to lat/lon:
+	world_tile_to_latlon(&lat, &lon, x, y);
 
 	// Project:
-	worlds[current]->project(vertex, normal, state.lat, state.lon);
+	worlds[current]->project(&state, vertex, normal, lat, lon);
 }
 
 void
 world_project_latlon (float *vertex, float *normal, const float lat, const float lon)
 {
-	// Save new lat/lon:
-	state.lat = lat;
-	state.lon = lon;
-
 	// Project:
-	worlds[current]->project(vertex, normal, lat, lon);
+	worlds[current]->project(&state, vertex, normal, lat, lon);
 }
 
 void
@@ -145,10 +138,10 @@ worlds_init (const unsigned int zoom, const float lat, const float lon)
 	worlds[WORLD_PLANAR] = world_planar();
 	worlds[WORLD_SPHERICAL] = world_spherical();
 
-	state.zoom = zoom;
-	state.size = ZOOM_SIZE(zoom);
 	state.lat = lat;
 	state.lon = lon;
+	state.zoom = zoom;
+	state.size = ZOOM_SIZE(zoom);
 
 	return true;
 }

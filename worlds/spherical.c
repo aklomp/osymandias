@@ -7,15 +7,6 @@
 #include "../worlds.h"
 #include "local.h"
 
-// World attributes:
-static struct {
-	unsigned int zoom;
-	unsigned int size;
-	float lat;
-	float lon;
-	float radius;
-} state;
-
 // Various transformation matrices:
 static struct {
 	struct {
@@ -28,8 +19,10 @@ static struct {
 } matrix;
 
 static void
-project (float *vertex, float *normal, const float lat, const float lon)
+project (const struct world_state *state, float *vertex, float *normal, const float lat, const float lon)
 {
+	(void)state;
+
 	struct vector *v = (struct vector *)vertex;
 	struct vector *n = (struct vector *)normal;
 
@@ -59,33 +52,28 @@ update_matrix_model (void)
 }
 
 static void
-moveto (const float lat, const float lon)
+move (const struct world_state *state)
 {
-	state.lat = lat;
-	state.lon = lon;
-
 	// Rotate longitude into view over y axis:
-	mat_rotate(matrix.rotate.lon, 0.0f, 1.0f, 0.0f, lon);
+	mat_rotate(matrix.rotate.lon, 0.0f, 1.0f, 0.0f, state->lon);
 
 	// Rotate latitude into view over x axis:
-	mat_rotate(matrix.rotate.lat, -1.0f, 0.0f, 0.0f, lat);
+	mat_rotate(matrix.rotate.lat, -1.0f, 0.0f, 0.0f, state->lat);
 
 	// Update model matrix:
 	update_matrix_model();
 }
 
 static void
-zoom (const unsigned int zoom, const unsigned int size)
+zoom (const struct world_state *state)
 {
-	state.zoom = zoom;
-	state.size = size;
-	state.radius = (float)size / M_PI;
+	float radius = state->size / M_PI;
 
 	// Scale matrix: scale the model (a unit sphere) to the world radius:
-	mat_scale(matrix.scale, state.radius, state.radius, state.radius);
+	mat_scale(matrix.scale, radius, radius, radius);
 
 	// Translate matrix: push the model back by the world radius:
-	mat_translate(matrix.translate, 0.0f, 0.0f, -state.radius);
+	mat_translate(matrix.translate, 0.0f, 0.0f, -radius);
 
 	// Update model matrix:
 	update_matrix_model();
@@ -102,7 +90,7 @@ world_spherical (void)
 {
 	static const struct world world = {
 		.matrix  = matrix_model,
-		.moveto  = moveto,
+		.move    = move,
 		.project = project,
 		.zoom    = zoom,
 	};
