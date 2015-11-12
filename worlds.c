@@ -46,8 +46,8 @@ world_set (const enum worlds world)
 	current = world;
 
 	// Update new world's zoom and position:
-	worlds[current]->zoom(state.zoom, state.size);
 	worlds[current]->moveto(state.lat, state.lon);
+	worlds[current]->zoom(state.zoom, state.size);
 }
 
 enum worlds

@@ -42,8 +42,6 @@ static int tile_last;
 static double modelview[16];	// OpenGL projection matrices
 static double projection[16];
 
-static int viewport_mode;	// see VIEWPORT_MODE_* constants
-
 static int frustum_inside_need_recalc = 1;
 static int frustum_coords_need_recalc = 1;
 
@@ -115,17 +113,21 @@ center_set (const double world_x, const double world_y)
 {
 	unsigned int world_size = world_get_size();
 
+	switch (world_get())
+	{
 	// In planar mode, clip to plane:
-	if (viewport_mode == VIEWPORT_MODE_PLANAR) {
+	case WORLD_PLANAR:
 		center_x = (world_x < 0) ? 0.0
 		         : (world_x >= world_size) ? world_size
 		         : (world_x);
-	}
+		break;
+
 	// In spherical mode, allow horizontal wrap:
-	if (viewport_mode == VIEWPORT_MODE_SPHERICAL) {
+	case WORLD_SPHERICAL:
 		center_x = (world_x < 0) ? world_size - world_x
 		         : (world_x >= world_size) ? world_x - world_size
 		         : (world_x);
+		break;
 	}
 	center_y = (world_y < 0) ? 0.0
 	         : (world_y >= world_size) ? world_size
@@ -133,6 +135,9 @@ center_set (const double world_x, const double world_y)
 
 	// Frustum size stays the same, but location changed:
 	frustum_changed_location();
+
+	// FIXME: center_x and center_y are in world coordinates:
+	world_moveto_tile(center_x, world_size - center_y);
 }
 
 bool
@@ -141,8 +146,9 @@ viewport_init (void)
 	if (!worlds_init(0, 0.0f, 0.0f))
 		return false;
 
-	viewport_mode_set(VIEWPORT_MODE_SPHERICAL);
 	center_x = center_y = (double)world_get_size() / 2.0;
+
+	world_set(WORLD_SPHERICAL);
 
 	if (!programs_init())
 		return false;
@@ -177,7 +183,7 @@ viewport_zoom_in (const int screen_x, const int screen_y)
 	layers_zoom(world_get_zoom());
 
 	// Keep same point under mouse cursor:
-	if (viewport_mode == VIEWPORT_MODE_PLANAR) {
+	if (world_get() == WORLD_PLANAR) {
 		int dx = screen_x - screen.width / 2;
 		int dy = screen_y - screen.height / 2;
 		viewport_scroll(dx, dy);
@@ -197,7 +203,7 @@ viewport_zoom_out (const int screen_x, const int screen_y)
 	layers_zoom(world_get_zoom());
 
 	// Keep same point under mouse cursor:
-	if (viewport_mode == VIEWPORT_MODE_PLANAR) {
+	if (world_get() == WORLD_PLANAR) {
 		int dx = screen_x - screen.width / 2;
 		int dy = screen_y - screen.height / 2;
 		viewport_scroll(-dx / 2, -dy / 2);
@@ -262,6 +268,8 @@ viewport_hold_move (const int screen_x, const int screen_y)
 
 	center_x += hold_x - wx;
 	center_y += hold_y - wy;
+
+	center_set(center_x, center_y);
 }
 
 void
@@ -524,14 +532,14 @@ viewport_gl_setup_world (void)
 	}
 	glDisable(GL_BLEND);
 
-	switch (viewport_mode)
+	switch (world_get())
 	{
-	case VIEWPORT_MODE_PLANAR:
+	case WORLD_PLANAR:
 		glDisable(GL_DEPTH_TEST);
 		glDepthMask(GL_FALSE);
 		break;
 
-	case VIEWPORT_MODE_SPHERICAL:
+	case WORLD_SPHERICAL:
 		glEnable(GL_DEPTH_TEST);
 		glDepthMask(GL_TRUE);
 		glClear(GL_DEPTH_BUFFER_BIT);
@@ -544,20 +552,22 @@ viewport_within_world_bounds (void)
 {
 	double world_size = (double)world_get_size();
 
-	if (viewport_mode == VIEWPORT_MODE_PLANAR) {
+	switch (world_get())
+	{
+	case WORLD_PLANAR:
 		for (int i = 0; i < 4; i++) {
 			if (frustum_x[i] < 0.0 || frustum_x[i] > world_size) return false;
 			if (frustum_y[i] < 0.0 || frustum_y[i] > world_size) return false;
 		}
 		return true;
-	}
-	if (viewport_mode == VIEWPORT_MODE_SPHERICAL)
-	{
+
+	case WORLD_SPHERICAL:
 		// For now, always redraw background; even if we can calculate
 		// that the world occludes the background, perhaps the tile
 		// mantle has holes in it that "leak" the background:
 		return false;
 	}
+
 	return true;
 }
 
@@ -589,18 +599,6 @@ int viewport_get_tile_top (void) { return tile_top; }
 int viewport_get_tile_left (void) { return tile_left; }
 int viewport_get_tile_right (void) { return tile_right; }
 int viewport_get_tile_bottom (void) { return tile_bottom; }
-
-void
-viewport_mode_set (int mode)
-{
-	viewport_mode = mode;
-}
-
-int
-viewport_mode_get (void)
-{
-	return viewport_mode;
-}
 
 void
 viewport_get_bbox (double **bx, double **by)

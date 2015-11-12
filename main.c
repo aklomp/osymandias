@@ -9,6 +9,7 @@
 #include "framerate.h"
 #include "autoscroll.h"
 #include "viewport.h"
+#include "worlds.h"
 
 struct signal {
 	const gchar	*signal;
@@ -69,13 +70,13 @@ on_key_press (GtkWidget *widget, GdkEventKey *event)
 	{
 	case GDK_KEY_p:
 	case GDK_KEY_P:
-		viewport_mode_set(VIEWPORT_MODE_PLANAR);
+		world_set(WORLD_PLANAR);
 		framerate_request_refresh();
 		break;
 
 	case GDK_KEY_s:
 	case GDK_KEY_S:
-		viewport_mode_set(VIEWPORT_MODE_SPHERICAL);
+		world_set(WORLD_SPHERICAL);
 		framerate_request_refresh();
 		break;
 	}

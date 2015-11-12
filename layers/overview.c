@@ -241,7 +241,7 @@ paint (void)
 		.cx = viewport_get_center_x(),
 		.cy = viewport_get_center_y(),
 		.world_size = world_get_size(),
-		.spherical = (viewport_mode_get() == VIEWPORT_MODE_SPHERICAL),
+		.spherical = (world_get() == WORLD_SPHERICAL),
 		.camera = camera_pos(),
 	}));
 

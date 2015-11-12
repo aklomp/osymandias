@@ -19,9 +19,9 @@ occludes (void)
 static void
 paint (void)
 {
-	if (viewport_mode_get() != VIEWPORT_MODE_PLANAR) {
+	if (world_get() != WORLD_PLANAR)
 		return;
-	}
+
 	int world_size  = world_get_size();
 	double cx = -viewport_get_center_x();
 	double cy = -viewport_get_center_y();

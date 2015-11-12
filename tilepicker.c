@@ -9,7 +9,6 @@
 #include "vector2d.h"
 #include "camera.h"
 #include "tile2d.h"
-#include "coord3d.h"
 
 #define MEMPOOL_BLOCK_SIZE 100
 
@@ -216,29 +215,9 @@ drawlist_detach (struct tile *t)
 }
 
 static inline void
-project_planar (struct vertex *v)
+project (struct vertex *v)
 {
-	v->coords.x = v->tile.x - center_x_dbl;
-	v->coords.y = center_y_dbl - v->tile.y;
-	v->coords.z = 0.0f;
-	v->coords.w = 1.0f;
-
-	v->normal.x = 0.0f;
-	v->normal.y = 0.0f;
-	v->normal.z = 1.0f;
-	v->normal.w = 0.0f;
-}
-
-static inline void
-project_spherical (struct vertex *v)
-{
-	double cx_lon, sin_cy_lat, cos_cy_lat;
-
-	// Precalculate some invariants outside the loop:
-	tilepoint_to_xyz_precalc(world_size, center_x_dbl, center_y_dbl, &cx_lon, &sin_cy_lat, &cos_cy_lat);
-
-	// Each "point" comes as three floats: x, y and z:
-	tilepoint_to_xyz(v->tile.x, v->tile.y, world_size, cx_lon, sin_cy_lat, cos_cy_lat, &v->coords, &v->normal);
+	world_project_tile(&v->coords.x, &v->normal.x, v->tile.x, v->tile.y);
 }
 
 static bool
@@ -370,7 +349,7 @@ tilepicker_planar (void)
 			// the four projected corner points, so bootstrap:
 			for (int i = 0; i < 4; i++) {
 				struct vertex *vertex = &tile.vertex[i];
-				project_planar(vertex);
+				project(vertex);
 				vertex->zoom = zoom_point(world_zoom, &vertex->coords);
 			}
 
@@ -415,7 +394,7 @@ tilepicker_spherical (void)
 			};
 			for (int i = 0; i < 4; i++) {
 				struct vertex *vertex = &tile.vertex[i];
-				project_spherical(vertex);
+				project(vertex);
 				vertex->zoom = zoom_point(world_zoom, &vertex->coords);
 			}
 
@@ -447,7 +426,7 @@ tilepicker_recalc (void)
 	// from the top of the mempool again.
 	mempool_reset();
 
-	(viewport_mode_get() == VIEWPORT_MODE_PLANAR)
+	(world_get() == WORLD_PLANAR)
 		? tilepicker_planar()
 		: tilepicker_spherical();
 }
@@ -538,18 +517,8 @@ reduce_block (struct tile *tile, int maxzoom, float minsize)
 	};
 
 	// Project the new vertices:
-	switch (viewport_mode_get())
-	{
-	case VIEWPORT_MODE_PLANAR:
-		for (int i = 0; i < 5; i++)
-			project_planar(&vertex_new[i]);
-		break;
-
-	case VIEWPORT_MODE_SPHERICAL:
-		for (int i = 0; i < 5; i++)
-			project_spherical(&vertex_new[i]);
-		break;
-	}
+	for (int i = 0; i < 5; i++)
+		project(&vertex_new[i]);
 
 	// Get zooms for new vertices:
 	vec4i zooms_new = zooms_quad(
