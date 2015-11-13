@@ -6,3 +6,4 @@ void mat_ortho (float *matrix, float left, float right, float bottom, float top,
 void mat_frustum (float *matrix, float angle_of_view, float aspect_ratio, float z_near, float z_far);
 void mat_vec_multiply (float *vector, const float *m, const float *v);
 void mat_multiply (float *matrix, const float *a, const float *b);
+void mat_invert (float *matrix, const float *m);
