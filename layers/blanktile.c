@@ -2,6 +2,8 @@
 
 #include <GL/gl.h>
 
+#include "../matrix.h"
+#include "../vector.h"
 #include "../worlds.h"
 #include "../viewport.h"
 #include "../layers.h"
@@ -25,17 +27,27 @@ paint (void)
 	int world_size  = world_get_size();
 	double cx = -viewport_get_center_x();
 	double cy = -viewport_get_center_y();
+	const float *mat_model = world_get_matrix();
 
 	// Draw to world coordinates:
 	viewport_gl_setup_world();
 
 	// Draw a giant quad to the current world size:
+	float points[4][4] = {
+		{ 0.0f,       0.0f,       0.0f, 1.0f },
+		{ 0.0f,       world_size, 0.0f, 1.0f },
+		{ world_size, world_size, 0.0f, 1.0f },
+		{ world_size, 0.0f,       0.0f, 1.0f },
+	};
+
 	glColor3f(0.12, 0.12, 0.12);
+
 	glBegin(GL_QUADS);
-		glVertex2f(cx, cy);
-		glVertex2f(cx + world_size, cy);
-		glVertex2f(cx + world_size, cy + world_size);
-		glVertex2f(cx, cy + world_size);
+	for (int i = 0; i < 4; i++) {
+		struct vector *p = (struct vector *)points[i];
+		mat_vec_multiply(points[i], mat_model, points[i]);
+		glVertex2f(p->x, p->y);
+	}
 	glEnd();
 
 	// Setup fog:
@@ -62,22 +74,31 @@ paint (void)
 	glBegin(GL_LINES);
 
 	// Vertical grid lines:
-	// Include some extra bounds checks to draw the topmost/rightmost line
-	// *inside* the tile area instead of 1px outside it.
-	// Flip y tile coordinates: tile origin is top left, screen origin is bottom left:
 	for (int x = l; x <= r; x++) {
-		double scx = (x == world_size) ? (double)world_size - 1.0 / 256.0 : x;
-		double scy = (t == world_size) ? (double)world_size - 1.0 / 256.0 : t;
-		glVertex2d(cx + scx, cy + scy);
-		glVertex2d(cx + scx, cy + b);
+		float line[2][4] = {
+			{ x, t, 0.0f, 1.0f },
+			{ x, b, 0.0f, 1.0f },
+		};
+		mat_vec_multiply(line[0], mat_model, line[0]);
+		mat_vec_multiply(line[1], mat_model, line[1]);
+
+		glVertex2d(line[0][0], line[0][1]);
+		glVertex2d(line[1][0], line[1][1]);
 	}
+
 	// Horizontal grid lines:
 	for (int y = b; y <= t; y++) {
-		double scx = (r == world_size) ? (double)world_size - 1.0 / 256.0 : r;
-		double scy = (y == world_size) ? (double)world_size - 1.0 / 256.0 : y;
-		glVertex2d(cx + l,   cy + scy);
-		glVertex2d(cx + scx, cy + scy);
+		float line[2][4] = {
+			{ l, y, 0.0f, 1.0f },
+			{ r, y, 0.0f, 1.0f },
+		};
+		mat_vec_multiply(line[0], mat_model, line[0]);
+		mat_vec_multiply(line[1], mat_model, line[1]);
+
+		glVertex2d(line[0][0], line[0][1]);
+		glVertex2d(line[1][0], line[1][1]);
 	}
+
 	glEnd();
 	glDisable(GL_FOG);
 }
