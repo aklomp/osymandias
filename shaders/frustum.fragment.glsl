@@ -9,8 +9,6 @@ varying vec4 fpos;
 
 #define M_PI 3.1415926535897932384626433832795
 
-vec4 normal;
-
 float y_to_lat (float y)
 {
 	return atan(sinh((y / world_size - 0.5) * 2.0 * M_PI));
@@ -19,24 +17,6 @@ float y_to_lat (float y)
 float x_to_lon (float x)
 {
 	return (x / world_size - 0.5) * 2.0 * M_PI;
-}
-
-vec4 latlon_to_pos (float lat, float lon)
-{
-	float world_radius = world_size / M_PI;
-	vec4 pos;
-
-	pos.x = cos(lat) * sin(lon);
-	pos.z = cos(lat) * cos(lon);
-	pos.y = sin(lat);
-	pos.w = 1.0;
-
-	normal = vec4(pos.xyz, 0.0);
-
-	pos    = mat_model * pos;
-	normal = mat_model * normal;
-
-	return pos;
 }
 
 bool inside_frustum (vec4 pos)
@@ -62,7 +42,19 @@ bool inside_frustum_spherical (void)
 	float lat = y_to_lat(fpos.y);
 	float lon = x_to_lon(fpos.x);
 
-	vec4 pos = latlon_to_pos(lat, lon);
+	/* Point on unit sphere: */
+	vec4 pos;
+	pos.x = cos(lat) * sin(lon);
+	pos.z = cos(lat) * cos(lon);
+	pos.y = sin(lat);
+	pos.w = 1.0;
+
+	/* Normal is equal to position, but with zero w: */
+	vec4 normal = vec4(pos.xyz, 0.0);
+
+	/* Rotate/translate/scale: */
+	pos    = mat_model * pos;
+	normal = mat_model * normal;
 
 	if (dot(camera.xyz - pos.xyz, normal.xyz) < 0)
 		return false;
