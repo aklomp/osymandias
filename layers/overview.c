@@ -238,8 +238,7 @@ paint (void)
 	program_frustum_use(&((struct program_frustum) {
 		.mat_proj = mat_proj,
 		.mat_frustum = camera_mat_viewproj(),
-		.cx = viewport_get_center_x(),
-		.cy = viewport_get_center_y(),
+		.mat_model = world_get_matrix(),
 		.world_size = world_get_size(),
 		.spherical = (world_get() == WORLD_SPHERICAL),
 		.camera = camera_pos(),

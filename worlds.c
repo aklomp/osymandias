@@ -63,6 +63,12 @@ world_get_zoom (void)
 	return state.zoom;
 }
 
+const float *
+world_get_matrix (void)
+{
+	return worlds[current]->matrix();
+}
+
 bool
 world_zoom_in (void)
 {

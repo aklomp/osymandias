@@ -12,6 +12,7 @@ enum worlds world_get (void);
 // Get world properties:
 unsigned int world_get_size (void);
 unsigned int world_get_zoom (void);
+const float *world_get_matrix (void);
 
 // Zoom one step in/out of world:
 bool world_zoom_in (void);
