@@ -20,18 +20,32 @@
 // Projection matrix:
 static float mat_proj[16];
 
-static GLuint vao_bkgd, vao_tiles;
-static GLuint vbo_bkgd, vbo_tiles;
-static GLuint vao_frustum;
+// Vertex array and buffer objects:
+static GLuint vao[3], vbo[2];
+static GLuint *vao_bkgd    = &vao[0];
+static GLuint *vbo_bkgd    = &vbo[0];
+static GLuint *vao_tiles   = &vao[1];
+static GLuint *vbo_tiles   = &vbo[1];
+static GLuint *vao_frustum = &vao[2];
 
-// Each point has 2D space coordinates and color:
-struct vertex {
+// A point in 2D space:
+struct coords {
 	float x;
 	float y;
+} __attribute__((packed));
+
+// Color as RGBA:
+struct color {
 	float r;
 	float g;
 	float b;
 	float a;
+} __attribute__((packed));
+
+// Each point has 2D space coordinates and color:
+struct vertex {
+	struct coords coords;
+	struct color color;
 } __attribute__((packed));
 
 static bool
@@ -68,15 +82,15 @@ paint_background (GLuint vao)
 {
 	// Array of indices. We define two counterclockwise triangles:
 	// 0-1-3 and 1-2-3
-	GLubyte index[6] = {
+	static const GLubyte index[6] = {
 		0, 1, 3,
 		1, 2, 3,
 	};
 
 	// Draw solid background:
 	glBindVertexArray(vao);
-	glBindBuffer(GL_ARRAY_BUFFER, vbo_bkgd);
-	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_BYTE, index);
+	glBindBuffer(GL_ARRAY_BUFFER, *vbo_bkgd);
+	glDrawElements(GL_TRIANGLES, sizeof(index), GL_UNSIGNED_BYTE, index);
 }
 
 static void
@@ -140,42 +154,42 @@ paint_tiles (void)
 		for (t = 0; iter && t < 50; t++)
 		{
 			// Bottom left:
-			tile[t].vertex[0].x = x;
-			tile[t].vertex[0].y = world_size - y;
+			tile[t].vertex[0].coords.x = x;
+			tile[t].vertex[0].coords.y = world_size - y;
 
 			// Bottom right:
-			tile[t].vertex[1].x = x + tile_wd;
-			tile[t].vertex[1].y = world_size - y;
+			tile[t].vertex[1].coords.x = x + tile_wd;
+			tile[t].vertex[1].coords.y = world_size - y;
 
 			// Top right:
-			tile[t].vertex[2].x = x + tile_wd;
-			tile[t].vertex[2].y = world_size - y - tile_ht;
+			tile[t].vertex[2].coords.x = x + tile_wd;
+			tile[t].vertex[2].coords.y = world_size - y - tile_ht;
 
 			// Top left:
-			tile[t].vertex[3].x = x;
-			tile[t].vertex[3].y = world_size - y - tile_ht;
+			tile[t].vertex[3].coords.x = x;
+			tile[t].vertex[3].coords.y = world_size - y - tile_ht;
 
 			// Solid fill color:
 			float *color = zoomcolors[zoom % 3];
 			for (int i = 0; i < 4; i++)
-				memcpy(&tile[t].vertex[i].r, color, sizeof(float[4]));
+				memcpy(&tile[t].vertex[i].color, color, sizeof(struct color));
 
 			iter = tilepicker_next(&x, &y, &tile_wd, &tile_ht, &zoom, coords, normal);
 		}
 
 		// Upload vertex data:
-		glBindBuffer(GL_ARRAY_BUFFER, vbo_tiles);
+		glBindBuffer(GL_ARRAY_BUFFER, *vbo_tiles);
 		glBufferData(GL_ARRAY_BUFFER, sizeof(struct tile) * t, tile, GL_STREAM_DRAW);
 
 		// Draw indices:
-		glBindVertexArray(vao_tiles);
+		glBindVertexArray(*vao_tiles);
 		glDrawElements(GL_TRIANGLES, t * 6, GL_UNSIGNED_BYTE, index);
 
 		// Change colors to white:
 		float *color = white;
 		for (int i = 0; i < t; i++)
 			for (int v = 0; v < 4; v++)
-				memcpy(&tile[i].vertex[v].r, color, sizeof(float[4]));
+				memcpy(&tile[i].vertex[v].color, color, sizeof(struct color));
 
 		// Upload modified data:
 		glBufferData(GL_ARRAY_BUFFER, sizeof(struct tile) * t, tile, GL_STREAM_DRAW);
@@ -229,7 +243,7 @@ paint (void)
 		.matrix = mat_proj,
 	}));
 
-	paint_background(vao_bkgd);
+	paint_background(*vao_bkgd);
 
 	// Paint tiles using solid program:
 	paint_tiles();
@@ -244,7 +258,7 @@ paint (void)
 		.camera = camera_pos(),
 	}));
 
-	paint_background(vao_frustum);
+	paint_background(*vao_frustum);
 
 	// Reset program:
 	program_none();
@@ -277,67 +291,62 @@ zoom (const unsigned int zoom)
 	//   0--1
 	//
 	struct vertex bkgd[4] = {
-		{ 0.0f, 0.0f, 0.3f, 0.3f, 0.3f, 0.5f },
-		{ size, 0.0f, 0.3f, 0.3f, 0.3f, 0.5f },
-		{ size, size, 0.3f, 0.3f, 0.3f, 0.5f },
-		{ 0.0f, size, 0.3f, 0.3f, 0.3f, 0.5f },
+		{ { 0.0f, 0.0f }, { 0.3f, 0.3f, 0.3f, 0.5f } },
+		{ { size, 0.0f }, { 0.3f, 0.3f, 0.3f, 0.5f } },
+		{ { size, size }, { 0.3f, 0.3f, 0.3f, 0.5f } },
+		{ { 0.0f, size }, { 0.3f, 0.3f, 0.3f, 0.5f } },
 	};
 
 	// Bind vertex buffer object and upload vertices:
-	glBindBuffer(GL_ARRAY_BUFFER, vbo_bkgd);
+	glBindBuffer(GL_ARRAY_BUFFER, *vbo_bkgd);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(bkgd), bkgd, GL_STREAM_DRAW);
 }
 
 static bool
 init (void)
 {
-	// Generate vertex buffer objects:
-	glGenBuffers(1, &vbo_bkgd);
-	glGenBuffers(1, &vbo_tiles);
-
-	// Generate vertex array objects:
-	glGenVertexArrays(1, &vao_bkgd);
-	glGenVertexArrays(1, &vao_tiles);
-	glGenVertexArrays(1, &vao_frustum);
+	// Generate vertex buffer and array objects:
+	glGenBuffers(sizeof(vbo) / sizeof(vbo[0]), vbo);
+	glGenVertexArrays(sizeof(vao) / sizeof(vao[0]), vao);
 
 	// Bind buffer and vertex array:
-	glBindBuffer(GL_ARRAY_BUFFER, vbo_bkgd);
+	glBindBuffer(GL_ARRAY_BUFFER, *vbo_bkgd);
+	glBindVertexArray(*vao_bkgd);
 
 	// Add pointer to 'vertex' attribute:
-	glBindVertexArray(vao_bkgd);
 	glEnableVertexAttribArray(program_solid_loc_vertex());
 	glVertexAttribPointer(program_solid_loc_vertex(), 2, GL_FLOAT, GL_FALSE,
 		sizeof(struct vertex),
-		(void *)(&((struct vertex *)0)->x));
+		(void *)(&((struct vertex *)0)->coords));
 
 	// Add pointer to 'color' attribute:
 	glEnableVertexAttribArray(program_solid_loc_color());
 	glVertexAttribPointer(program_solid_loc_color(), 4, GL_FLOAT, GL_FALSE,
 		sizeof(struct vertex),
-		(void *)(&((struct vertex *)0)->r));
+		(void *)(&((struct vertex *)0)->color));
 
 	// Add pointer to 'vertex' attribute:
-	glBindVertexArray(vao_frustum);
+	glBindVertexArray(*vao_frustum);
 	glEnableVertexAttribArray(program_frustum_loc_vertex());
 	glVertexAttribPointer(program_frustum_loc_vertex(), 2, GL_FLOAT, GL_FALSE,
 		sizeof(struct vertex),
-		(void *)(&((struct vertex *)0)->x));
+		(void *)(&((struct vertex *)0)->coords));
 
 	// Bind buffer and vertex array:
-	glBindBuffer(GL_ARRAY_BUFFER, vbo_tiles);
-	glBindVertexArray(vao_tiles);
+	glBindBuffer(GL_ARRAY_BUFFER, *vbo_tiles);
+	glBindVertexArray(*vao_tiles);
 
 	// Add pointer to 'vertex' attribute:
 	glEnableVertexAttribArray(program_solid_loc_vertex());
 	glVertexAttribPointer(program_solid_loc_vertex(), 2, GL_FLOAT, GL_FALSE,
 		sizeof(struct vertex),
-		(void *)(&((struct vertex *)0)->x));
+		(void *)(&((struct vertex *)0)->coords));
 
 	// Add pointer to 'color' attribute:
 	glEnableVertexAttribArray(program_solid_loc_color());
 	glVertexAttribPointer(program_solid_loc_color(), 4, GL_FLOAT, GL_FALSE,
 		sizeof(struct vertex),
-		(void *)(&((struct vertex *)0)->r));
+		(void *)(&((struct vertex *)0)->color));
 
 	zoom(0);
 
@@ -347,14 +356,9 @@ init (void)
 static void
 destroy (void)
 {
-	// Delete vertex array objects:
-	glDeleteVertexArrays(1, &vao_bkgd);
-	glDeleteVertexArrays(1, &vao_tiles);
-	glDeleteVertexArrays(1, &vao_frustum);
-
-	// Delete vertex buffers:
-	glDeleteBuffers(1, &vbo_bkgd);
-	glDeleteBuffers(1, &vbo_tiles);
+	// Delete vertex array and buffer objects:
+	glDeleteVertexArrays(sizeof(vao) / sizeof(vao[0]), vao);
+	glDeleteBuffers(sizeof(vbo) / sizeof(vbo[0]), vbo);
 }
 
 const struct layer *
