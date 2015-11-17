@@ -302,13 +302,9 @@ zoom (const unsigned int zoom)
 	glBufferData(GL_ARRAY_BUFFER, sizeof(bkgd), bkgd, GL_STREAM_DRAW);
 }
 
-static bool
-init (void)
+static void
+init_bkgd (void)
 {
-	// Generate vertex buffer and array objects:
-	glGenBuffers(sizeof(vbo) / sizeof(vbo[0]), vbo);
-	glGenVertexArrays(sizeof(vao) / sizeof(vao[0]), vao);
-
 	// Bind buffer and vertex array:
 	glBindBuffer(GL_ARRAY_BUFFER, *vbo_bkgd);
 	glBindVertexArray(*vao_bkgd);
@@ -324,14 +320,25 @@ init (void)
 	glVertexAttribPointer(program_solid_loc_color(), 4, GL_FLOAT, GL_FALSE,
 		sizeof(struct vertex),
 		(void *)(&((struct vertex *)0)->color));
+}
+
+static void
+init_frustum (void)
+{
+	// Bind buffer and vertex array (reuse the background quad):
+	glBindBuffer(GL_ARRAY_BUFFER, *vbo_bkgd);
+	glBindVertexArray(*vao_frustum);
 
 	// Add pointer to 'vertex' attribute:
-	glBindVertexArray(*vao_frustum);
 	glEnableVertexAttribArray(program_frustum_loc_vertex());
 	glVertexAttribPointer(program_frustum_loc_vertex(), 2, GL_FLOAT, GL_FALSE,
 		sizeof(struct vertex),
 		(void *)(&((struct vertex *)0)->coords));
+}
 
+static void
+init_tiles (void)
+{
 	// Bind buffer and vertex array:
 	glBindBuffer(GL_ARRAY_BUFFER, *vbo_tiles);
 	glBindVertexArray(*vao_tiles);
@@ -347,6 +354,18 @@ init (void)
 	glVertexAttribPointer(program_solid_loc_color(), 4, GL_FLOAT, GL_FALSE,
 		sizeof(struct vertex),
 		(void *)(&((struct vertex *)0)->color));
+}
+
+static bool
+init (void)
+{
+	// Generate vertex buffer and array objects:
+	glGenBuffers(sizeof(vbo) / sizeof(vbo[0]), vbo);
+	glGenVertexArrays(sizeof(vao) / sizeof(vao[0]), vao);
+
+	init_bkgd();
+	init_frustum();
+	init_tiles();
 
 	zoom(0);
 
