@@ -18,8 +18,6 @@
 #include "programs.h"
 #include "viewport.h"
 
-static double center_x;		// in world coordinates
-static double center_y;		// in world coordinates
 static double hold_x;		// Mouse hold/drag at this world coordinate
 static double hold_y;
 static double frustum_x[4] = { 0.0, 0.0, 0.0, 0.0 };
@@ -111,6 +109,7 @@ recalc_tile_extents (void)
 static void
 center_set (const double world_x, const double world_y)
 {
+	double center_x, center_y;
 	unsigned int world_size = world_get_size();
 
 	switch (world_get())
@@ -146,8 +145,6 @@ viewport_init (void)
 	if (!worlds_init(0, 0.0f, 0.0f))
 		return false;
 
-	center_x = center_y = (double)world_get_size() / 2.0;
-
 	world_set(WORLD_SPHERICAL);
 
 	if (!programs_init())
@@ -178,8 +175,6 @@ viewport_zoom_in (const int screen_x, const int screen_y)
 	if (!world_zoom_in())
 		return;
 
-	center_x *= 2;
-	center_y *= 2;
 	layers_zoom(world_get_zoom());
 
 	// Keep same point under mouse cursor:
@@ -198,8 +193,6 @@ viewport_zoom_out (const int screen_x, const int screen_y)
 	if (!world_zoom_out())
 		return;
 
-	center_x /= 2;
-	center_y /= 2;
 	layers_zoom(world_get_zoom());
 
 	// Keep same point under mouse cursor:
@@ -215,6 +208,10 @@ viewport_zoom_out (const int screen_x, const int screen_y)
 static void
 screen_to_world (double sx, double sy, double *wx, double *wy)
 {
+	const struct center *center = world_get_center();
+	float center_x = center->tile.x;
+	float center_y = world_get_size() - center->tile.y;
+
 	// Shortcut: if we know the world is orthogonal, use simpler
 	// calculations; this also lets us "bootstrap" the world before
 	// the first OpenGL projection:
@@ -266,10 +263,11 @@ viewport_hold_move (const int screen_x, const int screen_y)
 	// Point currently under mouse:
 	screen_to_world(screen_x, screen_y, &wx, &wy);
 
-	center_x += hold_x - wx;
-	center_y += hold_y - wy;
+	const struct center *center = world_get_center();
+	float center_x = center->tile.x;
+	float center_y = world_get_size() - center->tile.y;
 
-	center_set(center_x, center_y);
+	center_set(center_x + hold_x - wx, center_y + hold_y - wy);
 }
 
 void
@@ -367,6 +365,10 @@ viewport_calc_frustum (void)
 	//     3-----2
 	//
 	// 3 and 2 are always the near points, regardless of orientation.
+
+	const struct center *center = world_get_center();
+	float center_x = center->tile.x;
+	float center_y = world_get_size() - center->tile.y;
 
 	for (int i = 0; i < 2; i++)
 	{
@@ -581,18 +583,6 @@ unsigned int
 viewport_get_ht (void)
 {
 	return screen.height;
-}
-
-double
-viewport_get_center_x (void)
-{
-	return center_x;
-}
-
-double
-viewport_get_center_y (void)
-{
-	return center_y;
 }
 
 int viewport_get_tile_top (void) { return tile_top; }

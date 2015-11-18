@@ -76,6 +76,8 @@ world_zoom_in (void)
 		return false;
 
 	state.size = ZOOM_SIZE(++state.zoom);
+	state.center.tile.x *= 2.0f;
+	state.center.tile.y *= 2.0f;
 
 	worlds[current]->zoom(&state);
 	return true;
@@ -88,6 +90,8 @@ world_zoom_out (void)
 		return false;
 
 	state.size = ZOOM_SIZE(--state.zoom);
+	state.center.tile.x /= 2.0f;
+	state.center.tile.y /= 2.0f;
 
 	worlds[current]->zoom(&state);
 	return true;
@@ -97,7 +101,9 @@ void
 world_moveto_tile (const float x, const float y)
 {
 	// Save new lat/lon:
-	world_tile_to_latlon(&state.lat, &state.lon, x, y);
+	state.center.tile.x = x;
+	state.center.tile.y = y;
+	world_tile_to_latlon(&state.center.lat, &state.center.lon, x, y);
 
 	// Move:
 	worlds[current]->move(&state);
@@ -107,8 +113,9 @@ void
 world_moveto_latlon (const float lat, const float lon)
 {
 	// Save new lat/lon:
-	state.lat = lat;
-	state.lon = lon;
+	state.center.lat = lat;
+	state.center.lon = lon;
+	world_latlon_to_tile(&state.center.tile.x, &state.center.tile.y, lat, lon);
 
 	// Move:
 	worlds[current]->move(&state);
@@ -133,6 +140,12 @@ world_project_latlon (float *vertex, float *normal, const float lat, const float
 	worlds[current]->project(&state, vertex, normal, lat, lon);
 }
 
+const struct center *
+world_get_center (void)
+{
+	return &state.center;
+}
+
 void
 worlds_destroy (void)
 {
@@ -144,10 +157,11 @@ worlds_init (const unsigned int zoom, const float lat, const float lon)
 	worlds[WORLD_PLANAR] = world_planar();
 	worlds[WORLD_SPHERICAL] = world_spherical();
 
-	state.lat = lat;
-	state.lon = lon;
 	state.zoom = zoom;
 	state.size = ZOOM_SIZE(zoom);
+	state.center.lat = lat;
+	state.center.lon = lon;
+	world_latlon_to_tile (&state.center.tile.x, &state.center.tile.y, lat, lon);
 
 	return true;
 }

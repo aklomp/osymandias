@@ -6,6 +6,7 @@
 #include "vector.h"
 #include "vector2d.h"
 #include "camera.h"
+#include "worlds.h"
 #include "tile2d.h"
 #include "quadtree.h"
 
@@ -31,8 +32,7 @@ struct quadtree {
 
 	// Used by prune routine:
 	int world_zoom;
-	float cx;
-	float cy;
+	const struct center *center;
 	int stamp;
 };
 
@@ -164,7 +164,7 @@ node_update_viewzoom (struct quadtree *t, struct node *n)
 		1 << zoomdiff,
 
 		// Current view data:
-		t->cx, t->cy, t->world_zoom
+		t->center, t->world_zoom
 	);
 	// Get min zoom by getting the corner zooms of the tile:
 	vec4i zooms = tile2d_get_corner_zooms
@@ -177,7 +177,7 @@ node_update_viewzoom (struct quadtree *t, struct node *n)
 		1 << zoomdiff,
 
 		// Current view data:
-		t->cx, t->cy, t->world_zoom
+		t->center, t->world_zoom
 	);
 	int m1 = (zooms[0] < zooms[1]) ? zooms[0] : zooms[1];
 	int m2 = (zooms[2] < zooms[3]) ? zooms[2] : zooms[3];
@@ -372,8 +372,7 @@ quadtree_data_insert (struct quadtree *t, struct quadtree_req *req, void *data)
 	// If this is the actual node, park the data;
 	// set 'world parameters' in object first, in case we need to do pruning:
 	t->world_zoom = req->world_zoom;
-	t->cx = req->cx;
-	t->cy = req->cy;
+	t->center = req->center;
 	t->stamp++;
 	node_data_update(t, n, data);
 

@@ -113,13 +113,12 @@ paint (void)
 	struct quadtree_req req;
 	struct quadtree_req req_tex;
 	int world_zoom = world_get_zoom();
+	const struct center *center = world_get_center();
 
 	// Draw to world coordinates:
 	viewport_gl_setup_world();
 
 	glEnable(GL_TEXTURE_2D);
-	double cx = viewport_get_center_x();
-	double cy = viewport_get_center_y();
 
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -140,8 +139,7 @@ paint (void)
 		req.y = ldexpf(y, -(world_zoom - zoom));
 		req.zoom = zoom;
 		req.world_zoom = world_zoom;
-		req.cx = cx;
-		req.cy = world_get_size() - cy;
+		req.center = center;
 
 		req_tex.found_data = NULL;
 

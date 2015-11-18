@@ -3,6 +3,15 @@ enum worlds {
 	WORLD_SPHERICAL,
 };
 
+struct center {
+	float lat;
+	float lon;
+	struct {
+		float x;
+		float y;
+	} tile;
+};
+
 // Change current world:
 void world_set (const enum worlds world);
 
@@ -32,6 +41,9 @@ void world_project_latlon (float *vertex, float *normal, const float lat, const 
 
 // Convert tile coordinates to lat/lon:
 void world_tile_to_latlon (float *lat, float *lon, const float x, const float y);
+
+// Get center coordinate:
+const struct center *world_get_center (void);
 
 // Initialize worlds:
 bool worlds_init (const unsigned int zoom, const float lat, const float lon);

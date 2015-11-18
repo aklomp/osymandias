@@ -55,10 +55,10 @@ static void
 move (const struct world_state *state)
 {
 	// Rotate longitude into view over y axis:
-	mat_rotate(matrix.rotate.lon, 0.0f, 1.0f, 0.0f, state->lon);
+	mat_rotate(matrix.rotate.lon, 0.0f, 1.0f, 0.0f, state->center.lon);
 
 	// Rotate latitude into view over x axis:
-	mat_rotate(matrix.rotate.lat, -1.0f, 0.0f, 0.0f, state->lat);
+	mat_rotate(matrix.rotate.lat, -1.0f, 0.0f, 0.0f, state->center.lat);
 
 	// Update model matrix:
 	update_matrix_model();

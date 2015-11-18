@@ -79,10 +79,6 @@ static int tile_top;
 static int tile_left;
 static int tile_right;
 static int tile_bottom;
-static float center_x;
-static float center_y;
-static double center_x_dbl;
-static double center_y_dbl;
 
 static struct tile *drawlist = NULL;
 static struct tile *drawlist_tail = NULL;
@@ -242,7 +238,7 @@ tile_farthest_get_zoom (int *zoom)
 	// bounding box. We cheat slightly by using the distance from the
 	// center point, not the actual pixel dimensions of the tile.
 
-	vec4i vz = tile2d_get_corner_zooms_abs(tile_left, tile_top, tile_right, tile_bottom, center_x, center_y, world_zoom);
+	vec4i vz = tile2d_get_corner_zooms_abs(tile_left, tile_top, tile_right, tile_bottom, world_get_center(), world_zoom);
 
 	int min1 = (vz[0] < vz[1]) ? vz[0] : vz[1];
 	int min2 = (vz[2] < vz[3]) ? vz[2] : vz[3];
@@ -413,10 +409,6 @@ tilepicker_recalc (void)
 	world_zoom = world_get_zoom();
 	world_size = world_get_size();
 
-	// Convert center_y to *tile* coordinates; much easier to work with:
-	center_x = center_x_dbl = viewport_get_center_x();
-	center_y = center_y_dbl = world_size - viewport_get_center_y();
-
 	// Reset drawlist pointers. The drawlist consists of tiles allocated in
 	// the mempool that point to each other; the drawlist itself does not
 	// involve allocations.
@@ -535,6 +527,8 @@ reduce_block (struct tile *tile, int maxzoom, float minsize)
 	// Don't forget the zoom for the midpoint:
 	vertex_new[4].zoom = zoom_point(world_zoom, &vertex_new[4].coords);
 
+	const struct center *center = world_get_center();
+
 	// Loop over all rects:
 	for (int i = 0; i < 9; i++)
 	{
@@ -543,8 +537,8 @@ reduce_block (struct tile *tile, int maxzoom, float minsize)
 
 		// Sign test of the four corner points: all x's or all y's should lie
 		// to one side of the center, else do not accept:
-		bool signs_x_equal = ((rect_x < center_x) == ((rect_x + rect[i].wd) < center_x));
-		bool signs_y_equal = ((rect_y < center_y) == ((rect_y + rect[i].ht) < center_y));
+		bool signs_x_equal = ((rect_x < center->tile.x) == ((rect_x + rect[i].wd) < center->tile.x));
+		bool signs_y_equal = ((rect_y < center->tile.y) == ((rect_y + rect[i].ht) < center->tile.y));
 
 		if (!signs_x_equal && !signs_y_equal)
 			continue;

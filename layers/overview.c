@@ -203,16 +203,15 @@ paint_tiles (void)
 static void
 paint_center (void)
 {
-	// Actual center:
-	double cx = viewport_get_center_x();
-	double cy = viewport_get_center_y();
+	unsigned int size = world_get_size();
+	const struct center *center = world_get_center();
 
 	glColor4f(1.0, 1.0, 1.0, 0.7);
 	glBegin(GL_LINES);
-		glVertex2d(cx - 0.5, cy);
-		glVertex2d(cx + 0.5, cy);
-		glVertex2d(cx, cy - 0.5);
-		glVertex2d(cx, cy + 0.5);
+		glVertex2d(center->tile.x - 0.5, size - center->tile.y);
+		glVertex2d(center->tile.x + 0.5, size - center->tile.y);
+		glVertex2d(center->tile.x, size - center->tile.y + 0.5);
+		glVertex2d(center->tile.x, size - center->tile.y - 0.5);
 	glEnd();
 }
 

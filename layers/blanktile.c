@@ -25,8 +25,7 @@ paint (void)
 		return;
 
 	int world_size  = world_get_size();
-	double cx = -viewport_get_center_x();
-	double cy = -viewport_get_center_y();
+	const struct center *center = world_get_center();
 	const float *mat_model = world_get_matrix();
 
 	// Draw to world coordinates:
@@ -60,10 +59,10 @@ paint (void)
 	glFogf(GL_FOG_END, FOG_END);
 
 	// Clip tile size to non-fog region:
-	int l = -cx - FOG_END - 5;
-	int r = -cx + FOG_END + 5;
-	int t = -cy + FOG_END + 5;
-	int b = -cy - FOG_END - 5;
+	int l = center->tile.x - FOG_END - 5;
+	int r = center->tile.x + FOG_END + 5;
+	int t = world_size - center->tile.y + FOG_END + 5;
+	int b = world_size - center->tile.y - FOG_END - 5;
 
 	l = (l < 0) ? 0 : (l >= world_size) ? world_size : l;
 	r = (r < 0) ? 0 : (r >= world_size) ? world_size : r;

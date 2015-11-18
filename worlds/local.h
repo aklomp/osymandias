@@ -2,8 +2,7 @@
 struct world_state {
 	unsigned int zoom;
 	unsigned int size;
-	float lat;
-	float lon;
+	struct center center;
 };
 
 struct world {

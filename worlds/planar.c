@@ -47,7 +47,8 @@ update_matrix_model (const struct world_state *state)
 	float x, y;
 
 	// Get world coordinates of current position:
-	latlon_to_world(state, &x, &y, state->lat, state->lon);
+	x = state->center.tile.x;
+	y = state->size - state->center.tile.y;
 
 	// Translate world so that this position is at origin:
 	mat_translate(matrix.model, -x, -y, 0.0f);
