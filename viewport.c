@@ -585,34 +585,6 @@ intersect_lines (double x0, double y0, double x1, double y1, double x2, double y
 	*py = (e * (y2 - y3) - f * (y0 - y1)) / d;
 }
 
-static bool
-point_inside_triangle (double tax, double tay, double tbx, double tby, double tcx, double tcy, double ax, double ay)
-{
-	// Compute vectors:
-	double vx[3] = { tcx - tax, tbx - tax, ax - tax };
-	double vy[3] = { tcy - tay, tby - tay, ay - tay };
-
-	// Dot products:
-	double dot00 = vx[0] * vx[0] + vy[0] * vy[0];
-	double dot01 = vx[0] * vx[1] + vy[0] * vy[1];
-	double dot02 = vx[0] * vx[2] + vy[0] * vy[2];
-	double dot11 = vx[1] * vx[1] + vy[1] * vy[1];
-	double dot12 = vx[1] * vx[2] + vy[1] * vy[2];
-
-	double inv = 1.0 / (dot00 * dot11 - dot01 * dot01);
-
-	// Barycentric coordinates:
-	double u, v;
-
-	if ((u = (dot11 * dot02 - dot01 * dot12) * inv) < 0.0) {
-		return false;
-	}
-	if ((v = (dot00 * dot12 - dot01 * dot02) * inv) < 0.0) {
-		return false;
-	}
-	return (u + v < 1.0);
-}
-
 bool
 point_inside_frustum (float x, float y)
 {

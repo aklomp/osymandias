@@ -41,7 +41,7 @@ tile2d_get_corner_zooms (int x, int y, int sz, const struct center *center, int 
 }
 
 static inline int
-tile2d_get_zoom (int x, int y, const struct center *center, int world_zoom)
+tile2d_get_zoom (int x, int y, int world_zoom)
 {
 	// Use centerpoint of tile as reference:
 	vec4f point = (vec4f){ x + 0.5, world_get_size() - (y + 0.5), 0, 0 };
@@ -63,7 +63,7 @@ tile2d_get_max_zoom (int x, int y, int sz, const struct center *center, int worl
 	int rx = (center->tile.x > x + sz) ? x + sz : (center->tile.x < x) ? x : center->tile.x + 0.5;
 	int ry = (center->tile.y > y + sz) ? y + sz : (center->tile.y < y) ? y : center->tile.y + 0.5;
 
-	return tile2d_get_zoom(rx, ry, center, world_zoom);
+	return tile2d_get_zoom(rx, ry, world_zoom);
 }
 
 static inline vec4i
