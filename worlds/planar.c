@@ -55,6 +55,39 @@ update_matrix_model (const struct world_state *state)
 }
 
 static void
+center_restrict_tile (struct world_state *state)
+{
+	// Clamp x and y coordinates to world size:
+	if (state->center.tile.x < 0.0f)
+		state->center.tile.x = 0.0f;
+
+	if (state->center.tile.x > state->size)
+		state->center.tile.x = state->size;
+
+	if (state->center.tile.y < 0.0f)
+		state->center.tile.y = 0.0f;
+
+	if (state->center.tile.y > state->size)
+		state->center.tile.y = state->size;
+}
+
+static void
+center_restrict_latlon (struct world_state *state)
+{
+	if (state->center.lat < LAT_MIN)
+		state->center.lat = LAT_MIN;
+
+	if (state->center.lat > LAT_MAX)
+		state->center.lat = LAT_MAX;
+
+	if (state->center.lon < LON_MIN)
+		state->center.lon = LON_MIN;
+
+	if (state->center.lon > LON_MAX)
+		state->center.lon = LON_MAX;
+}
+
+static void
 move (const struct world_state *state)
 {
 	update_matrix_model(state);
@@ -76,10 +109,12 @@ const struct world *
 world_planar (void)
 {
 	static const struct world world = {
-		.matrix  = matrix_model,
-		.move    = move,
-		.project = project,
-		.zoom    = zoom,
+		.matrix			= matrix_model,
+		.move			= move,
+		.project		= project,
+		.zoom			= zoom,
+		.center_restrict_tile	= center_restrict_tile,
+		.center_restrict_latlon	= center_restrict_latlon,
 	};
 
 	return &world;

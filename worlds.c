@@ -103,7 +103,12 @@ world_moveto_tile (const float x, const float y)
 	// Save new lat/lon:
 	state.center.tile.x = x;
 	state.center.tile.y = y;
-	world_tile_to_latlon(&state.center.lat, &state.center.lon, x, y);
+
+	// Restrict tile coordinates to world:
+	worlds[current]->center_restrict_tile(&state);
+
+	// Update lat/lon representation:
+	world_tile_to_latlon(&state.center.lat, &state.center.lon, state.center.tile.x, state.center.tile.y);
 
 	// Move:
 	worlds[current]->move(&state);
@@ -115,7 +120,12 @@ world_moveto_latlon (const float lat, const float lon)
 	// Save new lat/lon:
 	state.center.lat = lat;
 	state.center.lon = lon;
-	world_latlon_to_tile(&state.center.tile.x, &state.center.tile.y, lat, lon);
+
+	// Restrict lat/lon coordinates to world:
+	worlds[current]->center_restrict_latlon(&state);
+
+	// Update tile representation:
+	world_latlon_to_tile(&state.center.tile.x, &state.center.tile.y, state.center.lat, state.center.lon);
 
 	// Move:
 	worlds[current]->move(&state);

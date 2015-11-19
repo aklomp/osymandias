@@ -52,6 +52,34 @@ update_matrix_model (void)
 }
 
 static void
+center_restrict_tile (struct world_state *state)
+{
+	// x coordinates are wrapped around:
+	if (state->center.tile.x < 0.0f)
+		state->center.tile.x += state->size;
+
+	if (state->center.tile.x > state->size)
+		state->center.tile.x -= state->size;
+
+	// y coordinates are clamped:
+	if (state->center.tile.y < 0.0f)
+		state->center.tile.y = 0.0f;
+
+	if (state->center.tile.y > state->size)
+		state->center.tile.y = state->size;
+}
+
+static void
+center_restrict_latlon (struct world_state *state)
+{
+	if (state->center.lat < LAT_MIN)
+		state->center.lat = LAT_MIN;
+
+	if (state->center.lat > LAT_MAX)
+		state->center.lat = LAT_MAX;
+}
+
+static void
 move (const struct world_state *state)
 {
 	// Rotate longitude into view over y axis:
@@ -89,10 +117,12 @@ const struct world *
 world_spherical (void)
 {
 	static const struct world world = {
-		.matrix  = matrix_model,
-		.move    = move,
-		.project = project,
-		.zoom    = zoom,
+		.matrix			= matrix_model,
+		.move			= move,
+		.project		= project,
+		.zoom			= zoom,
+		.center_restrict_tile	= center_restrict_tile,
+		.center_restrict_latlon	= center_restrict_latlon,
 	};
 
 	return &world;

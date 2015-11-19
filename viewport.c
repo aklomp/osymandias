@@ -109,34 +109,11 @@ recalc_tile_extents (void)
 static void
 center_set (const double world_x, const double world_y)
 {
-	double center_x, center_y;
-	unsigned int world_size = world_get_size();
-
-	switch (world_get())
-	{
-	// In planar mode, clip to plane:
-	case WORLD_PLANAR:
-		center_x = (world_x < 0) ? 0.0
-		         : (world_x >= world_size) ? world_size
-		         : (world_x);
-		break;
-
-	// In spherical mode, allow horizontal wrap:
-	case WORLD_SPHERICAL:
-		center_x = (world_x < 0) ? world_size - world_x
-		         : (world_x >= world_size) ? world_x - world_size
-		         : (world_x);
-		break;
-	}
-	center_y = (world_y < 0) ? 0.0
-	         : (world_y >= world_size) ? world_size
-	         : (world_y);
-
 	// Frustum size stays the same, but location changed:
 	frustum_changed_location();
 
-	// FIXME: center_x and center_y are in world coordinates:
-	world_moveto_tile(center_x, world_size - center_y);
+	// FIXME: world_x and world_y should be in tile coordinates:
+	world_moveto_tile(world_x, world_get_size() - world_y);
 }
 
 bool
