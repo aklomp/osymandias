@@ -1,4 +1,5 @@
 #include <stdbool.h>
+#include <stdint.h>
 #include <math.h>
 
 #include "worlds.h"
@@ -154,6 +155,12 @@ const struct coords *
 world_get_center (void)
 {
 	return &state.center;
+}
+
+bool
+world_timer_tick (int64_t usec)
+{
+	return worlds[current]->timer_tick(&state, usec);
 }
 
 void

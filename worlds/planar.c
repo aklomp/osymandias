@@ -87,6 +87,12 @@ matrix_model (void)
 	return matrix.model;
 }
 
+static bool
+timer_tick (struct world_state *state, int64_t usec)
+{
+	return false;
+}
+
 const struct world *
 world_planar (void)
 {
@@ -97,6 +103,7 @@ world_planar (void)
 		.zoom			= zoom,
 		.center_restrict_tile	= center_restrict_tile,
 		.center_restrict_latlon	= center_restrict_latlon,
+		.timer_tick		= timer_tick,
 	};
 
 	return &world;

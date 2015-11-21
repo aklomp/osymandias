@@ -45,6 +45,9 @@ void world_tile_to_latlon (float *lat, float *lon, const float x, const float y)
 // Get center coordinate:
 const struct coords *world_get_center (void);
 
+// Update world state on timer tick:
+bool world_timer_tick (int64_t usec);
+
 // Initialize worlds:
 bool worlds_init (const unsigned int zoom, const float lat, const float lon);
 

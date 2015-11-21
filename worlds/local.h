@@ -12,6 +12,7 @@ struct world {
 	void (*zoom)			(const struct world_state *state);
 	void (*center_restrict_tile)	(struct world_state *state);
 	void (*center_restrict_latlon)	(struct world_state *state);
+	bool (*timer_tick)		(struct world_state *state, int64_t usec);
 };
 
 // Clamp function:

@@ -1,4 +1,5 @@
 #include <stdbool.h>
+#include <stdint.h>
 #include <time.h>
 #include "worlds.h"
 

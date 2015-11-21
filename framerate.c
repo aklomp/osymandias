@@ -1,6 +1,8 @@
 #include <stdbool.h>
+#include <stdint.h>
 #include <gtk/gtk.h>
 
+#include "worlds.h"
 #include "autoscroll.h"
 
 static GtkWidget *canvas = NULL;
@@ -11,6 +13,10 @@ static gboolean
 framerate_tick (void *data)
 {
 	(void)(data);	// Unused parameter
+
+	gint64 now = g_get_monotonic_time();
+
+	refresh_requested |= world_timer_tick(now);
 
 	if (!(autoscroll_is_on() || refresh_requested)) {
 		return TRUE;
