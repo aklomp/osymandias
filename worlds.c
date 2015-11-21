@@ -150,7 +150,7 @@ world_project_latlon (float *vertex, float *normal, const float lat, const float
 	worlds[current]->project(&state, vertex, normal, lat, lon);
 }
 
-const struct center *
+const struct coords *
 world_get_center (void)
 {
 	return &state.center;

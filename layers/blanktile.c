@@ -24,8 +24,8 @@ paint (void)
 	if (world_get() != WORLD_PLANAR)
 		return;
 
-	int world_size  = world_get_size();
-	const struct center *center = world_get_center();
+	int world_size = world_get_size();
+	const struct coords *center = world_get_center();
 	const float *mat_model = world_get_matrix();
 
 	// Draw to world coordinates:

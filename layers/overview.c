@@ -198,7 +198,7 @@ static void
 paint_center (void)
 {
 	unsigned int size = world_get_size();
-	const struct center *center = world_get_center();
+	const struct coords *center = world_get_center();
 
 	glColor4f(1.0, 1.0, 1.0, 0.7);
 	glBegin(GL_LINES);

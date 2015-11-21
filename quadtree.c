@@ -32,7 +32,7 @@ struct quadtree {
 
 	// Used by prune routine:
 	int world_zoom;
-	const struct center *center;
+	const struct coords *center;
 	int stamp;
 };
 

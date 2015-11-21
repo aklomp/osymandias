@@ -113,7 +113,7 @@ paint (void)
 	struct quadtree_req req;
 	struct quadtree_req req_tex;
 	int world_zoom = world_get_zoom();
-	const struct center *center = world_get_center();
+	const struct coords *center = world_get_center();
 
 	// Draw to world coordinates:
 	viewport_gl_setup_world();

@@ -185,7 +185,7 @@ viewport_zoom_out (const int screen_x, const int screen_y)
 static void
 screen_to_world (double sx, double sy, double *wx, double *wy)
 {
-	const struct center *center = world_get_center();
+	const struct coords *center = world_get_center();
 	float center_x = center->tile.x;
 	float center_y = world_get_size() - center->tile.y;
 
@@ -240,7 +240,7 @@ viewport_hold_move (const int screen_x, const int screen_y)
 	// Point currently under mouse:
 	screen_to_world(screen_x, screen_y, &wx, &wy);
 
-	const struct center *center = world_get_center();
+	const struct coords *center = world_get_center();
 	float center_x = center->tile.x;
 	float center_y = world_get_size() - center->tile.y;
 
@@ -343,7 +343,7 @@ viewport_calc_frustum (void)
 	//
 	// 3 and 2 are always the near points, regardless of orientation.
 
-	const struct center *center = world_get_center();
+	const struct coords *center = world_get_center();
 	float center_x = center->tile.x;
 	float center_y = world_get_size() - center->tile.y;
 

@@ -3,7 +3,7 @@ enum worlds {
 	WORLD_SPHERICAL,
 };
 
-struct center {
+struct coords {
 	float lat;
 	float lon;
 	struct {
@@ -43,7 +43,7 @@ void world_project_latlon (float *vertex, float *normal, const float lat, const 
 void world_tile_to_latlon (float *lat, float *lon, const float x, const float y);
 
 // Get center coordinate:
-const struct center *world_get_center (void);
+const struct coords *world_get_center (void);
 
 // Initialize worlds:
 bool worlds_init (const unsigned int zoom, const float lat, const float lon);

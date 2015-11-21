@@ -2,7 +2,7 @@
 #define ZOOM_DECAY	50.0
 
 static inline vec4i
-tile2d_get_corner_zooms_abs (int x1, int y1, int x2, int y2, const struct center *center, int world_zoom)
+tile2d_get_corner_zooms_abs (int x1, int y1, int x2, int y2, const struct coords *center, int world_zoom)
 {
 	// The corner tiles are the 1x1 unit tiles at the edges of this larger
 	// square tile; the distance from the center point determines the zoom level
@@ -35,7 +35,7 @@ tile2d_get_corner_zooms_abs (int x1, int y1, int x2, int y2, const struct center
 }
 
 static inline vec4i
-tile2d_get_corner_zooms (int x, int y, int sz, const struct center *center, int world_zoom)
+tile2d_get_corner_zooms (int x, int y, int sz, const struct coords *center, int world_zoom)
 {
 	return tile2d_get_corner_zooms_abs(x, y, x + sz, y + sz, center, world_zoom);
 }
@@ -57,7 +57,7 @@ tile2d_get_zoom (int x, int y, int world_zoom)
 }
 
 static inline int
-tile2d_get_max_zoom (int x, int y, int sz, const struct center *center, int world_zoom)
+tile2d_get_max_zoom (int x, int y, int sz, const struct coords *center, int world_zoom)
 {
 	// For the given quad, find the tile nearest to center:
 	int rx = (center->tile.x > x + sz) ? x + sz : (center->tile.x < x) ? x : center->tile.x + 0.5;

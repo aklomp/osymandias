@@ -8,7 +8,7 @@ struct quadtree_req {
 	int x;				// Queried tile coordinates, in desired zoom level
 	int y;
 	int world_zoom;			// Current world zoom level
-	const struct center *center;	// Current center in tile coordinates
+	const struct coords *center;	// Current center in tile coordinates
 
 	void *found_data;	// Data pointer found
 	int found_zoom;		// Zoom level which we could provide

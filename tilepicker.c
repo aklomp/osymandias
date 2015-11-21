@@ -527,7 +527,7 @@ reduce_block (struct tile *tile, int maxzoom, float minsize)
 	// Don't forget the zoom for the midpoint:
 	vertex_new[4].zoom = zoom_point(world_zoom, &vertex_new[4].coords);
 
-	const struct center *center = world_get_center();
+	const struct coords *center = world_get_center();
 
 	// Loop over all rects:
 	for (int i = 0; i < 9; i++)
