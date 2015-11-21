@@ -58,33 +58,15 @@ static void
 center_restrict_tile (struct world_state *state)
 {
 	// Clamp x and y coordinates to world size:
-	if (state->center.tile.x < 0.0f)
-		state->center.tile.x = 0.0f;
-
-	if (state->center.tile.x > state->size)
-		state->center.tile.x = state->size;
-
-	if (state->center.tile.y < 0.0f)
-		state->center.tile.y = 0.0f;
-
-	if (state->center.tile.y > state->size)
-		state->center.tile.y = state->size;
+	clamp(state->center.tile.x, 0.0f, state->size);
+	clamp(state->center.tile.y, 0.0f, state->size);
 }
 
 static void
 center_restrict_latlon (struct world_state *state)
 {
-	if (state->center.lat < LAT_MIN)
-		state->center.lat = LAT_MIN;
-
-	if (state->center.lat > LAT_MAX)
-		state->center.lat = LAT_MAX;
-
-	if (state->center.lon < LON_MIN)
-		state->center.lon = LON_MIN;
-
-	if (state->center.lon > LON_MAX)
-		state->center.lon = LON_MAX;
+	clamp(state->center.lat, LAT_MIN, LAT_MAX);
+	clamp(state->center.lon, LON_MIN, LON_MAX);
 }
 
 static void

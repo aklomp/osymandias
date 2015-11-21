@@ -14,6 +14,26 @@ struct world {
 	void (*center_restrict_latlon)	(struct world_state *state);
 };
 
+// Clamp function:
+#define clamp(var, min, max)			\
+	do {					\
+		if ((var) < (min))		\
+			(var) = (min);		\
+						\
+		if ((var) > (max))		\
+			(var) = (max);		\
+	} while (0)
+
+// Wraparound function:
+#define wrap(var, min, max)			\
+	do {					\
+		if ((var) < (min))		\
+			(var) += (max);		\
+						\
+		if ((var) > (max))		\
+			(var) -= (max);		\
+	} while (0)
+
 // Min and max longitude:
 #define LON_MIN -M_PI
 #define LON_MAX  M_PI
