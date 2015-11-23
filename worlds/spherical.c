@@ -47,8 +47,8 @@ static void
 update_matrix_model (void)
 {
 	mat_multiply(matrix.model, matrix.rotate.lat, matrix.rotate.lon);
-	mat_multiply(matrix.model, matrix.scale, matrix.model);
 	mat_multiply(matrix.model, matrix.translate, matrix.model);
+	mat_multiply(matrix.model, matrix.scale, matrix.model);
 }
 
 static void
@@ -85,11 +85,11 @@ zoom (const struct world_state *state)
 {
 	float radius = state->size / M_PI;
 
+	// Translate matrix: push the model back one unit radius:
+	mat_translate(matrix.translate, 0.0f, 0.0f, -1.0f);
+
 	// Scale matrix: scale the model (a unit sphere) to the world radius:
 	mat_scale(matrix.scale, radius, radius, radius);
-
-	// Translate matrix: push the model back by the world radius:
-	mat_translate(matrix.translate, 0.0f, 0.0f, -radius);
 
 	// Update model matrix:
 	update_matrix_model();
