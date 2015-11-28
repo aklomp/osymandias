@@ -28,24 +28,18 @@ static GLuint *vao_tiles   = &vao[1];
 static GLuint *vbo_tiles   = &vbo[1];
 static GLuint *vao_frustum = &vao[2];
 
-// A point in 2D space:
-struct coords {
-	float x;
-	float y;
-} __attribute__((packed));
-
-// Color as RGBA:
-struct color {
-	float r;
-	float g;
-	float b;
-	float a;
-} __attribute__((packed));
-
-// Each point has 2D space coordinates and color:
+// Each point has 2D space coordinates and RGBA color:
 struct vertex {
-	struct coords coords;
-	struct color color;
+	struct {
+		float x;
+		float y;
+	} coords;
+	struct {
+		float r;
+		float g;
+		float b;
+		float a;
+	} color;
 } __attribute__((packed));
 
 static bool
@@ -172,7 +166,7 @@ paint_tiles (void)
 			// Solid fill color:
 			float *color = zoomcolors[zoom % 3];
 			for (int i = 0; i < 4; i++)
-				memcpy(&tile[t].vertex[i].color, color, sizeof(struct color));
+				memcpy(&tile[t].vertex[i].color, color, sizeof(tile[t].vertex[i].color));
 
 			iter = tilepicker_next(&x, &y, &tile_wd, &tile_ht, &zoom, coords, normal);
 		}
@@ -189,7 +183,7 @@ paint_tiles (void)
 		float *color = white;
 		for (int i = 0; i < t; i++)
 			for (int v = 0; v < 4; v++)
-				memcpy(&tile[i].vertex[v].color, color, sizeof(struct color));
+				memcpy(&tile[i].vertex[v].color, color, sizeof(tile[i].vertex[v].color));
 
 		// Upload modified data:
 		glBufferData(GL_ARRAY_BUFFER, sizeof(struct tile) * t, tile, GL_STREAM_DRAW);
