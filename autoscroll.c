@@ -1,76 +1,85 @@
 #include <stdbool.h>
 #include <time.h>
 
-static int down_x;			// x value at start of measurement, in window coordinates
-static int down_y;			// y value at start of measurement, in window coordinates
-static struct timespec down_t;		// time at start of measurement
+struct mark {
+	int x;
+	int y;
+	float time;
+};
 
-static int hold_x;
-static int hold_y;
-static struct timespec hold_t;
+static struct mark down;	// mark when mouse button pressed
+static struct mark hold;	// mark when last dragged under mouse button
+static struct mark free;	// mark when mouse button released
 
-static float base_dx = 0.0;		// the main dx value
-static float base_dy = 0.0;		// the main dy value
+// Scroll speed in pixels/sec:
+static struct {
+	float x;
+	float y;
+} speed = {
+	.x = 0.0f,
+	.y = 0.0f,
+};
+
 static int scrolled_x = 0;		// x offset traveled in current autoscroll
 static int scrolled_y = 0;		// y offset traveled in current autoscroll
-static struct timespec base_t;		// start time of current autoscroll movement
 
 static bool autoscroll_on = false;		// boolean toggle
 
 static float
-timespec_diff (struct timespec *restrict earlier, struct timespec *restrict later)
+now (void)
 {
-	// Time difference in floating-point seconds:
-	return ((float)later->tv_sec + ((float)later->tv_nsec) / 1e9)
-	     - ((float)earlier->tv_sec + ((float)earlier->tv_nsec) / 1e9);
+	struct timespec ts;
+
+	if (clock_gettime(CLOCK_MONOTONIC, &ts) == 0)
+		return ts.tv_sec + ts.tv_nsec / 1e9;
+
+	return 0.0f;
+}
+
+static void
+mark (struct mark *mark, const int x, const int y)
+{
+	mark->x = x;
+	mark->y = y;
+	mark->time = now();
 }
 
 void
 autoscroll_measure_down (const int x, const int y)
 {
-	// Note current position and time. This is converted to a dx, dy and dt
-	// when we call autoscroll_kickoff().
-
-	if (clock_gettime(CLOCK_MONOTONIC, &down_t) != 0) {
-		return;
-	}
-	down_x = x;
-	down_y = y;
+	mark(&down, x, y);
 }
 
 void
 autoscroll_measure_hold (const int x, const int y)
 {
-	if (clock_gettime(CLOCK_MONOTONIC, &hold_t) != 0) {
-		return;
-	}
-	hold_x = x;
-	hold_y = y;
+	mark(&hold, x, y);
 }
 
 void
 autoscroll_may_start (const int x, const int y)
 {
-	if (clock_gettime(CLOCK_MONOTONIC, &base_t) != 0) {
-		autoscroll_on = false;
-		return;
-	}
+	mark(&free, x, y);
+
 	// First calculate whether the user has "moved the hold" sufficiently
 	// to start the autoscroll. If the mouse button is down, but the mouse
 	// has not moved significantly, then don't autoscroll:
-	float dt = timespec_diff(&hold_t, &base_t);
-	int dx = x - hold_x;
-	int dy = y - hold_y;
+	int dx = free.x - hold.x;
+	int dy = free.y - hold.y;
+	float dt = free.time - hold.time;
 
 	if (dt > 0.1 && dx > -12 && dx < 12 && dy > -12 && dy < 12) {
 		autoscroll_on = false;
 		return;
 	}
-	dt = timespec_diff(&down_t, &base_t);
+
+	dx = free.x - down.x;
+	dy = free.y - down.y;
+	dt = free.time - down.time;
 
 	// The 2.0 coefficient is "friction":
-	base_dx = (float)(x - down_x) / 2.0 / dt;
-	base_dy = (float)(y - down_y) / 2.0 / dt;
+	speed.x = dx / dt / 2.0f;
+	speed.y = dy / dt / 2.0f;
 
 	scrolled_x = 0;
 	scrolled_y = 0;
@@ -95,18 +104,15 @@ autoscroll_is_on (void)
 bool
 autoscroll_update (int *restrict new_dx, int *restrict new_dy)
 {
-	struct timespec now;
-
 	// Calculate new autoscroll offset to apply to viewport.
-	// Returns 0 or 1 depending on whether to apply the result.
-	if (autoscroll_on == false || clock_gettime(CLOCK_MONOTONIC, &now) != 0) {
+	// Returns true or false depending on whether to apply the result.
+	if (!autoscroll_on)
 		return false;
-	}
-	float dt = timespec_diff(&base_t, &now);
 
 	// Compare where we are with where we should be:
-	float dx = base_dx * dt - (float)scrolled_x;
-	float dy = base_dy * dt - (float)scrolled_y;
+	float dt = now() - free.time;
+	float dx = speed.x * dt - (float)scrolled_x;
+	float dy = speed.y * dt - (float)scrolled_y;
 
 	// Viewport deals only in integer coordinates:
 	*new_dx = (int)dx;
