@@ -1,10 +1,13 @@
 #include <stdbool.h>
 #include <time.h>
+#include "worlds.h"
+
+#define abs(x)	(((x) < 0) ? -(x) : (x))
 
 struct mark {
-	int x;
-	int y;
-	float time;
+	double x;
+	double y;
+	double time;
 };
 
 static struct mark down;	// mark when mouse button pressed
@@ -13,19 +16,16 @@ static struct mark free;	// mark when mouse button released
 
 // Scroll speed in pixels/sec:
 static struct {
-	float x;
-	float y;
+	double x;
+	double y;
 } speed = {
-	.x = 0.0f,
-	.y = 0.0f,
+	.x = 0.0,
+	.y = 0.0,
 };
-
-static int scrolled_x = 0;		// x offset traveled in current autoscroll
-static int scrolled_y = 0;		// y offset traveled in current autoscroll
 
 static bool autoscroll_on = false;		// boolean toggle
 
-static float
+static double
 now (void)
 {
 	struct timespec ts;
@@ -37,38 +37,41 @@ now (void)
 }
 
 static void
-mark (struct mark *mark, const int x, const int y)
+mark (struct mark *mark)
 {
-	mark->x = x;
-	mark->y = y;
+	const struct coords *center = world_get_center();
+
+	// FIXME: use tile, not world, coordinates:
+	mark->x = center->tile.x;
+	mark->y = world_get_size() - center->tile.y;
 	mark->time = now();
 }
 
 void
-autoscroll_measure_down (const int x, const int y)
+autoscroll_measure_down (void)
 {
-	mark(&down, x, y);
+	mark(&down);
 }
 
 void
-autoscroll_measure_hold (const int x, const int y)
+autoscroll_measure_hold (void)
 {
-	mark(&hold, x, y);
+	mark(&hold);
 }
 
 void
-autoscroll_may_start (const int x, const int y)
+autoscroll_may_start (void)
 {
-	mark(&free, x, y);
+	mark(&free);
 
 	// First calculate whether the user has "moved the hold" sufficiently
 	// to start the autoscroll. If the mouse button is down, but the mouse
 	// has not moved significantly, then don't autoscroll:
-	int dx = free.x - hold.x;
-	int dy = free.y - hold.y;
-	float dt = free.time - hold.time;
+	double dx = free.x - hold.x;
+	double dy = free.y - hold.y;
+	double dt = free.time - hold.time;
 
-	if (dt > 0.1 && dx > -12 && dx < 12 && dy > -12 && dy < 12) {
+	if (dt > 0.1 && abs(dx) < 12 && abs(dy) < 12) {
 		autoscroll_on = false;
 		return;
 	}
@@ -81,8 +84,6 @@ autoscroll_may_start (const int x, const int y)
 	speed.x = dx / dt / 2.0f;
 	speed.y = dy / dt / 2.0f;
 
-	scrolled_x = 0;
-	scrolled_y = 0;
 	autoscroll_on = true;
 }
 
@@ -102,7 +103,7 @@ autoscroll_is_on (void)
 }
 
 bool
-autoscroll_update (int *restrict new_dx, int *restrict new_dy)
+autoscroll_update (double *restrict x, double *restrict y)
 {
 	// Calculate new autoscroll offset to apply to viewport.
 	// Returns true or false depending on whether to apply the result.
@@ -110,16 +111,32 @@ autoscroll_update (int *restrict new_dx, int *restrict new_dy)
 		return false;
 
 	// Compare where we are with where we should be:
-	float dt = now() - free.time;
-	float dx = speed.x * dt - (float)scrolled_x;
-	float dy = speed.y * dt - (float)scrolled_y;
-
-	// Viewport deals only in integer coordinates:
-	*new_dx = (int)dx;
-	*new_dy = (int)dy;
-
-	scrolled_x += *new_dx;
-	scrolled_y += *new_dy;
+	double dt = now() - free.time;
+	*x = free.x + speed.x * dt;
+	*y = free.y + speed.y * dt;
 
 	return true;
+}
+
+// FIXME: these are temporary functions
+void
+autoscroll_zoom_in (void)
+{
+	down.x *= 2.0;
+	down.y *= 2.0;
+	hold.x *= 2.0;
+	hold.y *= 2.0;
+	free.x *= 2.0;
+	free.y *= 2.0;
+}
+
+void
+autoscroll_zoom_out (void)
+{
+	down.x /= 2.0;
+	down.y /= 2.0;
+	hold.x /= 2.0;
+	hold.y /= 2.0;
+	free.x /= 2.0;
+	free.y /= 2.0;
 }

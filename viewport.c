@@ -153,6 +153,7 @@ viewport_zoom_in (const int screen_x, const int screen_y)
 		return;
 
 	layers_zoom(world_get_zoom());
+	autoscroll_zoom_in();
 
 	// Keep same point under mouse cursor:
 	if (world_get() == WORLD_PLANAR) {
@@ -171,6 +172,7 @@ viewport_zoom_out (const int screen_x, const int screen_y)
 		return;
 
 	layers_zoom(world_get_zoom());
+	autoscroll_zoom_out();
 
 	// Keep same point under mouse cursor:
 	if (world_get() == WORLD_PLANAR) {
@@ -293,10 +295,10 @@ viewport_rotate (const int dx)
 void
 viewport_resize (const unsigned int width, const unsigned int height)
 {
-	int dx, dy;
+	double x, y;
 
-	if (autoscroll_update(&dx, &dy))
-		viewport_scroll(-dx, -dy);
+	if (autoscroll_update(&x, &y))
+		center_set(x, y);
 
 	screen.width = width;
 	screen.height = height;

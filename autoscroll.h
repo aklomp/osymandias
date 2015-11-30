@@ -1,11 +1,13 @@
 #ifndef AUTOSCROLL_H
 #define AUTOSCROLL_H
 
-void autoscroll_measure_down (const int x, const int y);
-void autoscroll_measure_hold (const int x, const int y);
-void autoscroll_may_start (const int x, const int y);
+void autoscroll_measure_down (void);
+void autoscroll_measure_hold (void);
+void autoscroll_may_start (void);
 bool autoscroll_stop (void);
 bool autoscroll_is_on (void);
-bool autoscroll_update (int *restrict new_dx, int *restrict new_dy);
+bool autoscroll_update (double *restrict x, double *restrict y);
+void autoscroll_zoom_in (void);
+void autoscroll_zoom_out (void);
 
 #endif /* AUTOSCROLL_H */
