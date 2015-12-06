@@ -28,12 +28,16 @@ static GLubyte index[6] = {
 };
 
 // Projection and view matrices:
-static float mat_proj[16];
-static float mat_view[16];
+static struct {
+	float proj[16];
+	float view[16];
+} matrix;
 
 // Screen size:
-static float wd;
-static float ht;
+static struct {
+	float width;
+	float height;
+} screen;
 
 static GLuint vao, vbo;
 
@@ -67,7 +71,7 @@ static void
 paint (void)
 {
 	// Viewport is screen:
-	glViewport(0, 0, wd, ht);
+	glViewport(0, 0, screen.width, screen.height);
 
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -76,8 +80,8 @@ paint (void)
 
 	// Use the cursor program:
 	program_cursor_use(&((struct program_cursor) {
-		.mat_proj = mat_proj,
-		.mat_view = mat_view,
+		.mat_proj = matrix.proj,
+		.mat_view = matrix.view,
 	}));
 
 	// Draw all triangles in the buffer:
@@ -90,14 +94,14 @@ paint (void)
 static void
 resize (const unsigned int width, const unsigned int height)
 {
-	wd = width;
-	ht = height;
+	screen.width  = width;
+	screen.height = height;
 
 	// Projection matrix maps 1:1 to screen:
-	mat_ortho(mat_proj, 0, wd, 0, ht, 0, 1);
+	mat_ortho(matrix.proj, 0, screen.width, 0, screen.height, 0, 1);
 
 	// Modelview matrix translates vertices to center screen:
-	mat_translate(mat_view, wd / 2.0f, ht / 2.0f, 0.0f);
+	mat_translate(matrix.view, screen.width / 2.0f, screen.height / 2.0f, 0.0f);
 }
 
 static bool

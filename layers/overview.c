@@ -18,7 +18,9 @@
 #define MARGIN	 10.0f
 
 // Projection matrix:
-static float mat_proj[16];
+static struct {
+	float proj[16];
+} matrix;
 
 // Vertex array and buffer objects:
 static GLuint vao[3], vbo[2];
@@ -59,7 +61,7 @@ setup_viewport (void)
 	glViewport(xpos, ypos, SIZE, SIZE);
 
 	glMatrixMode(GL_PROJECTION);
-	glLoadMatrixf(mat_proj);
+	glLoadMatrixf(matrix.proj);
 
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
@@ -233,7 +235,7 @@ paint (void)
 
 	// Paint background using solid program:
 	program_solid_use(&((struct program_solid) {
-		.matrix = mat_proj,
+		.matrix = matrix.proj,
 	}));
 
 	paint_background(*vao_bkgd);
@@ -243,7 +245,7 @@ paint (void)
 
 	// Paint background using frustum program:
 	program_frustum_use(&((struct program_frustum) {
-		.mat_proj = mat_proj,
+		.mat_proj = matrix.proj,
 		.mat_frustum = camera_mat_viewproj(),
 		.mat_model = world_get_matrix(),
 		.world_size = world_get_size(),
@@ -275,7 +277,7 @@ zoom (const unsigned int zoom)
 	double one_pixel_at_scale = (1 << zoom) / SIZE;
 	size += one_pixel_at_scale;
 
-	mat_ortho(mat_proj, 0, size, 0, size, 0, 1);
+	mat_ortho(matrix.proj, 0, size, 0, size, 0, 1);
 
 	// Background quad is array of counterclockwise vertices:
 	//
