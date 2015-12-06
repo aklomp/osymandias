@@ -7,12 +7,12 @@
 struct mark {
 	double x;
 	double y;
-	double time;
+	double t;
 };
 
-static struct mark down;	// mark when mouse button pressed
-static struct mark hold;	// mark when last dragged under mouse button
-static struct mark free;	// mark when mouse button released
+static struct mark down;	// mouse button was first pressed here
+static struct mark hold;	// last known mouse position under drag
+static struct mark free;	// mouse was released here
 
 // Scroll speed in pixels/sec:
 static struct {
@@ -44,7 +44,7 @@ mark (struct mark *mark)
 	// FIXME: use tile, not world, coordinates:
 	mark->x = center->tile.x;
 	mark->y = world_get_size() - center->tile.y;
-	mark->time = now();
+	mark->t = now();
 }
 
 void
@@ -60,29 +60,32 @@ autoscroll_measure_hold (void)
 }
 
 void
-autoscroll_may_start (void)
+autoscroll_measure_free (void)
 {
 	mark(&free);
 
-	// First calculate whether the user has "moved the hold" sufficiently
-	// to start the autoscroll. If the mouse button is down, but the mouse
-	// has not moved significantly, then don't autoscroll:
+	// Check if the user has "moved the hold" sufficiently to start the
+	// autoscroll. Not every click on the map should cause movement. Only
+	// "significant" drags count.
+
 	double dx = free.x - hold.x;
 	double dy = free.y - hold.y;
-	double dt = free.time - hold.time;
+	double dt = free.t - hold.t;
 
-	if (dt > 0.1 && abs(dx) < 12 && abs(dy) < 12) {
-		autoscroll_on = false;
+	// If the mouse has been stationary for a little while, and the last
+	// mouse movement was insignificant, don't start:
+	if (dt > 0.1 && abs(dx) < 12.0 && abs(dy) < 12.0)
 		return;
-	}
 
+	// Speed and direction of autoscroll is measured between "down" point
+	// and "up" point:
 	dx = free.x - down.x;
 	dy = free.y - down.y;
-	dt = free.time - down.time;
+	dt = free.t - down.t;
 
 	// The 2.0 coefficient is "friction":
-	speed.x = dx / dt / 2.0f;
-	speed.y = dy / dt / 2.0f;
+	speed.x = dx / dt / 2.0;
+	speed.y = dy / dt / 2.0;
 
 	autoscroll_on = true;
 }
@@ -111,7 +114,7 @@ autoscroll_update (double *restrict x, double *restrict y)
 		return false;
 
 	// Compare where we are with where we should be:
-	double dt = now() - free.time;
+	double dt = now() - free.t;
 	*x = free.x + speed.x * dt;
 	*y = free.y + speed.y * dt;
 
