@@ -6,6 +6,7 @@
 #include "../vector.h"
 #include "../worlds.h"
 #include "local.h"
+#include "autoscroll.h"
 
 // Various transformation matrices:
 static struct {
@@ -104,7 +105,7 @@ matrix_model (void)
 static bool
 timer_tick (struct world_state *state, int64_t usec)
 {
-	return false;
+	return autoscroll_update(state);
 }
 
 const struct world *

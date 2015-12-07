@@ -17,15 +17,12 @@ framerate_tick (void *data)
 
 	refresh_requested |= world_timer_tick(now);
 
-	if (!(world_autoscroll_is_on() || refresh_requested)) {
+	if (!refresh_requested)
 		return TRUE;
-	}
-	if (canvas == NULL || !GTK_IS_WIDGET(canvas)) {
-		if (world_autoscroll_is_on())
-			world_autoscroll_stop();
 
+	if (canvas == NULL || !GTK_IS_WIDGET(canvas))
 		return FALSE;
-	}
+
 	refresh_requested = false;
 	paint(canvas);
 

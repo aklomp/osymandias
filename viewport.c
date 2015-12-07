@@ -187,11 +187,6 @@ viewport_center_at (const int screen_x, const int screen_y)
 void
 viewport_resize (const unsigned int width, const unsigned int height)
 {
-	double x, y;
-
-	if (world_autoscroll_update(&x, &y))
-		center_set(x, y);
-
 	screen.width = width;
 	screen.height = height;
 

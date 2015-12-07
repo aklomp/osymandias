@@ -7,34 +7,13 @@
 
 #define abs(x)	(((x) < 0) ? -(x) : (x))
 
-struct mark {
-	double x;
-	double y;
-	double t;
-};
-
-static struct mark down;	// mouse button was first pressed here
-static struct mark hold;	// last known mouse position under drag
-static struct mark free;	// mouse was released here
-
-// Scroll speed in pixels/sec:
-static struct {
-	double x;
-	double y;
-} speed = {
-	.x = 0.0,
-	.y = 0.0,
-};
-
-static bool autoscroll_on = false;		// boolean toggle
-
-static double
+static float
 now (void)
 {
 	struct timespec ts;
 
 	if (clock_gettime(CLOCK_MONOTONIC, &ts) == 0)
-		return ts.tv_sec + ts.tv_nsec / 1e9;
+		return ts.tv_sec + ts.tv_nsec / 1e9f;
 
 	return 0.0f;
 }
@@ -42,105 +21,82 @@ now (void)
 static void
 mark (const struct world_state *state, struct mark *mark)
 {
-	// FIXME: use tile, not world, coordinates:
-	mark->x = state->center.tile.x;
-	mark->y = state->size - state->center.tile.y;
-	mark->t = now();
+	mark->coords = state->center;
+	mark->time = now();
 }
 
 void
-autoscroll_measure_down (const struct world_state *state)
+autoscroll_measure_down (struct world_state *state)
 {
-	mark(state, &down);
+	mark(state, &state->autoscroll.down);
 }
 
 void
-autoscroll_measure_hold (const struct world_state *state)
+autoscroll_measure_hold (struct world_state *state)
 {
-	mark(state, &hold);
+	mark(state, &state->autoscroll.hold);
 }
 
 void
-autoscroll_measure_free (const struct world_state *state)
+autoscroll_measure_free (struct world_state *state)
 {
-	mark(state, &free);
+	const struct mark *down = &state->autoscroll.down;
+	const struct mark *hold = &state->autoscroll.hold;
+	const struct mark *free = &state->autoscroll.free;
+
+	mark(state, &state->autoscroll.free);
 
 	// Check if the user has "moved the hold" sufficiently to start the
 	// autoscroll. Not every click on the map should cause movement. Only
 	// "significant" drags count.
 
-	double dx = free.x - hold.x;
-	double dy = free.y - hold.y;
-	double dt = free.t - hold.t;
+	float dx = free->coords.tile.x - hold->coords.tile.x;
+	float dy = free->coords.tile.y - hold->coords.tile.y;
+	float dt = free->time - hold->time;
 
 	// If the mouse has been stationary for a little while, and the last
 	// mouse movement was insignificant, don't start:
-	if (dt > 0.1 && abs(dx) < 12.0 && abs(dy) < 12.0)
+	if (dt > 0.1f && abs(dx) < 12.0f && abs(dy) < 12.0f)
 		return;
 
 	// Speed and direction of autoscroll is measured between "down" point
 	// and "up" point:
-	dx = free.x - down.x;
-	dy = free.y - down.y;
-	dt = free.t - down.t;
+	dx = free->coords.tile.x - down->coords.tile.x;
+	dy = free->coords.tile.y - down->coords.tile.y;
+	dt = free->time - down->time;
 
 	// The 2.0 coefficient is "friction":
-	speed.x = dx / dt / 2.0;
-	speed.y = dy / dt / 2.0;
+	state->autoscroll.speed.tile.x = dx / dt / 2.0f;
+	state->autoscroll.speed.tile.y = dy / dt / 2.0f;
 
-	autoscroll_on = true;
+	state->autoscroll.active = true;
 }
 
 // Returns true if autoscroll was actually stopped:
 bool
-world_autoscroll_stop (void)
+autoscroll_stop (struct world_state *state)
 {
-	bool on = autoscroll_on;
-	autoscroll_on = false;
+	bool on = state->autoscroll.active;
+	state->autoscroll.active = false;
 	return on;
 }
 
 bool
-world_autoscroll_is_on (void)
+autoscroll_update (struct world_state *state)
 {
-	return autoscroll_on;
-}
+	const struct mark *free = &state->autoscroll.free;
+	const struct coords *speed = &state->autoscroll.speed;
 
-bool
-world_autoscroll_update (double *restrict x, double *restrict y)
-{
 	// Calculate new autoscroll offset to apply to viewport.
 	// Returns true or false depending on whether to apply the result.
-	if (!autoscroll_on)
+	if (!state->autoscroll.active)
 		return false;
 
-	// Compare where we are with where we should be:
-	double dt = now() - free.t;
-	*x = free.x + speed.x * dt;
-	*y = free.y + speed.y * dt;
+	// Calculate present location from start and speed:
+	float dt = now() - free->time;
+	float x = free->coords.tile.x + speed->tile.x * dt;
+	float y = free->coords.tile.y + speed->tile.y * dt;
 
+	world_moveto_tile(x, y);
 	return true;
-}
-
-// FIXME: these are temporary functions
-void
-autoscroll_zoom_in (void)
-{
-	down.x *= 2.0;
-	down.y *= 2.0;
-	hold.x *= 2.0;
-	hold.y *= 2.0;
-	free.x *= 2.0;
-	free.y *= 2.0;
-}
-
-void
-autoscroll_zoom_out (void)
-{
-	down.x /= 2.0;
-	down.y /= 2.0;
-	hold.x /= 2.0;
-	hold.y /= 2.0;
-	free.x /= 2.0;
-	free.y /= 2.0;
 }

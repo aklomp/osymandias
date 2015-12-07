@@ -85,9 +85,6 @@ on_button_release (GtkWidget *widget, GdkEventButton *event)
 	// We have just released a drag; kickoff the autoscroller:
 	if (button_dragged) {
 		world_autoscroll_measure_free();
-		if (world_autoscroll_is_on())
-			gtk_widget_queue_draw(widget);
-
 		return;
 	}
 

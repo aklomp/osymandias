@@ -59,5 +59,4 @@ void world_autoscroll_measure_down (void);
 void world_autoscroll_measure_hold (void);
 void world_autoscroll_measure_free (void);
 bool world_autoscroll_stop (void);
-bool world_autoscroll_is_on (void);
 bool world_autoscroll_update (double *restrict x, double *restrict y);

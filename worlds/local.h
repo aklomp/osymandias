@@ -1,8 +1,21 @@
+// Mark a position in time:
+struct mark {
+	struct coords coords;
+	float time;
+};
+
 // Current state of world:
 struct world_state {
 	unsigned int zoom;
 	unsigned int size;
 	struct coords center;
+	struct {
+		struct mark down;
+		struct mark hold;
+		struct mark free;
+		struct coords speed;
+		bool active;
+	} autoscroll;
 };
 
 struct world {

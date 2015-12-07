@@ -71,6 +71,20 @@ world_get_matrix (void)
 	return worlds[current]->matrix();
 }
 
+static inline void
+coords_zoom_in (struct coords *coords)
+{
+	coords->tile.x *= 2.0f;
+	coords->tile.y *= 2.0f;
+}
+
+static inline void
+coords_zoom_out (struct coords *coords)
+{
+	coords->tile.x /= 2.0f;
+	coords->tile.y /= 2.0f;
+}
+
 bool
 world_zoom_in (void)
 {
@@ -78,10 +92,12 @@ world_zoom_in (void)
 		return false;
 
 	state.size = ZOOM_SIZE(++state.zoom);
-	state.center.tile.x *= 2.0f;
-	state.center.tile.y *= 2.0f;
 
-	autoscroll_zoom_in();
+	// When zooming in, double tile coordinates:
+	coords_zoom_in(&state.center);
+	coords_zoom_in(&state.autoscroll.down.coords);
+	coords_zoom_in(&state.autoscroll.hold.coords);
+	coords_zoom_in(&state.autoscroll.free.coords);
 
 	worlds[current]->zoom(&state);
 	return true;
@@ -94,10 +110,12 @@ world_zoom_out (void)
 		return false;
 
 	state.size = ZOOM_SIZE(--state.zoom);
-	state.center.tile.x /= 2.0f;
-	state.center.tile.y /= 2.0f;
 
-	autoscroll_zoom_out();
+	// When zooming in, halve tile coordinates:
+	coords_zoom_out(&state.center);
+	coords_zoom_out(&state.autoscroll.down.coords);
+	coords_zoom_out(&state.autoscroll.hold.coords);
+	coords_zoom_out(&state.autoscroll.free.coords);
 
 	worlds[current]->zoom(&state);
 	return true;
@@ -185,6 +203,12 @@ void
 world_autoscroll_measure_free (void)
 {
 	autoscroll_measure_free(&state);
+}
+
+bool
+world_autoscroll_stop (void)
+{
+	return autoscroll_stop(&state);
 }
 
 void
