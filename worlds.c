@@ -4,6 +4,7 @@
 
 #include "worlds.h"
 #include "worlds/local.h"
+#include "worlds/autoscroll.h"
 #include "worlds/planar.h"
 #include "worlds/spherical.h"
 
@@ -80,6 +81,8 @@ world_zoom_in (void)
 	state.center.tile.x *= 2.0f;
 	state.center.tile.y *= 2.0f;
 
+	autoscroll_zoom_in();
+
 	worlds[current]->zoom(&state);
 	return true;
 }
@@ -93,6 +96,8 @@ world_zoom_out (void)
 	state.size = ZOOM_SIZE(--state.zoom);
 	state.center.tile.x /= 2.0f;
 	state.center.tile.y /= 2.0f;
+
+	autoscroll_zoom_out();
 
 	worlds[current]->zoom(&state);
 	return true;
@@ -161,6 +166,25 @@ bool
 world_timer_tick (int64_t usec)
 {
 	return worlds[current]->timer_tick(&state, usec);
+}
+
+// Dispatch autoscroll functions to local handler:
+void
+world_autoscroll_measure_down (void)
+{
+	autoscroll_measure_down(&state);
+}
+
+void
+world_autoscroll_measure_hold (void)
+{
+	autoscroll_measure_hold(&state);
+}
+
+void
+world_autoscroll_measure_free (void)
+{
+	autoscroll_measure_free(&state);
 }
 
 void

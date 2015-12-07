@@ -7,7 +7,6 @@
 
 #include "mouse.h"
 #include "framerate.h"
-#include "autoscroll.h"
 #include "viewport.h"
 #include "worlds.h"
 

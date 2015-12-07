@@ -9,7 +9,6 @@
 
 #include "vector.h"
 #include "matrix.h"
-#include "autoscroll.h"
 #include "worlds.h"
 #include "camera.h"
 #include "tilepicker.h"
@@ -74,7 +73,6 @@ viewport_zoom_in (const int screen_x, const int screen_y)
 		return;
 
 	layers_zoom(world_get_zoom());
-	autoscroll_zoom_in();
 
 	// Keep same point under mouse cursor:
 	if (world_get() == WORLD_PLANAR) {
@@ -91,7 +89,6 @@ viewport_zoom_out (const int screen_x, const int screen_y)
 		return;
 
 	layers_zoom(world_get_zoom());
-	autoscroll_zoom_out();
 
 	// Keep same point under mouse cursor:
 	if (world_get() == WORLD_PLANAR) {
@@ -192,7 +189,7 @@ viewport_resize (const unsigned int width, const unsigned int height)
 {
 	double x, y;
 
-	if (autoscroll_update(&x, &y))
+	if (world_autoscroll_update(&x, &y))
 		center_set(x, y);
 
 	screen.width = width;

@@ -3,7 +3,6 @@
 #include <gtk/gtk.h>
 
 #include "worlds.h"
-#include "autoscroll.h"
 
 static GtkWidget *canvas = NULL;
 static volatile bool refresh_requested;
@@ -18,13 +17,13 @@ framerate_tick (void *data)
 
 	refresh_requested |= world_timer_tick(now);
 
-	if (!(autoscroll_is_on() || refresh_requested)) {
+	if (!(world_autoscroll_is_on() || refresh_requested)) {
 		return TRUE;
 	}
 	if (canvas == NULL || !GTK_IS_WIDGET(canvas)) {
-		if (autoscroll_is_on()) {
-			autoscroll_stop();
-		}
+		if (world_autoscroll_is_on())
+			world_autoscroll_stop();
+
 		return FALSE;
 	}
 	refresh_requested = false;

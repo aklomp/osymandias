@@ -4,7 +4,7 @@
 #include "vector.h"
 #include "camera.h"
 #include "viewport.h"
-#include "autoscroll.h"
+#include "worlds.h"
 
 static int button_dragged = false;
 static int button_pressed = false;
@@ -41,8 +41,8 @@ on_button_press (GtkWidget *widget, GdkEventButton *event)
 		viewport_hold_start(x, y);
 
 	// Does the press of this button cause the autoscroll to halt?
-	click_halted_autoscroll = autoscroll_stop();
-	autoscroll_measure_down();
+	click_halted_autoscroll = world_autoscroll_stop();
+	world_autoscroll_measure_down();
 }
 
 void
@@ -57,7 +57,7 @@ on_button_motion (GtkWidget *widget, GdkEventButton *event)
 
 	// Left mouse button:
 	if (button_num == 1) {
-		autoscroll_measure_hold();
+		world_autoscroll_measure_hold();
 		viewport_hold_move(x, y);
 	}
 	// Right mouse button:
@@ -84,8 +84,8 @@ on_button_release (GtkWidget *widget, GdkEventButton *event)
 
 	// We have just released a drag; kickoff the autoscroller:
 	if (button_dragged) {
-		autoscroll_measure_free();
-		if (autoscroll_is_on())
+		world_autoscroll_measure_free();
+		if (world_autoscroll_is_on())
 			gtk_widget_queue_draw(widget);
 
 		return;

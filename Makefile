@@ -18,7 +18,6 @@ OBJS = \
   diskcache.o \
   pngloader.o \
   inlinebin.o \
-  autoscroll.o \
   bitmap_mgr.o \
   threadpool.o \
   tiledrawer.o \

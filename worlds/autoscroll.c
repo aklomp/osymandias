@@ -1,7 +1,9 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <time.h>
-#include "worlds.h"
+
+#include "../worlds.h"
+#include "local.h"
 
 #define abs(x)	(((x) < 0) ? -(x) : (x))
 
@@ -38,32 +40,30 @@ now (void)
 }
 
 static void
-mark (struct mark *mark)
+mark (const struct world_state *state, struct mark *mark)
 {
-	const struct coords *center = world_get_center();
-
 	// FIXME: use tile, not world, coordinates:
-	mark->x = center->tile.x;
-	mark->y = world_get_size() - center->tile.y;
+	mark->x = state->center.tile.x;
+	mark->y = state->size - state->center.tile.y;
 	mark->t = now();
 }
 
 void
-autoscroll_measure_down (void)
+autoscroll_measure_down (const struct world_state *state)
 {
-	mark(&down);
+	mark(state, &down);
 }
 
 void
-autoscroll_measure_hold (void)
+autoscroll_measure_hold (const struct world_state *state)
 {
-	mark(&hold);
+	mark(state, &hold);
 }
 
 void
-autoscroll_measure_free (void)
+autoscroll_measure_free (const struct world_state *state)
 {
-	mark(&free);
+	mark(state, &free);
 
 	// Check if the user has "moved the hold" sufficiently to start the
 	// autoscroll. Not every click on the map should cause movement. Only
@@ -93,7 +93,7 @@ autoscroll_measure_free (void)
 
 // Returns true if autoscroll was actually stopped:
 bool
-autoscroll_stop (void)
+world_autoscroll_stop (void)
 {
 	bool on = autoscroll_on;
 	autoscroll_on = false;
@@ -101,13 +101,13 @@ autoscroll_stop (void)
 }
 
 bool
-autoscroll_is_on (void)
+world_autoscroll_is_on (void)
 {
 	return autoscroll_on;
 }
 
 bool
-autoscroll_update (double *restrict x, double *restrict y)
+world_autoscroll_update (double *restrict x, double *restrict y)
 {
 	// Calculate new autoscroll offset to apply to viewport.
 	// Returns true or false depending on whether to apply the result.
