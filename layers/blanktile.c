@@ -10,14 +10,6 @@
 
 #define FOG_END	20.0
 
-static bool
-occludes (void)
-{
-	// If the viewport is within world bounds,
-	// we will always fully occlude:
-	return (viewport_within_world_bounds());
-}
-
 static void
 paint (void)
 {
@@ -106,7 +98,6 @@ const struct layer *
 layer_blanktile (void)
 {
 	static struct layer layer = {
-		.occludes = &occludes,
 		.paint    = &paint,
 	};
 

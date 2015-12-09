@@ -20,10 +20,6 @@
 
 static double hold_x;		// Mouse hold/drag at this world coordinate
 static double hold_y;
-static double frustum_x[4] = { 0.0, 0.0, 0.0, 0.0 };
-static double frustum_y[4] = { 0.0, 0.0, 0.0, 0.0 };
-static double bbox_x[2] = { 0.0, 0.0 };
-static double bbox_y[2] = { 0.0, 0.0 };
 
 // Screen dimensions:
 static struct {
@@ -34,60 +30,9 @@ static struct {
 static double modelview[16];	// OpenGL projection matrices
 static double projection[16];
 
-static int frustum_inside_need_recalc = 1;
-static int frustum_coords_need_recalc = 1;
-
-static vec4f frustum_x1;
-static vec4f frustum_y1;
-static vec4f frustum_x2;
-static vec4f frustum_y2;
-static vec4f frustum_dvx;
-static vec4f frustum_dvy;
-
-static void intersect_lines (double x0, double y0, double x1, double y1, double x2, double y2, double x3, double y3, double *px, double *py);
-static bool point_inside_triangle (double tax, double tay, double tbx, double tby, double tcx, double tcy, double ax, double ay);
-
-static void
-frustum_changed_location (void)
-{
-	// Called once when the location of the frustum changes, but no shape
-	// change occurs. For instance when the camera autopans over the tiles.
-	frustum_coords_need_recalc = 1;
-}
-
-static void
-frustum_changed_shape (void)
-{
-	// Called once whenever the frustum changes shape or dimensions.
-	frustum_inside_need_recalc = 1;
-
-	// Shape change implies changes in location:
-	frustum_changed_location();
-}
-
-static void
-frustum_inside_recalc (void)
-{
-	// Pre-calculate some of the common factors for the
-	// point_inside_frustum() function. These factors only change when the
-	// frustum changes, so for each frame, we only have to calculate them
-	// once:
-
-	// The end points of the edge line segments are the start points,
-	// shifted by one lane:
-	frustum_x2 = vec4f_shuffle(frustum_x1, 1, 2, 3, 0);
-	frustum_y2 = vec4f_shuffle(frustum_y1, 1, 2, 3, 0);
-
-	frustum_dvx = frustum_x2 - frustum_x1;
-	frustum_dvy = frustum_y2 - frustum_y1;
-}
-
 static void
 center_set (const double world_x, const double world_y)
 {
-	// Frustum size stays the same, but location changed:
-	frustum_changed_location();
-
 	// FIXME: world_x and world_y should be in tile coordinates:
 	world_moveto_tile(world_x, world_get_size() - world_y);
 }
@@ -137,8 +82,6 @@ viewport_zoom_in (const int screen_x, const int screen_y)
 		int dy = screen_y - screen.height / 2;
 		viewport_scroll(dx, dy);
 	}
-	// Frustum got smaller:
-	frustum_changed_shape();
 }
 
 void
@@ -156,8 +99,6 @@ viewport_zoom_out (const int screen_x, const int screen_y)
 		int dy = screen_y - screen.height / 2;
 		viewport_scroll(-dx / 2, -dy / 2);
 	}
-	// Frustum got larger:
-	frustum_changed_shape();
 }
 
 static void
@@ -249,23 +190,15 @@ viewport_center_at (const int screen_x, const int screen_y)
 void
 viewport_tilt (const int dy)
 {
-	if (dy == 0) return;
-
-	camera_tilt(dy * 0.005f);
-
-	// This warps the frustum:
-	frustum_changed_shape();
+	if (dy != 0)
+		camera_tilt(dy * 0.005f);
 }
 
 void
 viewport_rotate (const int dx)
 {
-	if (dx == 0) return;
-
-	camera_rotate(dx * -0.005f);
-
-	// Basic shape of frustum stays the same, but it's rotated:
-	frustum_changed_location();
+	if (dx != 0)
+		camera_rotate(dx * -0.005f);
 }
 
 void
@@ -282,8 +215,6 @@ viewport_resize (const unsigned int width, const unsigned int height)
 	// Update camera's projection matrix:
 	camera_projection(width, height);
 
-	frustum_changed_shape();
-
 	// Alert layers:
 	layers_resize(width, height);
 
@@ -294,161 +225,6 @@ void
 viewport_render (void)
 {
 	layers_paint();
-}
-
-static void
-viewport_calc_frustum (void)
-{
-	// This function is run once when the viewport is setup;
-	// values are read out with viewport_get_frustum().
-
-	// NB: screen coordinates: (0,0) is left bottom:
-	screen_to_world(0.0,          screen.height, &frustum_x[0], &frustum_y[0]);
-	screen_to_world(screen.width, screen.height, &frustum_x[1], &frustum_y[1]);
-	screen_to_world(screen.width, 0.0,           &frustum_x[2], &frustum_y[2]);
-	screen_to_world(0.0,          0.0,           &frustum_x[3], &frustum_y[3]);
-
-	// Sometimes the far points of the frustum (0 at left top and 1 at right top)
-	// will cross the horizon and be flipped; use the property that the bottom two
-	// frustum points always lie on one line with the center to check for flip:
-
-	// Frustum points are numbered like this:
-	//
-	//  0-----------1
-	//   \         /
-	//    \       /
-	//     3-----2
-	//
-	// 3 and 2 are always the near points, regardless of orientation.
-
-	const struct coords *center = world_get_center();
-	float center_x = center->tile.x;
-	float center_y = world_get_size() - center->tile.y;
-
-	for (int i = 0; i < 2; i++)
-	{
-		// Point across diagonal (antipode):
-		int n = (i == 0) ? 2 : 3;
-
-		// Are both points on same side of the center? Then they are flipped
-		// (the center by definition should be on the diagonal between the two points):
-		if (((center_x < frustum_x[i]) == (center_x < frustum_x[n]))
-		 && ((center_y < frustum_y[i]) == (center_y < frustum_y[n]))) {
-			goto flip;
-		}
-	}
-	return;
-
-flip:	;
-	// If the point was flipped, synthetize the viewport area by taking the
-	// flipped vectors and extending them "far enough" in the other
-	// direction. This creates a finite viewport that extends well beyond
-	// the world area:
-	double extend = world_get_size() * ((screen.height > screen.width) ? screen.height : screen.width) / 256.0;
-
-	frustum_x[0] = frustum_x[3] + extend * (frustum_x[3] - frustum_x[0]);
-	frustum_y[0] = frustum_y[3] + extend * (frustum_y[3] - frustum_y[0]);
-
-	frustum_x[1] = frustum_x[2] + extend * (frustum_x[2] - frustum_x[1]);
-	frustum_y[1] = frustum_y[2] + extend * (frustum_y[2] - frustum_y[1]);
-}
-
-static void
-bbox_grow (double x, double y)
-{
-	if (x < bbox_x[0]) bbox_x[0] = x;
-	if (x > bbox_x[1]) bbox_x[1] = x;
-	if (y < bbox_y[0]) bbox_y[0] = y;
-	if (y > bbox_y[1]) bbox_y[1] = y;
-}
-
-static void
-viewport_calc_bbox (void)
-{
-	double world_size = (double)world_get_size();
-	double px, py;
-	int checked_corners = 0;
-
-	// Reset bounding box:
-	bbox_x[0] = bbox_y[0] = world_size + 1;
-	bbox_x[1] = bbox_y[1] = -1;
-
-	// Split the frustum into four lines, one for each edge:
-	for (int i = 0; i < 4; i++)
-	{
-		// (ax, ay) and (bx, by) are bounding points of the edge:
-		double ax = frustum_x[i];
-		double ay = frustum_y[i];
-		double bx = frustum_x[(i == 3) ? 0 : i + 1];
-		double by = frustum_y[(i == 3) ? 0 : i + 1];
-
-		// Is this point inside the world plane?
-		int a_inside = (ax >= 0.0 && ax <= world_size && ay >= 0.0 && ay <= world_size);
-		int b_inside = (bx >= 0.0 && bx <= world_size && by >= 0.0 && by <= world_size);
-
-		// If line is completely inside world, expand our bounding box to this segment:
-		if (a_inside && b_inside) {
-			bbox_grow(ax, ay);
-			bbox_grow(bx, by);
-			continue;
-		}
-		// Always grow bounding box by the "inner" point:
-		if (a_inside) {
-			bbox_grow(ax, ay);
-		}
-		if (b_inside) {
-			bbox_grow(bx, by);
-		}
-		// If both points outside world, check for all corner points of
-		// the frustum whether they are visible:
-		if (!a_inside && !b_inside && !checked_corners)
-		{
-			// Bottom left:
-			if ((bbox_x[0] != 0.0 || bbox_y[0] != 0.0) && point_inside_frustum(0.0, 0.0)) {
-				bbox_x[0] = 0.0;
-				bbox_y[0] = 0.0;
-			}
-			// Top left:
-			if ((bbox_x[0] != 0.0 || bbox_y[1] != world_size) && point_inside_frustum(0.0, world_size)) {
-				bbox_x[0] = 0.0;
-				bbox_y[1] = world_size;
-			}
-			// Top right:
-			if ((bbox_x[1] != world_size || bbox_y[1] != world_size) && point_inside_frustum(world_size, world_size)) {
-				bbox_x[1] = world_size;
-				bbox_y[1] = world_size;
-			}
-			// Bottom right:
-			if ((bbox_x[1] != world_size || bbox_y[0] != 0.0) && point_inside_frustum(world_size, 0.0)) {
-				bbox_x[1] = world_size;
-				bbox_y[0] = 0.0;
-			}
-			// No need to do this more than once:
-			checked_corners = 1;
-		}
-		// Intersect this line with all four edges of the world:
-
-		// Left vertical edge:
-		if ((ax < 0.0 && bx >= 0.0) || (bx < 0.0 && ax >= 0.0)) {
-			intersect_lines(ax, ay, bx, by, 0.0, 0.0, 0.0, world_size, &px, &py);
-			if (py >= 0.0 && py <= world_size) bbox_grow(0.0, py);
-		}
-		// Right vertical edge:
-		if ((ax < world_size && bx >= world_size) || (bx < world_size && ax >= world_size)) {
-			intersect_lines(ax, ay, bx, by, world_size, 0.0, world_size, world_size, &px, &py);
-			if (py >= 0.0 && py <= world_size) bbox_grow(world_size, py);
-		}
-		// Bottom horizontal edge:
-		if ((ay < 0.0 && by >= 0.0) || (by < 0.0 && ay >= 0.0)) {
-			intersect_lines(ax, ay, bx, by, 0.0, 0.0, world_size, 0.0, &px, &py);
-			if (px >= 0.0 && px <= world_size) bbox_grow(px, 0.0);
-		}
-		// Top horizontal edge:
-		if ((ay < world_size && by >= world_size) || (by < world_size && ay >= world_size)) {
-			intersect_lines(ax, ay, bx, by, 0.0, world_size, world_size, world_size, &px, &py);
-			if (px >= 0.0 && px <= world_size) bbox_grow(px, world_size);
-		}
-	}
 }
 
 void
@@ -464,28 +240,9 @@ viewport_gl_setup_world (void)
 	glGetDoublev(GL_MODELVIEW_MATRIX, modelview);
 	glGetDoublev(GL_PROJECTION_MATRIX, projection);
 
-	// Must put this logic here because these recalc functions rely on the
-	// projection matrices that have just been set up; use control
-	// variables to run them only when needed, since this function can be
-	// called multiple times per frame.
-	if (frustum_coords_need_recalc) {
-		viewport_calc_frustum();
+	// FIXME: only do this when moved?
+	tilepicker_recalc();
 
-		// Floating-point vector versions of above:
-		frustum_x1 = (vec4f){ frustum_x[0], frustum_x[1], frustum_x[2], frustum_x[3] };
-		frustum_y1 = (vec4f){ frustum_y[0], frustum_y[1], frustum_y[2], frustum_y[3] };
-
-		if (frustum_inside_need_recalc)
-		{
-			// Relies on the frustum points:
-			frustum_inside_recalc();
-			frustum_inside_need_recalc = 0;
-		}
-		// Relies on the precalculations:
-		viewport_calc_bbox();
-		tilepicker_recalc();
-		frustum_coords_need_recalc = 0;
-	}
 	glDisable(GL_BLEND);
 
 	switch (world_get())
@@ -503,30 +260,6 @@ viewport_gl_setup_world (void)
 	}
 }
 
-bool
-viewport_within_world_bounds (void)
-{
-	double world_size = (double)world_get_size();
-
-	switch (world_get())
-	{
-	case WORLD_PLANAR:
-		for (int i = 0; i < 4; i++) {
-			if (frustum_x[i] < 0.0 || frustum_x[i] > world_size) return false;
-			if (frustum_y[i] < 0.0 || frustum_y[i] > world_size) return false;
-		}
-		return true;
-
-	case WORLD_SPHERICAL:
-		// For now, always redraw background; even if we can calculate
-		// that the world occludes the background, perhaps the tile
-		// mantle has holes in it that "leak" the background:
-		return false;
-	}
-
-	return true;
-}
-
 unsigned int
 viewport_get_wd (void)
 {
@@ -537,46 +270,4 @@ unsigned int
 viewport_get_ht (void)
 {
 	return screen.height;
-}
-
-void
-viewport_get_bbox (double **bx, double **by)
-{
-	*bx = bbox_x;
-	*by = bbox_y;
-}
-
-static void
-intersect_lines (double x0, double y0, double x1, double y1, double x2, double y2, double x3, double y3, double *px, double *py)
-{
-	double d = (x0 - x1) * (y2 - y3) - (y0 - y1) * (x2 - x3);
-	double e = x0 * y1 - y0 * x1;
-	double f = x2 * y3 - y2 * x3;
-
-	*px = (e * (x2 - x3) - f * (x0 - x1)) / d;
-	*py = (e * (y2 - y3) - f * (y0 - y1)) / d;
-}
-
-bool
-point_inside_frustum (float x, float y)
-{
-	// Use precomputed vectors to quickly determine whether a point is
-	// inside the frustum. For all edges of the frustum, calculate the
-	// cross product in parallel and check the resulting signs.
-
-	vec4f pvx = vec4f_float(x) - frustum_x1;
-	vec4f pvy = vec4f_float(y) - frustum_y1;
-
-	// Calculate cross products:
-	vec4f cross = frustum_dvx * pvy - frustum_dvy * pvx;
-
-	// Check if their sign is uniform (assuming clockwise quad):
-	vec4i r = (cross >= vec4f_zero());
-
-	if (r[0]) return false;
-	if (r[1]) return false;
-	if (r[2]) return false;
-	if (r[3]) return false;
-
-	return true;
 }

@@ -212,22 +212,6 @@ paint_center (void)
 }
 
 static void
-paint_bbox (void)
-{
-	// Draw bounding box:
-	double *bx, *by;
-	viewport_get_bbox(&bx, &by);
-
-	glColor4f(0.3, 0.3, 1.0, 0.5);
-	glBegin(GL_LINE_LOOP);
-		glVertex2d(bx[0], by[1]);
-		glVertex2d(bx[1], by[1]);
-		glVertex2d(bx[1], by[0]);
-		glVertex2d(bx[0], by[0]);
-	glEnd();
-}
-
-static void
 paint (void)
 {
 	// Draw 1:1 to screen coordinates, origin bottom left:
@@ -259,7 +243,6 @@ paint (void)
 	program_none();
 
 	paint_center();
-	paint_bbox();
 
 	glDisable(GL_BLEND);
 

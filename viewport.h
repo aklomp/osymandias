@@ -14,9 +14,6 @@ void viewport_rotate (const int dx);
 void viewport_resize (const unsigned int wd, const unsigned int ht);
 void viewport_render (void);
 void viewport_gl_setup_world (void);
-bool viewport_within_world_bounds (void);
-void viewport_get_bbox (double **bx, double **by);
-bool point_inside_frustum (float x, float y);
 
 unsigned int viewport_get_ht (void);
 unsigned int viewport_get_wd (void);
