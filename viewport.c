@@ -188,20 +188,6 @@ viewport_center_at (const int screen_x, const int screen_y)
 }
 
 void
-viewport_tilt (const int dy)
-{
-	if (dy != 0)
-		camera_tilt(dy * 0.005f);
-}
-
-void
-viewport_rotate (const int dx)
-{
-	if (dx != 0)
-		camera_rotate(dx * -0.005f);
-}
-
-void
 viewport_resize (const unsigned int width, const unsigned int height)
 {
 	double x, y;

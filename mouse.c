@@ -1,6 +1,8 @@
 #include <stdbool.h>
 #include <gtk/gtk.h>
 
+#include "vector.h"
+#include "camera.h"
 #include "viewport.h"
 #include "autoscroll.h"
 
@@ -60,8 +62,12 @@ on_button_motion (GtkWidget *widget, GdkEventButton *event)
 	}
 	// Right mouse button:
 	if (button_num == 3) {
-		viewport_rotate(dx);
-		viewport_tilt(dy);
+
+		if (dx != 0)
+			camera_rotate(dx * -0.005f);
+
+		if (dy != 0)
+			camera_tilt(dy * 0.005f);
 	}
 	gtk_widget_queue_draw(widget);
 	button_pressed_x = x;
