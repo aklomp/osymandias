@@ -20,9 +20,5 @@ bool point_inside_frustum (float x, float y);
 
 unsigned int viewport_get_ht (void);
 unsigned int viewport_get_wd (void);
-int viewport_get_tile_top (void);
-int viewport_get_tile_left (void);
-int viewport_get_tile_right (void);
-int viewport_get_tile_bottom (void);
 
 #endif

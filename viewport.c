@@ -31,12 +31,6 @@ static struct {
 	unsigned int height;
 } screen;
 
-static int tile_top;
-static int tile_left;
-static int tile_right;
-static int tile_bottom;
-static int tile_last;
-
 static double modelview[16];	// OpenGL projection matrices
 static double projection[16];
 
@@ -86,24 +80,6 @@ frustum_inside_recalc (void)
 
 	frustum_dvx = frustum_x2 - frustum_x1;
 	frustum_dvy = frustum_y2 - frustum_y1;
-}
-
-static void
-recalc_tile_extents (void)
-{
-	// Tile coordinates: (0,0) is top left, (tile_last,tile_last) is bottom right:
-
-	tile_last = world_get_size() - 1;
-	tile_left = floor(bbox_x[0]);
-	tile_right = ceil(bbox_x[1]);
-	tile_top = tile_last - floor(bbox_y[1]);
-	tile_bottom = tile_last - floor(bbox_y[0]);
-
-	// Clip to world:
-	if (tile_left < 0) tile_left = 0;
-	if (tile_top < 0) tile_top = 0;
-	if (tile_right > tile_last) tile_right = tile_last;
-	if (tile_bottom > tile_last) tile_bottom = tile_last;
 }
 
 static void
@@ -507,7 +483,6 @@ viewport_gl_setup_world (void)
 		}
 		// Relies on the precalculations:
 		viewport_calc_bbox();
-		recalc_tile_extents();
 		tilepicker_recalc();
 		frustum_coords_need_recalc = 0;
 	}
@@ -563,11 +538,6 @@ viewport_get_ht (void)
 {
 	return screen.height;
 }
-
-int viewport_get_tile_top (void) { return tile_top; }
-int viewport_get_tile_left (void) { return tile_left; }
-int viewport_get_tile_right (void) { return tile_right; }
-int viewport_get_tile_bottom (void) { return tile_bottom; }
 
 void
 viewport_get_bbox (double **bx, double **by)

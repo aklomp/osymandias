@@ -75,10 +75,6 @@ struct mempool_block {
 
 static int world_size;
 static int world_zoom;
-static int tile_top;
-static int tile_left;
-static int tile_right;
-static int tile_bottom;
 
 static struct tile *drawlist = NULL;
 static struct tile *drawlist_tail = NULL;
@@ -227,22 +223,6 @@ tile_is_visible (struct tile *const tile)
 	};
 
 	return camera_visible_quad(coords);
-}
-
-static void
-tile_farthest_get_zoom (int *zoom)
-{
-	// Find the tile farthest away from the viewport.
-	// This is the smallest tile rendered, and hence must be a tile at the
-	// lowest zoom level. It must be one of the corner tiles of the
-	// bounding box. We cheat slightly by using the distance from the
-	// center point, not the actual pixel dimensions of the tile.
-
-	vec4i vz = tile2d_get_corner_zooms_abs(tile_left, tile_top, tile_right, tile_bottom, world_get_center(), world_zoom);
-
-	int min1 = (vz[0] < vz[1]) ? vz[0] : vz[1];
-	int min2 = (vz[2] < vz[3]) ? vz[2] : vz[3];
-	*zoom = (min1 < min2) ? min1 : min2;
 }
 
 static bool
