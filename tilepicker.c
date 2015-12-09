@@ -306,99 +306,6 @@ rect_quads_mark_used (const struct rect *rect)
 	}
 }
 
-static void
-tilepicker_planar (void)
-{
-	int lowzoom;
-
-	// In the planar world, we have the concepts of "leftmost tile",
-	// "rightmost tile", and so on. Also the concept of the "farthest
-	// visible tile", which by definition must have the lowest zoomlevel
-	// of all visible tiles. This knowledge lets us take some shortcuts.
-
-	tile_top = viewport_get_tile_top();
-	tile_left = viewport_get_tile_left();
-	tile_right = viewport_get_tile_right();
-	tile_bottom = viewport_get_tile_bottom();
-
-	tile_farthest_get_zoom(&lowzoom);
-
-	// Start with biggest block size in world; recursively cut these into smaller blocks:
-	int zoomdiff = world_zoom - lowzoom;
-	int tilesize = 1 << zoomdiff;
-	for (int tile_x = tile_left & ~(tilesize - 1); tile_x <= tile_right; tile_x += tilesize) {
-		for (int tile_y = tile_top & ~(tilesize - 1); tile_y <= tile_bottom; tile_y += tilesize) {
-			struct tile tile = {
-				.x = tile_x,
-				.y = tile_y,
-				.wd = tilesize,
-				.ht = tilesize,
-				.vertex = {
-					{ .tile = { tile_x,            tile_y            } },
-					{ .tile = { tile_x + tilesize, tile_y            } },
-					{ .tile = { tile_x + tilesize, tile_y + tilesize } },
-					{ .tile = { tile_x,            tile_y + tilesize } },
-				},
-			};
-
-			// Must call reduce_block with a tile structure containing
-			// the four projected corner points, so bootstrap:
-			for (int i = 0; i < 4; i++) {
-				struct vertex *vertex = &tile.vertex[i];
-				project(vertex);
-				vertex->zoom = zoom_point(world_zoom, &vertex->coords);
-			}
-
-			// Recursively split this block:
-			reduce_block(&tile, lowzoom, 1.0f);
-
-			// Merge adjacent blocks with same zoom level:
-			optimize_block(tile_x, tile_y, zoomdiff);
-		}
-	}
-}
-
-static void
-tilepicker_spherical (void)
-{
-	// In the spherical world, we start off at the lowest zoom level,
-	// level 0, where the world is a single tile. We split the world
-	// into (1 << MIN_SUBDIVISIONS) subdivisions to keep the spherical
-	// character of the globe. We recursively walk over the visible
-	// tiles and add them to the drawlist:
-
-	int minsize = (world_zoom > MIN_SUBDIVISIONS) ? 0 : (world_zoom - MIN_SUBDIVISIONS);
-
-	for (int tile_y = 0; tile_y < (1 << MIN_SUBDIVISIONS); tile_y++) {
-		for (int tile_x = 0; tile_x < (1 << MIN_SUBDIVISIONS); tile_x++) {
-			// TODO: hoist invariants out of loop
-			float x = ldexpf(tile_x, world_zoom - MIN_SUBDIVISIONS);
-			float y = ldexpf(tile_y, world_zoom - MIN_SUBDIVISIONS);
-			float sz = ldexpf(1.0f, world_zoom - MIN_SUBDIVISIONS);
-
-			struct tile tile = {
-				.x = x,
-				.y = y,
-				.wd = sz,
-				.ht = sz,
-				.vertex = {
-					{ .tile = { x,      y,     } },
-					{ .tile = { x + sz, y,     } },
-					{ .tile = { x + sz, y + sz } },
-					{ .tile = { x,      y + sz } },
-				}
-			};
-			for (int i = 0; i < 4; i++) {
-				struct vertex *vertex = &tile.vertex[i];
-				project(vertex);
-				vertex->zoom = zoom_point(world_zoom, &vertex->coords);
-			}
-
-			reduce_block(&tile, 0, ldexpf(1.0f, minsize));
-		}
-	}
-}
-
 void
 tilepicker_recalc (void)
 {
@@ -418,9 +325,51 @@ tilepicker_recalc (void)
 	// from the top of the mempool again.
 	mempool_reset();
 
-	(world_get() == WORLD_PLANAR)
-		? tilepicker_planar()
-		: tilepicker_spherical();
+	// Determine the starting zoom level. In the planar world, we start at
+	// zoom level 0. In the spherical world, we want to keep the spherical
+	// character, so we start at a higher zoom level for a rounder globe:
+	int zoom_start = (world_get() == WORLD_PLANAR) ? 0 : MIN_SUBDIVISIONS;
+
+	int minsize = (world_zoom > MIN_SUBDIVISIONS) ? 0 : (world_zoom - MIN_SUBDIVISIONS);
+
+	// Loop over all tiles of the world at zoom_start:
+	for (int tile_y = 0; tile_y < (1 << zoom_start); tile_y++) {
+		for (int tile_x = 0; tile_x < (1 << zoom_start); tile_x++) {
+
+			// TODO: hoist invariants out of loop
+			float x = ldexpf(tile_x, world_zoom - zoom_start);
+			float y = ldexpf(tile_y, world_zoom - zoom_start);
+			float sz = ldexpf(1.0f, world_zoom - zoom_start);
+
+			struct tile tile = {
+				.x = x,
+				.y = y,
+				.wd = sz,
+				.ht = sz,
+				.vertex = {
+					{ .tile = { x,      y,     } },
+					{ .tile = { x + sz, y,     } },
+					{ .tile = { x + sz, y + sz } },
+					{ .tile = { x,      y + sz } },
+				}
+			};
+
+			// Project vertices, calculate distance (zoom):
+			for (int i = 0; i < 4; i++) {
+				struct vertex *vertex = &tile.vertex[i];
+				project(vertex);
+				vertex->zoom = zoom_point(world_zoom, &vertex->coords);
+			}
+
+			// Recursively split this block:
+			reduce_block(&tile, 0, ldexpf(1.0f, minsize));
+
+			// Merge adjacent blocks with same zoom level:
+			// Only relevant in the planar world: sphere must remain round:
+			if (world_get() == WORLD_PLANAR)
+				optimize_block(tile_x, tile_y, world_zoom);
+		}
+	}
 }
 
 static void
