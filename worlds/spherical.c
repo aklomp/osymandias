@@ -105,7 +105,7 @@ matrix_model (void)
 static bool
 timer_tick (struct world_state *state, int64_t usec)
 {
-	return autoscroll_update(state);
+	return autoscroll_update(state, usec);
 }
 
 const struct world *

@@ -188,21 +188,21 @@ world_timer_tick (int64_t usec)
 
 // Dispatch autoscroll functions to local handler:
 void
-world_autoscroll_measure_down (void)
+world_autoscroll_measure_down (int64_t usec)
 {
-	autoscroll_measure_down(&state);
+	autoscroll_measure_down(&state, usec);
 }
 
 void
-world_autoscroll_measure_hold (void)
+world_autoscroll_measure_hold (int64_t usec)
 {
-	autoscroll_measure_hold(&state);
+	autoscroll_measure_hold(&state, usec);
 }
 
 void
-world_autoscroll_measure_free (void)
+world_autoscroll_measure_free (int64_t usec)
 {
-	autoscroll_measure_free(&state);
+	autoscroll_measure_free(&state, usec);
 }
 
 bool

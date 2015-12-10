@@ -1,7 +1,7 @@
 // Mark a position in time:
 struct mark {
 	struct coords coords;
-	float time;
+	int64_t time;
 };
 
 // Current state of world:

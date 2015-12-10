@@ -1,50 +1,38 @@
 #include <stdbool.h>
 #include <stdint.h>
-#include <time.h>
 
 #include "../worlds.h"
 #include "local.h"
 
 #define abs(x)	(((x) < 0) ? -(x) : (x))
 
-static float
-now (void)
-{
-	struct timespec ts;
-
-	if (clock_gettime(CLOCK_MONOTONIC, &ts) == 0)
-		return ts.tv_sec + ts.tv_nsec / 1e9f;
-
-	return 0.0f;
-}
-
 static void
-mark (const struct world_state *state, struct mark *mark)
+mark (const struct world_state *state, int64_t usec, struct mark *mark)
 {
 	mark->coords = state->center;
-	mark->time = now();
+	mark->time = usec;
 }
 
 void
-autoscroll_measure_down (struct world_state *state)
+autoscroll_measure_down (struct world_state *state, int64_t usec)
 {
-	mark(state, &state->autoscroll.down);
+	mark(state, usec, &state->autoscroll.down);
 }
 
 void
-autoscroll_measure_hold (struct world_state *state)
+autoscroll_measure_hold (struct world_state *state, int64_t usec)
 {
-	mark(state, &state->autoscroll.hold);
+	mark(state, usec, &state->autoscroll.hold);
 }
 
 void
-autoscroll_measure_free (struct world_state *state)
+autoscroll_measure_free (struct world_state *state, int64_t usec)
 {
 	const struct mark *down = &state->autoscroll.down;
 	const struct mark *hold = &state->autoscroll.hold;
 	const struct mark *free = &state->autoscroll.free;
 
-	mark(state, &state->autoscroll.free);
+	mark(state, usec, &state->autoscroll.free);
 
 	// Check if the user has "moved the hold" sufficiently to start the
 	// autoscroll. Not every click on the map should cause movement. Only
@@ -52,7 +40,7 @@ autoscroll_measure_free (struct world_state *state)
 
 	float dx = free->coords.tile.x - hold->coords.tile.x;
 	float dy = free->coords.tile.y - hold->coords.tile.y;
-	float dt = free->time - hold->time;
+	float dt = (free->time - hold->time) / 1e6f;
 
 	// If the mouse has been stationary for a little while, and the last
 	// mouse movement was insignificant, don't start:
@@ -63,7 +51,7 @@ autoscroll_measure_free (struct world_state *state)
 	// and "up" point:
 	dx = free->coords.tile.x - down->coords.tile.x;
 	dy = free->coords.tile.y - down->coords.tile.y;
-	dt = free->time - down->time;
+	dt = (free->time - down->time) / 1e6f;
 
 	// The 2.0 coefficient is "friction":
 	state->autoscroll.speed.tile.x = dx / dt / 2.0f;
@@ -82,7 +70,7 @@ autoscroll_stop (struct world_state *state)
 }
 
 bool
-autoscroll_update (struct world_state *state)
+autoscroll_update (struct world_state *state, int64_t usec)
 {
 	const struct mark *free = &state->autoscroll.free;
 	const struct coords *speed = &state->autoscroll.speed;
@@ -93,7 +81,7 @@ autoscroll_update (struct world_state *state)
 		return false;
 
 	// Calculate present location from start and speed:
-	float dt = now() - free->time;
+	float dt = (usec - free->time) / 1e6f;
 	float x = free->coords.tile.x + speed->tile.x * dt;
 	float y = free->coords.tile.y + speed->tile.y * dt;
 

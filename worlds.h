@@ -55,8 +55,8 @@ bool worlds_init (const unsigned int zoom, const float lat, const float lon);
 void worlds_destroy (void);
 
 // Autoscroll functions:
-void world_autoscroll_measure_down (void);
-void world_autoscroll_measure_hold (void);
-void world_autoscroll_measure_free (void);
+void world_autoscroll_measure_down (int64_t usec);
+void world_autoscroll_measure_hold (int64_t usec);
+void world_autoscroll_measure_free (int64_t usec);
 bool world_autoscroll_stop (void);
-bool world_autoscroll_update (double *restrict x, double *restrict y);
+bool world_autoscroll_update (double *restrict x, double *restrict y, int64_t usec);
