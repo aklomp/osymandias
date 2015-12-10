@@ -204,12 +204,6 @@ viewport_resize (const unsigned int width, const unsigned int height)
 	// Alert layers:
 	layers_resize(width, height);
 
-	viewport_render();
-}
-
-void
-viewport_render (void)
-{
 	layers_paint();
 }
 
