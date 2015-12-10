@@ -103,6 +103,26 @@ matrix_model (void)
 }
 
 static bool
+autoscroll_update (struct world_state *state, int64_t usec)
+{
+	const struct mark *free = &state->autoscroll.free;
+	const struct coords *speed = &state->autoscroll.speed;
+
+	// Calculate new autoscroll offset to apply to viewport.
+	// Returns true or false depending on whether to apply the result.
+	if (!state->autoscroll.active)
+		return false;
+
+	// Calculate present location from start and speed:
+	float dt = (usec - free->time) / 1e6f;
+	float lat = free->coords.lat + speed->lat * dt;
+	float lon = free->coords.lat + speed->lon * dt;
+
+	world_moveto_latlon(lat, lon);
+	return true;
+}
+
+static bool
 timer_tick (struct world_state *state, int64_t usec)
 {
 	return autoscroll_update(state, usec);

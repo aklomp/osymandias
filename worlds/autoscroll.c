@@ -57,6 +57,13 @@ autoscroll_measure_free (struct world_state *state, int64_t usec)
 	state->autoscroll.speed.tile.x = dx / dt / 2.0f;
 	state->autoscroll.speed.tile.y = dy / dt / 2.0f;
 
+	// Now for lat/lon reference:
+	dx = free->coords.lon - down->coords.lon;
+	dy = free->coords.lat - down->coords.lat;
+
+	state->autoscroll.speed.lon = dx / dt / 2.0f;
+	state->autoscroll.speed.lat = dy / dt / 2.0f;
+
 	state->autoscroll.active = true;
 }
 
@@ -67,24 +74,4 @@ autoscroll_stop (struct world_state *state)
 	bool on = state->autoscroll.active;
 	state->autoscroll.active = false;
 	return on;
-}
-
-bool
-autoscroll_update (struct world_state *state, int64_t usec)
-{
-	const struct mark *free = &state->autoscroll.free;
-	const struct coords *speed = &state->autoscroll.speed;
-
-	// Calculate new autoscroll offset to apply to viewport.
-	// Returns true or false depending on whether to apply the result.
-	if (!state->autoscroll.active)
-		return false;
-
-	// Calculate present location from start and speed:
-	float dt = (usec - free->time) / 1e6f;
-	float x = free->coords.tile.x + speed->tile.x * dt;
-	float y = free->coords.tile.y + speed->tile.y * dt;
-
-	world_moveto_tile(x, y);
-	return true;
 }
