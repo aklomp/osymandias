@@ -47,9 +47,7 @@ paint_canvas (GtkWidget *widget)
 
 	gdk_gl_drawable_gl_begin(gldrawable, glcontext);
 
-	GtkAllocation allocation;
-	gtk_widget_get_allocation(widget, &allocation);
-	viewport_resize(allocation.width, allocation.height);
+	viewport_paint();
 
 	if (gdk_gl_drawable_is_double_buffered(gldrawable)) {
 		gdk_gl_drawable_swap_buffers(gldrawable);
@@ -90,6 +88,12 @@ on_realize (GtkWidget *widget)
 	// Initialize viewport after realizing GL area, inside GL context:
 	gdk_gl_drawable_gl_begin(gldrawable, glcontext);
 	viewport_init();
+
+	// Resize to initial dimensions:
+	GtkAllocation allocation;
+	gtk_widget_get_allocation(widget, &allocation);
+	viewport_resize(allocation.width, allocation.height);
+
 	gdk_gl_drawable_gl_end(gldrawable);
 
 	is_realized = true;

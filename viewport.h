@@ -11,6 +11,7 @@ void viewport_hold_move (const int screen_x, const int screen_y);
 void viewport_center_at (const int screen_x, const int screen_y);
 void viewport_resize (const unsigned int wd, const unsigned int ht);
 void viewport_gl_setup_world (void);
+void viewport_paint (void);
 
 unsigned int viewport_get_ht (void);
 unsigned int viewport_get_wd (void);

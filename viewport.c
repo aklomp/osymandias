@@ -185,6 +185,12 @@ viewport_center_at (const int screen_x, const int screen_y)
 }
 
 void
+viewport_paint (void)
+{
+	layers_paint();
+}
+
+void
 viewport_resize (const unsigned int width, const unsigned int height)
 {
 	screen.width = width;
@@ -195,8 +201,6 @@ viewport_resize (const unsigned int width, const unsigned int height)
 
 	// Alert layers:
 	layers_resize(width, height);
-
-	layers_paint();
 }
 
 void
