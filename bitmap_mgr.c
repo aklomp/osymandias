@@ -88,7 +88,7 @@ thread_on_completed (struct pngloader *p, void *rawbits)
 	quadtree_data_insert(threadlist, &p->req, NULL);
 	pthread_mutex_unlock(&running_mutex);
 
-	framerate_request_refresh();
+	framerate_repaint();
 }
 
 static void *

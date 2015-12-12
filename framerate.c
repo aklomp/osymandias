@@ -1,59 +1,62 @@
 #include <stdbool.h>
-#include <stdint.h>
 #include <gtk/gtk.h>
 
 #include "worlds.h"
 
-static GtkWidget *canvas = NULL;
-static volatile bool refresh_requested;
-static void (*paint)(GtkWidget *widget);
+static struct {
+	GtkWidget *canvas;
+	bool repaint;
+	void (*paint)(GtkWidget *widget);
+} state;
 
 static gboolean
-framerate_tick (void *data)
+timer_tick (void)
 {
-	(void)(data);	// Unused parameter
-
+	// Get current time:
 	gint64 now = g_get_monotonic_time();
 
-	refresh_requested |= world_timer_tick(now);
+	// Feed timer tick to worlds, query repaint:
+	state.repaint |= world_timer_tick(now);
 
-	if (!refresh_requested)
-		return TRUE;
-
-	if (canvas == NULL || !GTK_IS_WIDGET(canvas))
+	// Quit timer loop if canvas no longer exists:
+	if (!state.canvas || !GTK_IS_WIDGET(state.canvas))
 		return FALSE;
 
-	refresh_requested = false;
-	paint(canvas);
+	// Yield if nothing to do:
+	if (!state.repaint)
+		return TRUE;
+
+	// Else call the paint callback:
+	state.paint(state.canvas);
+	state.repaint = false;
 
 	return TRUE;
 }
 
 void
-framerate_init (GtkWidget *widget, void (*paint_callback)(GtkWidget *widget))
+framerate_init (GtkWidget *canvas, void (*paint)(GtkWidget *))
 {
-	canvas = widget;
+	state.canvas  = canvas;
+	state.paint   = paint;
+	state.repaint = true;
 
-	// This is a pointer to what is usually the on_expose_event handler,
-	// i.e. the routine that paints the viewport:
-	paint = paint_callback;
+	// Refresh period at 60 Hz = 1000 / 60 msec = 16.666... msec
+	guint msec = 17;
 
-	// This is our heartbeat timer:
-	g_timeout_add(40, (GSourceFunc)framerate_tick, NULL);
+	// Kickoff the heartbeat timer:
+	g_timeout_add(msec, (GSourceFunc)timer_tick, NULL);
 }
 
 void
 framerate_destroy (void)
 {
-	// This causes the heartbeat function to exit:
-	canvas = NULL;
+	// This will terminate the timer loop on next tick:
+	state.canvas = NULL;
 }
 
 void
-framerate_request_refresh (void)
+framerate_repaint (void)
 {
-	// This function can be called asynchronously from various threads.
-	// This addition is not guaranteed to be atomic, but the worst that
-	// can happen is that we miss a frame, or render a spurious one.
-	refresh_requested = true;
+	// Request a screen repaint on next timer tick:
+	state.repaint = true;
 }

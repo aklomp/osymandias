@@ -68,13 +68,13 @@ on_key_press (GtkWidget *widget, GdkEventKey *event)
 	case GDK_KEY_p:
 	case GDK_KEY_P:
 		world_set(WORLD_PLANAR);
-		framerate_request_refresh();
+		framerate_repaint();
 		break;
 
 	case GDK_KEY_s:
 	case GDK_KEY_S:
 		world_set(WORLD_SPHERICAL);
-		framerate_request_refresh();
+		framerate_repaint();
 		break;
 	}
 }
@@ -112,6 +112,13 @@ on_unrealize (GtkWidget *widget)
 }
 
 static gboolean
+on_expose (void)
+{
+	framerate_repaint();
+	return FALSE;
+}
+
+static gboolean
 on_configure (GtkWidget *widget, GdkEventConfigure *event)
 {
 	// This function is called once before the widget is realized:
@@ -146,7 +153,7 @@ connect_canvas_signals (GtkWidget *canvas)
 		{ "button-release-event",	G_CALLBACK(on_button_release),		GDK_BUTTON_RELEASE_MASK	},
 		{ "scroll-event",		G_CALLBACK(on_mouse_scroll),		GDK_SCROLL_MASK		},
 		{ "motion-notify-event",	G_CALLBACK(on_button_motion),		GDK_BUTTON_MOTION_MASK	},
-		{ "expose-event",		G_CALLBACK(framerate_request_refresh),	0			},
+		{ "expose-event",		G_CALLBACK(on_expose),			0			},
 		{ "configure-event",		G_CALLBACK(on_configure),		0			},
 		{ "realize",			G_CALLBACK(on_realize),			0			},
 		{ "unrealize",			G_CALLBACK(on_unrealize),		0			},
