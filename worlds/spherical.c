@@ -116,7 +116,7 @@ autoscroll_update (struct world_state *state, int64_t now)
 	// Calculate present location from start and speed:
 	float dt = now - free->time;
 	float lat = free->coords.lat + speed->lat * dt;
-	float lon = free->coords.lat + speed->lon * dt;
+	float lon = free->coords.lon + speed->lon * dt;
 
 	world_moveto_latlon(lat, lon);
 	return true;

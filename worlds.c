@@ -99,6 +99,10 @@ world_zoom_in (void)
 	coords_zoom_in(&state.autoscroll.hold.coords);
 	coords_zoom_in(&state.autoscroll.free.coords);
 
+	// Halve autoscroll speed as measured in lat/lon:
+	state.autoscroll.speed.lat /= 2.0f;
+	state.autoscroll.speed.lon /= 2.0f;
+
 	worlds[current]->zoom(&state);
 	return true;
 }
@@ -116,6 +120,10 @@ world_zoom_out (void)
 	coords_zoom_out(&state.autoscroll.down.coords);
 	coords_zoom_out(&state.autoscroll.hold.coords);
 	coords_zoom_out(&state.autoscroll.free.coords);
+
+	// Double autoscroll speed as measured in lat/lon:
+	state.autoscroll.speed.lat *= 2.0f;
+	state.autoscroll.speed.lon *= 2.0f;
 
 	worlds[current]->zoom(&state);
 	return true;
