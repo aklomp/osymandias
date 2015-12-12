@@ -86,9 +86,6 @@ zoom (const struct world_state *state)
 {
 	float radius = state->size / M_PI;
 
-	// Translate matrix: push the model back one unit radius:
-	mat_translate(matrix.translate, 0.0f, 0.0f, -1.0f);
-
 	// Scale matrix: scale the model (a unit sphere) to the world radius:
 	mat_scale(matrix.scale, radius, radius, radius);
 
@@ -138,6 +135,9 @@ world_spherical (void)
 		.center_restrict_latlon	= center_restrict_latlon,
 		.timer_tick		= timer_tick,
 	};
+
+	// Translate matrix: push the model back one unit radius:
+	mat_translate(matrix.translate, 0.0f, 0.0f, -1.0f);
 
 	return &world;
 }
