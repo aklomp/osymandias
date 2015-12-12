@@ -13,7 +13,7 @@ static struct input inputs[] =
 	, { .name = "spherical",   .type = TYPE_UNIFORM }
 	, { .name = "camera",      .type = TYPE_UNIFORM }
 	, { .name = "vertex",      .type = TYPE_ATTRIBUTE }
-	, {  NULL }
+	, { .name = NULL }
 	} ;
 
 static struct program program =

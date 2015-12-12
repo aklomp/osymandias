@@ -9,7 +9,7 @@ static struct input inputs[] =
 	{ { .name = "mat_proj", .type = TYPE_UNIFORM }
 	, { .name = "mat_view", .type = TYPE_UNIFORM }
 	, { .name = "vertex",   .type = TYPE_ATTRIBUTE }
-	, {  NULL }
+	, { .name = NULL }
 	} ;
 
 static struct program program =
