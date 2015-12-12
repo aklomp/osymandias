@@ -105,15 +105,13 @@ matrix_model (void)
 static bool
 autoscroll_update (struct world_state *state, int64_t now)
 {
-	const struct mark *free = &state->autoscroll.free;
+	const struct mark   *free  = &state->autoscroll.free;
 	const struct coords *speed = &state->autoscroll.speed;
 
-	// Calculate new autoscroll offset to apply to viewport.
-	// Returns true or false depending on whether to apply the result.
 	if (!state->autoscroll.active)
 		return false;
 
-	// Calculate present location from start and speed:
+	// Calculate next location from start, speed and time:
 	float dt = now - free->time;
 	float lat = free->coords.lat + speed->lat * dt;
 	float lon = free->coords.lon + speed->lon * dt;
