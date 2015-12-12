@@ -103,7 +103,7 @@ matrix_model (void)
 }
 
 static bool
-autoscroll_update (struct world_state *state, int64_t usec)
+autoscroll_update (struct world_state *state, int64_t now)
 {
 	const struct mark *free = &state->autoscroll.free;
 	const struct coords *speed = &state->autoscroll.speed;
@@ -114,7 +114,7 @@ autoscroll_update (struct world_state *state, int64_t usec)
 		return false;
 
 	// Calculate present location from start and speed:
-	float dt = (usec - free->time) / 1e6f;
+	float dt = now - free->time;
 	float lat = free->coords.lat + speed->lat * dt;
 	float lon = free->coords.lat + speed->lon * dt;
 

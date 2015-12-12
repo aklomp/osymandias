@@ -7,32 +7,32 @@
 #define abs(x)	(((x) < 0) ? -(x) : (x))
 
 static void
-mark (const struct world_state *state, int64_t usec, struct mark *mark)
+mark (const struct world_state *state, int64_t now, struct mark *mark)
 {
 	mark->coords = state->center;
-	mark->time = usec;
+	mark->time = now;
 }
 
 void
-autoscroll_measure_down (struct world_state *state, int64_t usec)
+autoscroll_measure_down (struct world_state *state, int64_t now)
 {
-	mark(state, usec, &state->autoscroll.down);
+	mark(state, now, &state->autoscroll.down);
 }
 
 void
-autoscroll_measure_hold (struct world_state *state, int64_t usec)
+autoscroll_measure_hold (struct world_state *state, int64_t now)
 {
-	mark(state, usec, &state->autoscroll.hold);
+	mark(state, now, &state->autoscroll.hold);
 }
 
 void
-autoscroll_measure_free (struct world_state *state, int64_t usec)
+autoscroll_measure_free (struct world_state *state, int64_t now)
 {
 	const struct mark *down = &state->autoscroll.down;
 	const struct mark *hold = &state->autoscroll.hold;
 	const struct mark *free = &state->autoscroll.free;
 
-	mark(state, usec, &state->autoscroll.free);
+	mark(state, now, &state->autoscroll.free);
 
 	// Check if the user has "moved the hold" sufficiently to start the
 	// autoscroll. Not every click on the map should cause movement. Only
@@ -40,18 +40,18 @@ autoscroll_measure_free (struct world_state *state, int64_t usec)
 
 	float dx = free->coords.tile.x - hold->coords.tile.x;
 	float dy = free->coords.tile.y - hold->coords.tile.y;
-	float dt = (free->time - hold->time) / 1e6f;
+	float dt = free->time - hold->time;
 
 	// If the mouse has been stationary for a little while, and the last
 	// mouse movement was insignificant, don't start:
-	if (dt > 0.1f && abs(dx) < 12.0f && abs(dy) < 12.0f)
+	if (dt > 1e5f && abs(dx) < 12.0f && abs(dy) < 12.0f)
 		return;
 
 	// Speed and direction of autoscroll is measured between "down" point
 	// and "up" point:
 	dx = free->coords.tile.x - down->coords.tile.x;
 	dy = free->coords.tile.y - down->coords.tile.y;
-	dt = (free->time - down->time) / 1e6f;
+	dt = free->time - down->time;
 
 	// The 2.0 coefficient is "friction":
 	state->autoscroll.speed.tile.x = dx / dt / 2.0f;

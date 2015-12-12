@@ -26,6 +26,9 @@ static int click_halted_autoscroll = 0;
 		y = allocation.height - event->y;			\
 	} while (0)
 
+// Event timestamp in usec:
+#define evtime	((int64_t)event->time * 1000)
+
 void
 on_button_press (GtkWidget *widget, GdkEventButton *event)
 {
@@ -42,7 +45,7 @@ on_button_press (GtkWidget *widget, GdkEventButton *event)
 
 	// Does the press of this button cause the autoscroll to halt?
 	click_halted_autoscroll = world_autoscroll_stop();
-	world_autoscroll_measure_down(g_get_monotonic_time());
+	world_autoscroll_measure_down(evtime);
 }
 
 void
@@ -57,7 +60,7 @@ on_button_motion (GtkWidget *widget, GdkEventButton *event)
 
 	// Left mouse button:
 	if (button_num == 1) {
-		world_autoscroll_measure_hold(g_get_monotonic_time());
+		world_autoscroll_measure_hold(evtime);
 		viewport_hold_move(x, y);
 	}
 	// Right mouse button:
@@ -84,7 +87,7 @@ on_button_release (GtkWidget *widget, GdkEventButton *event)
 
 	// We have just released a drag; kickoff the autoscroller:
 	if (button_dragged) {
-		world_autoscroll_measure_free(g_get_monotonic_time());
+		world_autoscroll_measure_free(evtime);
 		return;
 	}
 
