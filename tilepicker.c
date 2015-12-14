@@ -122,12 +122,12 @@ mempool_request_tile (void)
 			mempool_idx = 0;
 			goto out;
 		}
-		// Else, allocate new block, hang in list:
+		// Else, allocate new aligned block, hang in list:
 		struct mempool_block *p;
 
-		if ((p = malloc(sizeof(*p))) == NULL) {
+		if (posix_memalign((void **)&p, 16, sizeof(*p)))
 			return NULL;
-		}
+
 		p->next = NULL;
 
 		// Is this the first block?
