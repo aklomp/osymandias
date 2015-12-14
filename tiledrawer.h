@@ -2,14 +2,17 @@
 #define TILEDRAWER_H
 
 struct tiledrawer {
+	struct vector *coords;
+	struct vector *normal;
 	float x;
 	float y;
 	float wd;
 	float ht;
+	struct {
+		unsigned int world;
+		unsigned int found;
+	} zoom;
 	GLuint texture_id;
-	struct quadtree_req *req;
-	struct vector *coords;
-	struct vector *normal;
 };
 
 void tiledrawer (const struct tiledrawer *);

@@ -151,14 +151,17 @@ paint (void)
 				if (colorize_cache) glColor3f(0.3, 1.0, 0.3);
 
 				tiledrawer(&((struct tiledrawer) {
+					.coords = coords,
+					.normal = normal,
 					.x = x,
 					.y = y,
 					.wd = tile_wd,
 					.ht = tile_ht,
+					.zoom = {
+						.world = world_zoom,
+						.found = req.found_zoom,
+					},
 					.texture_id = (GLuint)(ptrdiff_t)req.found_data,
-					.req = &req,
-					.coords = coords,
-					.normal = normal,
 				}));
 
 				if (colorize_cache) glColor3f(1.0, 1.0, 1.0);
@@ -175,14 +178,17 @@ paint (void)
 				if (colorize_cache) glColor3f(0.3, 1.0, 0.3);
 
 				tiledrawer(&((struct tiledrawer) {
+					.coords = coords,
+					.normal = normal,
 					.x = x,
 					.y = y,
 					.wd = tile_wd,
 					.ht = tile_ht,
+					.zoom = {
+						.world = world_zoom,
+						.found = req_tex.found_zoom,
+					},
 					.texture_id = (GLuint)(ptrdiff_t)req_tex.found_data,
-					.req = &req_tex,
-					.coords = coords,
-					.normal = normal,
 				}));
 
 				if (colorize_cache) glColor3f(1.0, 1.0, 1.0);
@@ -192,14 +198,17 @@ paint (void)
 			if (colorize_cache) glColor3f(0.8, 0.0, 0.0);
 
 			tiledrawer(&((struct tiledrawer) {
+				.coords = coords,
+				.normal = normal,
 				.x = x,
 				.y = y,
 				.wd = tile_wd,
 				.ht = tile_ht,
+				.zoom = {
+					.world = world_zoom,
+					.found = req.found_zoom,
+				},
 				.texture_id = id,
-				.req = &req,
-				.coords = coords,
-				.normal = normal,
 			}));
 
 			if (colorize_cache) glColor3f(1.0, 1.0, 1.0);

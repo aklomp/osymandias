@@ -3,7 +3,6 @@
 
 #include <GL/gl.h>
 
-#include "quadtree.h"
 #include "worlds.h"
 #include "tiledrawer.h"
 #include "vector.h"
@@ -22,7 +21,7 @@ tiledrawer (const struct tiledrawer *tile)
 {
 	struct texture tex;
 
-	unsigned int zoomdiff = tile->req->world_zoom - tile->req->found_zoom;
+	unsigned int zoomdiff = tile->zoom.world - tile->zoom.found;
 
 	// If we couldn't find the texture at the requested resolution and
 	// had to settle for a lower-res one, we need to cut out the proper
