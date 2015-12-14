@@ -1,13 +1,5 @@
-#ifndef TILEDRAWER_H
-#define TILEDRAWER_H
-
 struct tiledrawer {
-	struct vector *coords;
-	struct vector *normal;
-	float x;
-	float y;
-	float wd;
-	float ht;
+	const struct tilepicker *pick;
 	struct {
 		unsigned int world;
 		unsigned int found;
@@ -16,5 +8,3 @@ struct tiledrawer {
 };
 
 void tiledrawer (const struct tiledrawer *);
-
-#endif	/* TILEDRAWER_H */

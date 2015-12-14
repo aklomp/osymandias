@@ -106,10 +106,7 @@ occludes (void)
 static void
 paint (void)
 {
-	float x, y, tile_wd, tile_ht;
-	int zoom;
-	struct vector coords[4];
-	struct vector normal[4];
+	struct tilepicker tile;
 	struct quadtree_req req;
 	struct quadtree_req req_tex;
 	int world_zoom = world_get_zoom();
@@ -127,17 +124,17 @@ paint (void)
 	// The texture colors are multiplied with this value:
 	glColor3f(1.0, 1.0, 1.0);
 
-	for (int iter = tilepicker_first(&x, &y, &tile_wd, &tile_ht, &zoom, coords, normal); iter; iter = tilepicker_next(&x, &y, &tile_wd, &tile_ht, &zoom, coords, normal))
-	{
+	for (bool iter = tilepicker_first(&tile); iter; iter = tilepicker_next(&tile)) {
+
 		// If showing the zoom colors overlay, pick proper mixin color:
-		if (overlay_zoom) {
-			set_zoom_color(zoom);
-		}
+		if (overlay_zoom)
+			set_zoom_color(tile.zoom);
+
 		// The tilepicker can tell us to draw a tile at a different zoom level to the world zoom;
 		// we need to correct the geometry to reflect that:
-		req.x = ldexpf(x, -(world_zoom - zoom));
-		req.y = ldexpf(y, -(world_zoom - zoom));
-		req.zoom = zoom;
+		req.x = ldexpf(tile.pos.x, -(world_zoom - tile.zoom));
+		req.y = ldexpf(tile.pos.y, -(world_zoom - tile.zoom));
+		req.zoom = tile.zoom;
 		req.world_zoom = world_zoom;
 		req.center = center;
 
@@ -147,16 +144,11 @@ paint (void)
 		if (quadtree_request(textures, &req)) {
 			// If the texture is already cached at native resolution,
 			// then we're done; else still try to get the native bitmap:
-			if (req.found_zoom == zoom) {
+			if (req.found_zoom == tile.zoom) {
 				if (colorize_cache) glColor3f(0.3, 1.0, 0.3);
 
 				tiledrawer(&((struct tiledrawer) {
-					.coords = coords,
-					.normal = normal,
-					.x = x,
-					.y = y,
-					.wd = tile_wd,
-					.ht = tile_ht,
+					.pick = &tile,
 					.zoom = {
 						.world = world_zoom,
 						.found = req.found_zoom,
@@ -178,12 +170,7 @@ paint (void)
 				if (colorize_cache) glColor3f(0.3, 1.0, 0.3);
 
 				tiledrawer(&((struct tiledrawer) {
-					.coords = coords,
-					.normal = normal,
-					.x = x,
-					.y = y,
-					.wd = tile_wd,
-					.ht = tile_ht,
+					.pick = &tile,
 					.zoom = {
 						.world = world_zoom,
 						.found = req_tex.found_zoom,
@@ -198,12 +185,7 @@ paint (void)
 			if (colorize_cache) glColor3f(0.8, 0.0, 0.0);
 
 			tiledrawer(&((struct tiledrawer) {
-				.coords = coords,
-				.normal = normal,
-				.x = x,
-				.y = y,
-				.wd = tile_wd,
-				.ht = tile_ht,
+				.pick = &tile,
 				.zoom = {
 					.world = world_zoom,
 					.found = req.found_zoom,
@@ -217,9 +199,9 @@ paint (void)
 			req.x = req.found_x;
 			req.y = req.found_y;
 
-			if (!quadtree_data_insert(textures, &req, (void *)(ptrdiff_t)id)) {
+			if (!quadtree_data_insert(textures, &req, (void *)(ptrdiff_t)id))
 				texture_destroy((void *)(ptrdiff_t)id);
-			}
+
 			continue;
 		}
 	}

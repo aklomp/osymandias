@@ -104,11 +104,6 @@ paint_tiles (void)
 	static float white[4] =
 		{ 1.0f, 1.0f, 1.0f, 0.5f };
 
-	int zoom;
-	float x, y, tile_wd, tile_ht;
-	struct vector coords[4];
-	struct vector normal[4];
-
 	// Draw 50 tiles (200 vertices) at a time:
 	struct tile {
 		struct vertex vertex[4];
@@ -140,7 +135,8 @@ paint_tiles (void)
 	double world_size = world_get_size();
 
 	// First draw tiles with solid background:
-	bool iter = tilepicker_first(&x, &y, &tile_wd, &tile_ht, &zoom, coords, normal);
+	struct tilepicker tptile;
+	bool iter = tilepicker_first(&tptile);
 
 	while (iter)
 	{
@@ -150,27 +146,27 @@ paint_tiles (void)
 		for (t = 0; iter && t < 50; t++)
 		{
 			// Bottom left:
-			tile[t].vertex[0].coords.x = x;
-			tile[t].vertex[0].coords.y = world_size - y;
+			tile[t].vertex[0].coords.x = tptile.pos.x;
+			tile[t].vertex[0].coords.y = world_size - tptile.pos.y;
 
 			// Bottom right:
-			tile[t].vertex[1].coords.x = x + tile_wd;
-			tile[t].vertex[1].coords.y = world_size - y;
+			tile[t].vertex[1].coords.x = tptile.pos.x + tptile.size.wd;
+			tile[t].vertex[1].coords.y = world_size - tptile.pos.y;
 
 			// Top right:
-			tile[t].vertex[2].coords.x = x + tile_wd;
-			tile[t].vertex[2].coords.y = world_size - y - tile_ht;
+			tile[t].vertex[2].coords.x = tptile.pos.x + tptile.size.wd;
+			tile[t].vertex[2].coords.y = world_size - tptile.pos.y - tptile.size.ht;
 
 			// Top left:
-			tile[t].vertex[3].coords.x = x;
-			tile[t].vertex[3].coords.y = world_size - y - tile_ht;
+			tile[t].vertex[3].coords.x = tptile.pos.x;
+			tile[t].vertex[3].coords.y = world_size - tptile.pos.y - tptile.size.ht;
 
 			// Solid fill color:
-			float *color = zoomcolors[zoom % 3];
+			float *color = zoomcolors[tptile.zoom % 3];
 			for (int i = 0; i < 4; i++)
 				memcpy(&tile[t].vertex[i].color, color, sizeof(tile[t].vertex[i].color));
 
-			iter = tilepicker_next(&x, &y, &tile_wd, &tile_ht, &zoom, coords, normal);
+			iter = tilepicker_next(&tptile);
 		}
 
 		// Upload vertex data:

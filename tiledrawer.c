@@ -4,8 +4,9 @@
 #include <GL/gl.h>
 
 #include "worlds.h"
-#include "tiledrawer.h"
 #include "vector.h"
+#include "tilepicker.h"
+#include "tiledrawer.h"
 
 struct texture {
 	float wd;
@@ -17,25 +18,26 @@ struct texture {
 };
 
 void
-tiledrawer (const struct tiledrawer *tile)
+tiledrawer (const struct tiledrawer *td)
 {
 	struct texture tex;
+	const struct tilepicker *tile = td->pick;
 
-	unsigned int zoomdiff = tile->zoom.world - tile->zoom.found;
+	unsigned int zoomdiff = td->zoom.world - td->zoom.found;
 
 	// If we couldn't find the texture at the requested resolution and
 	// had to settle for a lower-res one, we need to cut out the proper
 	// sub-block from the texture. Calculate coords of the block we need:
 
 	// This is the nth block out of parent, counting from top left:
-	float xblock = fmodf(tile->x, (1 << zoomdiff));
-	float yblock = fmodf(tile->y, (1 << zoomdiff));
+	float xblock = fmodf(tile->pos.x, (1 << zoomdiff));
+	float yblock = fmodf(tile->pos.y, (1 << zoomdiff));
 
 	// Multiplication before division, avoid clipping:
 	tex.offset.x = ldexpf(xblock, 8 - zoomdiff);
 	tex.offset.y = ldexpf(yblock, 8 - zoomdiff);
-	tex.wd = ldexpf(tile->wd, 8 - zoomdiff);
-	tex.ht = ldexpf(tile->ht, 8 - zoomdiff);
+	tex.wd = ldexpf(tile->size.wd, 8 - zoomdiff);
+	tex.ht = ldexpf(tile->size.ht, 8 - zoomdiff);
 
 	float txoffs = ldexpf(tex.offset.x, -8);
 	float tyoffs = ldexpf(tex.offset.y, -8);
@@ -54,7 +56,7 @@ tiledrawer (const struct tiledrawer *tile)
 	};
 
 	// Bind texture:
-	glBindTexture(GL_TEXTURE_2D, tile->texture_id);
+	glBindTexture(GL_TEXTURE_2D, td->texture_id);
 
 	// Submit normal, texture and space coords for vertex:
 	glBegin(GL_QUADS);

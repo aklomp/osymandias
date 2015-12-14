@@ -10,6 +10,7 @@
 #include "vector2d.h"
 #include "camera.h"
 #include "tile2d.h"
+#include "tilepicker.h"
 
 #define MEMPOOL_BLOCK_SIZE 100
 
@@ -607,35 +608,35 @@ reset:	for (tile1 = drawlist; tile1 != NULL; tile1 = tile1->next)
 }
 
 bool
-tilepicker_next (float *x, float *y, float *wd, float *ht, int *zoom, struct vector coords[4], struct vector normal[4])
+tilepicker_next (struct tilepicker *tile)
 {
 	// Returns true or false depending on whether a tile is available and
 	// returned in the pointer arguments.
-	if (drawlist_iter == NULL) {
+	if (drawlist_iter == NULL)
 		return false;
-	}
-	*x = drawlist_iter->x;
-	*y = drawlist_iter->y;
-	*wd = drawlist_iter->wd;
-	*ht = drawlist_iter->ht;
-	*zoom = drawlist_iter->zoom;
 
 	for (int i = 0; i < 4; i++) {
-		memcpy(&coords[i], &drawlist_iter->vertex[i].coords, sizeof(struct vector));
-		memcpy(&normal[i], &drawlist_iter->vertex[i].normal, sizeof(struct vector));
+		memcpy(&tile->coords[i], &drawlist_iter->vertex[i].coords, sizeof(struct vector));
+		memcpy(&tile->normal[i], &drawlist_iter->vertex[i].normal, sizeof(struct vector));
 	}
+
+	tile->pos.x	= drawlist_iter->x;
+	tile->pos.y	= drawlist_iter->y;
+	tile->size.wd	= drawlist_iter->wd;
+	tile->size.ht	= drawlist_iter->ht;
+	tile->zoom	= drawlist_iter->zoom;
 
 	drawlist_iter = drawlist_iter->next;
 	return true;
 }
 
 bool
-tilepicker_first (float *x, float *y, float *wd, float *ht, int *zoom, struct vector coords[4], struct vector normal[4])
+tilepicker_first (struct tilepicker *tile)
 {
 	// Reset iterator:
 	drawlist_iter = drawlist;
 
-	return tilepicker_next(x, y, wd, ht, zoom, coords, normal);
+	return tilepicker_next(tile);
 }
 
 void
