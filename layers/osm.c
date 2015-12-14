@@ -104,11 +104,47 @@ occludes (void)
 }
 
 static void
+tile_draw (const struct tilepicker *tile, const struct quadtree_req *req, GLuint id)
+{
+	if (colorize_cache)
+		glColor3f(0.3, 1.0, 0.3);
+
+	tiledrawer(&((struct tiledrawer) {
+		.pick = tile,
+		.zoom = {
+			.world = req->world_zoom,
+			.found = req->found_zoom,
+		},
+		.texture_id = id,
+	}));
+
+	if (colorize_cache)
+		glColor3f(1.0, 1.0, 1.0);
+}
+
+// Check if the requested tile is already cached as a texture inside OpenGL.
+// Return true if we drew the tile from the OpenGL cache, false if not.
+static bool
+texture_request (const struct tilepicker *tile, struct quadtree_req *req)
+{
+	// Return false if no matching texture was found:
+	if (!quadtree_request(textures, req))
+		return false;
+
+	// Also return if the matching texture does not have native resolution;
+	// we'll try to find a better fitting cached bitmap first:
+	if (req->found_zoom != req->world_zoom)
+		return false;
+
+	// The texture has native resolution, draw it and return successfully:
+	tile_draw(tile, req, (GLuint)(ptrdiff_t)req->found_data);
+	return true;
+}
+
+static void
 paint (void)
 {
 	struct tilepicker tile;
-	struct quadtree_req req;
-	struct quadtree_req req_tex;
 	int world_zoom = world_get_zoom();
 	const struct coords *center = world_get_center();
 
@@ -132,79 +168,52 @@ paint (void)
 
 		// The tilepicker can tell us to draw a tile at a different zoom level to the world zoom;
 		// we need to correct the geometry to reflect that:
-		req.x = ldexpf(tile.pos.x, -(world_zoom - tile.zoom));
-		req.y = ldexpf(tile.pos.y, -(world_zoom - tile.zoom));
-		req.zoom = tile.zoom;
-		req.world_zoom = world_zoom;
-		req.center = center;
+		struct quadtree_req req = {
+			.x          = ldexpf(tile.pos.x, -(world_zoom - tile.zoom)),
+			.y          = ldexpf(tile.pos.y, -(world_zoom - tile.zoom)),
+			.zoom       = tile.zoom,
+			.world_zoom = world_zoom,
+			.center     = center,
+			.found_data = NULL,
+		};
 
-		req_tex.found_data = NULL;
+		struct quadtree_req req_tex = req;	// OpenGL texture
+		struct quadtree_req req_bmp = req;	// Cached bitmap
 
-		// Is the texture already cached in OpenGL?
-		if (quadtree_request(textures, &req)) {
-			// If the texture is already cached at native resolution,
-			// then we're done; else still try to get the native bitmap:
-			if (req.found_zoom == tile.zoom) {
-				if (colorize_cache) glColor3f(0.3, 1.0, 0.3);
-
-				tiledrawer(&((struct tiledrawer) {
-					.pick = &tile,
-					.zoom = {
-						.world = world_zoom,
-						.found = req.found_zoom,
-					},
-					.texture_id = (GLuint)(ptrdiff_t)req.found_data,
-				}));
-
-				if (colorize_cache) glColor3f(1.0, 1.0, 1.0);
-				continue;
-			}
-			// Save found texture:
-			memcpy(&req_tex, &req, sizeof(req));
-		}
-		// Try to load the bitmap and turn it into an OpenGL texture:
-		if (bitmap_request(&req)) {
-			// If we found a texture, and it's better or equal than
-			// the bitmap we came back with, use that instead:
-			if (req_tex.found_data != NULL && req_tex.found_zoom >= req.found_zoom) {
-				if (colorize_cache) glColor3f(0.3, 1.0, 0.3);
-
-				tiledrawer(&((struct tiledrawer) {
-					.pick = &tile,
-					.zoom = {
-						.world = world_zoom,
-						.found = req_tex.found_zoom,
-					},
-					.texture_id = (GLuint)(ptrdiff_t)req_tex.found_data,
-				}));
-
-				if (colorize_cache) glColor3f(1.0, 1.0, 1.0);
-				continue;
-			}
-			GLuint id = texture_from_rawbits(req.found_data);
-			if (colorize_cache) glColor3f(0.8, 0.0, 0.0);
-
-			tiledrawer(&((struct tiledrawer) {
-				.pick = &tile,
-				.zoom = {
-					.world = world_zoom,
-					.found = req.found_zoom,
-				},
-				.texture_id = id,
-			}));
-
-			if (colorize_cache) glColor3f(1.0, 1.0, 1.0);
-
-			req.zoom = req.found_zoom;
-			req.x = req.found_x;
-			req.y = req.found_y;
-
-			if (!quadtree_data_insert(textures, &req, (void *)(ptrdiff_t)id))
-				texture_destroy((void *)(ptrdiff_t)id);
-
+		// See if the exact matching texture is already cached in OpenGL:
+		if (texture_request(&tile, &req_tex))
 			continue;
-		}
+
+		// Otherwise see if we can find a cached bitmap:
+		bitmap_request(&req_bmp);
+
+		// If we found a cached texture and no bitmap, or a bitmap of
+		// lower zoom level, use the cached texture:
+		if (req_tex.found_data)
+			if (!req_bmp.found_data || req_tex.found_zoom >= req_bmp.found_zoom) {
+				tile_draw(&tile, &req_tex, (GLuint)(ptrdiff_t)req_tex.found_data);
+				continue;
+			}
+
+		// If we didn't find a bitmap, give up:
+		if (!req_bmp.found_data)
+			continue;
+
+		// Else turn the bitmap into an OpenGL texture:
+		GLuint id = texture_from_rawbits(req_bmp.found_data);
+
+		// Draw it:
+		tile_draw(&tile, &req_bmp, id);
+
+		// Insert into the texture cache:
+		req.zoom = req_bmp.found_zoom;
+		req.x = req_bmp.found_x;
+		req.y = req_bmp.found_y;
+
+		if (!quadtree_data_insert(textures, &req, (void *)(ptrdiff_t)id))
+			texture_destroy((void *)(ptrdiff_t)id);
 	}
+
 	glDisable(GL_BLEND);
 	glDisable(GL_TEXTURE_2D);
 	program_none();
