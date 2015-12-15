@@ -15,8 +15,14 @@
 #include "../inlinebin.h"
 #include "../programs.h"
 
+// Cache sources for the drawn tile:
+enum cache_source {
+	CACHED_TEXTURE,
+	CACHED_BITMAP,
+};
+
 static int overlay_zoom = 0;
-static int colorize_cache = 0;
+static bool cache_source_show = false;
 static struct quadtree *textures = NULL;
 
 static bool
@@ -104,11 +110,21 @@ occludes (void)
 }
 
 static void
-tile_draw (const struct tilepicker *tile, const struct quadtree_req *req, GLuint id)
+tile_draw (const struct tilepicker *tile, const struct quadtree_req *req, GLuint id, enum cache_source source)
 {
-	if (colorize_cache)
-		glColor3f(0.3, 1.0, 0.3);
+	// Overlay a color mask to highlight texture's source:
+	if (cache_source_show)
+		switch (source) {
+		case CACHED_TEXTURE:
+			glColor3f(0.3, 1.0, 0.3);
+			break;
 
+		case CACHED_BITMAP:
+			glColor3f(0.3, 0.3, 1.0);
+			break;
+		};
+
+	// Draw tile:
 	tiledrawer(&((struct tiledrawer) {
 		.pick = tile,
 		.zoom = {
@@ -118,7 +134,8 @@ tile_draw (const struct tilepicker *tile, const struct quadtree_req *req, GLuint
 		.texture_id = id,
 	}));
 
-	if (colorize_cache)
+	// Undo color mask:
+	if (cache_source_show)
 		glColor3f(1.0, 1.0, 1.0);
 }
 
@@ -137,7 +154,7 @@ texture_request (const struct tilepicker *tile, struct quadtree_req *req)
 		return false;
 
 	// The texture has native resolution, draw it and return successfully:
-	tile_draw(tile, req, (GLuint)(ptrdiff_t)req->found_data);
+	tile_draw(tile, req, (GLuint)req->found_data, CACHED_TEXTURE);
 	return true;
 }
 
@@ -192,7 +209,7 @@ paint (void)
 		// lower zoom level, use the cached texture:
 		if (req_tex.found_data)
 			if (!req_bmp.found_data || req_tex.found_zoom >= req_bmp.found_zoom) {
-				tile_draw(&tile, &req_tex, (GLuint)(ptrdiff_t)req_tex.found_data);
+				tile_draw(&tile, &req_tex, (GLuint)req_tex.found_data, CACHED_TEXTURE);
 				continue;
 			}
 
@@ -204,7 +221,7 @@ paint (void)
 		GLuint id = texture_from_rawbits(req_bmp.found_data);
 
 		// Draw it:
-		tile_draw(&tile, &req_bmp, id);
+		tile_draw(&tile, &req_bmp, id, CACHED_BITMAP);
 
 		// Insert into the texture cache:
 		req.zoom = req_bmp.found_zoom;
