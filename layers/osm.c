@@ -166,11 +166,12 @@ paint (void)
 		if (overlay_zoom)
 			set_zoom_color(tile.zoom);
 
-		// The tilepicker can tell us to draw a tile at a different zoom level to the world zoom;
-		// we need to correct the geometry to reflect that:
+		// The tilepicker can tell us to draw a tile at a lower zoom
+		// level than the world zoom; scale the tile's coordinates to
+		// its native zoom level:
 		struct quadtree_req req = {
-			.x          = ldexpf(tile.pos.x, -(world_zoom - tile.zoom)),
-			.y          = ldexpf(tile.pos.y, -(world_zoom - tile.zoom)),
+			.x          = ldexpf(tile.pos.x, (int)tile.zoom - world_zoom),
+			.y          = ldexpf(tile.pos.y, (int)tile.zoom - world_zoom),
 			.zoom       = tile.zoom,
 			.world_zoom = world_zoom,
 			.center     = center,
