@@ -5,8 +5,8 @@
 #include "inlinebin.h"
 
 #define DATA_DEF(name)							\
-	extern uint8_t _binary_## name ##_start[];			\
-	extern uint8_t _binary_## name ##_end[];
+	extern const uint8_t _binary_## name ##_start[];			\
+	extern const uint8_t _binary_## name ##_end[];
 
 #define DATA_ELEM(name)							\
 	{ .buf = _binary_## name ##_start				\
