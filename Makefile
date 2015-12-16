@@ -1,11 +1,11 @@
 CFLAGS += -std=c99 -D_GNU_SOURCE -O3 -msse3 -ffast-math -Wall -Wextra -pedantic -g
 LDFLAGS += -lm -lpng -lpthread
 
-GTK_CFLAGS = `pkg-config --cflags gtk+-2.0 glib-2.0`
-GTK_LDFLAGS = `pkg-config --libs gtk+-2.0 glib-2.0`
+GTK_CFLAGS  := $(shell pkg-config --cflags gtk+-2.0 glib-2.0)
+GTK_LDFLAGS := $(shell pkg-config --libs   gtk+-2.0 glib-2.0)
 
-GTKGL_CFLAGS = `pkg-config --cflags gtkglext-1.0 gdkglext-1.0` -DGL_GLEXT_PROTOTYPES
-GTKGL_LDFLAGS = `pkg-config --libs gtkglext-1.0 gdkglext-1.0`
+GTKGL_CFLAGS  := $(shell pkg-config --cflags gtkglext-1.0 gdkglext-1.0) -DGL_GLEXT_PROTOTYPES
+GTKGL_LDFLAGS := $(shell pkg-config --libs   gtkglext-1.0 gdkglext-1.0)
 
 PROG = osymandias
 
