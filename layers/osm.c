@@ -21,9 +21,13 @@ enum cache_source {
 	CACHED_BITMAP,
 };
 
-static int overlay_zoom = 0;
-static bool cache_source_show = false;
-static struct quadtree *textures = NULL;
+// Local state:
+static struct {
+	bool overlay_zoom;
+	bool cache_source_show;
+	struct quadtree *textures;
+}
+state;
 
 static bool
 have_anisotropic (void)
@@ -92,14 +96,14 @@ init (void)
 		return false;
 
 	// OpenGL texture cache:
-	textures = quadtree_create(50, NULL, &texture_destroy);
+	state.textures = quadtree_create(50, NULL, &texture_destroy);
 	return true;
 }
 
 static void
 destroy (void)
 {
-	quadtree_destroy(&textures);
+	quadtree_destroy(&state.textures);
 	bitmap_mgr_destroy();
 }
 
@@ -113,7 +117,7 @@ static void
 tile_draw (const struct tilepicker *tile, const struct quadtree_req *req, GLuint id, enum cache_source source)
 {
 	// Overlay a color mask to highlight texture's source:
-	if (cache_source_show)
+	if (state.cache_source_show)
 		switch (source) {
 		case CACHED_TEXTURE:
 			glColor3f(0.3, 1.0, 0.3);
@@ -135,7 +139,7 @@ tile_draw (const struct tilepicker *tile, const struct quadtree_req *req, GLuint
 	}));
 
 	// Undo color mask:
-	if (cache_source_show)
+	if (state.cache_source_show)
 		glColor3f(1.0, 1.0, 1.0);
 }
 
@@ -145,7 +149,7 @@ static bool
 texture_request (const struct tilepicker *tile, struct quadtree_req *req)
 {
 	// Return false if no matching texture was found:
-	if (!quadtree_request(textures, req))
+	if (!quadtree_request(state.textures, req))
 		return false;
 
 	// Also return if the matching texture does not have native resolution;
@@ -180,7 +184,7 @@ paint (void)
 	for (bool iter = tilepicker_first(&tile); iter; iter = tilepicker_next(&tile)) {
 
 		// If showing the zoom colors overlay, pick proper mixin color:
-		if (overlay_zoom)
+		if (state.overlay_zoom)
 			set_zoom_color(tile.zoom);
 
 		// The tilepicker can tell us to draw a tile at a lower zoom
@@ -228,7 +232,7 @@ paint (void)
 		req.x = req_bmp.found_x;
 		req.y = req_bmp.found_y;
 
-		if (!quadtree_data_insert(textures, &req, (void *)(ptrdiff_t)id))
+		if (!quadtree_data_insert(state.textures, &req, (void *)(ptrdiff_t)id))
 			texture_destroy((void *)(ptrdiff_t)id);
 	}
 
