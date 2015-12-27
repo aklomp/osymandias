@@ -5,11 +5,16 @@
 #include "../programs.h"
 #include "bkgd.h"
 
+enum	{ VERTEX
+	, TEXTURE
+	, TEX
+	} ;
+
 static struct input inputs[] =
-	{ { .name = "vertex",  .type = TYPE_ATTRIBUTE }
-	, { .name = "texture", .type = TYPE_ATTRIBUTE }
-	, { .name = "tex",     .type = TYPE_UNIFORM }
-	, { .name = NULL }
+	{ [VERTEX]	= { .name = "vertex",  .type = TYPE_ATTRIBUTE }
+	, [TEXTURE]	= { .name = "texture", .type = TYPE_ATTRIBUTE }
+	, [TEX]		= { .name = "tex",     .type = TYPE_UNIFORM }
+	,		  { .name = NULL }
 	} ;
 
 static struct program program =
@@ -28,18 +33,18 @@ program_bkgd (void)
 GLint
 program_bkgd_loc_vertex (void)
 {
-	return inputs[0].loc;
+	return inputs[VERTEX].loc;
 }
 
 GLint
 program_bkgd_loc_texture (void)
 {
-	return inputs[1].loc;
+	return inputs[TEXTURE].loc;
 }
 
 void
 program_bkgd_use (struct program_bkgd *values)
 {
 	glUseProgram(program.id);
-	glUniform1i(inputs[2].loc, values->tex);
+	glUniform1i(inputs[TEX].loc, values->tex);
 }

@@ -5,11 +5,16 @@
 #include "../programs.h"
 #include "cursor.h"
 
+enum	{ MAT_PROJ
+	, MAT_VIEW
+	, VERTEX
+	} ;
+
 static struct input inputs[] =
-	{ { .name = "mat_proj", .type = TYPE_UNIFORM }
-	, { .name = "mat_view", .type = TYPE_UNIFORM }
-	, { .name = "vertex",   .type = TYPE_ATTRIBUTE }
-	, { .name = NULL }
+	{ [MAT_PROJ]	= { .name = "mat_proj", .type = TYPE_UNIFORM }
+	, [MAT_VIEW]	= { .name = "mat_view", .type = TYPE_UNIFORM }
+	, [VERTEX]	= { .name = "vertex",   .type = TYPE_ATTRIBUTE }
+	,		  { .name = NULL }
 	} ;
 
 static struct program program =
@@ -28,13 +33,13 @@ program_cursor (void)
 GLint
 program_cursor_loc_vertex (void)
 {
-	return inputs[2].loc;
+	return inputs[VERTEX].loc;
 }
 
 void
 program_cursor_use (struct program_cursor *values)
 {
 	glUseProgram(program.id);
-	glUniformMatrix4fv(inputs[0].loc, 1, GL_FALSE, values->mat_proj);
-	glUniformMatrix4fv(inputs[1].loc, 1, GL_FALSE, values->mat_view);
+	glUniformMatrix4fv(inputs[MAT_PROJ].loc, 1, GL_FALSE, values->mat_proj);
+	glUniformMatrix4fv(inputs[MAT_VIEW].loc, 1, GL_FALSE, values->mat_view);
 }

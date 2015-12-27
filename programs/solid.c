@@ -5,11 +5,16 @@
 #include "../programs.h"
 #include "solid.h"
 
+enum	{ MATRIX
+	, COLOR
+	, VERTEX
+	} ;
+
 static struct input inputs[] =
-	{ { .name = "matrix", .type = TYPE_UNIFORM }
-	, { .name = "color",  .type = TYPE_ATTRIBUTE }
-	, { .name = "vertex", .type = TYPE_ATTRIBUTE }
-	, { .name = NULL }
+	{ [MATRIX]	= { .name = "matrix", .type = TYPE_UNIFORM }
+	, [COLOR]	= { .name = "color",  .type = TYPE_ATTRIBUTE }
+	, [VERTEX]	= { .name = "vertex", .type = TYPE_ATTRIBUTE }
+	,		  { .name = NULL }
 	} ;
 
 static struct program program =
@@ -28,18 +33,18 @@ program_solid (void)
 GLint
 program_solid_loc_color (void)
 {
-	return inputs[1].loc;
+	return inputs[COLOR].loc;
 }
 
 GLint
 program_solid_loc_vertex (void)
 {
-	return inputs[2].loc;
+	return inputs[VERTEX].loc;
 }
 
 void
 program_solid_use (struct program_solid *values)
 {
 	glUseProgram(program.id);
-	glUniformMatrix4fv(inputs[0].loc, 1, GL_FALSE, values->matrix);
+	glUniformMatrix4fv(inputs[MATRIX].loc, 1, GL_FALSE, values->matrix);
 }
