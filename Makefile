@@ -38,7 +38,7 @@ OBJS_GTK_GTKGL = \
   viewport.o \
 
 OBJS_BIN = \
-  $(patsubst %.glsl,%.o,$(wildcard shaders/*.glsl))
+  $(patsubst %.glsl,%.o,$(wildcard shaders/*/*.glsl))
 
 all: $(PROG)
 
