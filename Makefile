@@ -10,6 +10,7 @@ GTKGL_LDFLAGS := $(shell pkg-config --libs   gtkglext-1.0 gdkglext-1.0)
 PROG = osymandias
 
 OBJS = \
+  main.o \
   camera.o \
   matrix.o \
   layers.o \
@@ -34,7 +35,7 @@ OBJS_GTKGL = \
   $(patsubst %.c,%.o,$(wildcard programs/*.c))
 
 OBJS_GTK_GTKGL = \
-  main.o \
+  gui.o \
   viewport.o \
 
 OBJS_BIN = \
