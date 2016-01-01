@@ -67,7 +67,7 @@ viewport_destroy (void)
 }
 
 void
-viewport_zoom_in (const int screen_x, const int screen_y)
+viewport_zoom_in (const struct screen_pos *pos)
 {
 	if (!world_zoom_in())
 		return;
@@ -76,14 +76,14 @@ viewport_zoom_in (const int screen_x, const int screen_y)
 
 	// Keep same point under mouse cursor:
 	if (world_get() == WORLD_PLANAR) {
-		int dx = screen_x - screen.width / 2;
-		int dy = screen_y - screen.height / 2;
+		int dx = pos->x - screen.width / 2;
+		int dy = pos->y - screen.height / 2;
 		viewport_scroll(dx, dy);
 	}
 }
 
 void
-viewport_zoom_out (const int screen_x, const int screen_y)
+viewport_zoom_out (const struct screen_pos *pos)
 {
 	if (!world_zoom_out())
 		return;
@@ -92,14 +92,14 @@ viewport_zoom_out (const int screen_x, const int screen_y)
 
 	// Keep same point under mouse cursor:
 	if (world_get() == WORLD_PLANAR) {
-		int dx = screen_x - screen.width / 2;
-		int dy = screen_y - screen.height / 2;
+		int dx = pos->x - screen.width / 2;
+		int dy = pos->y - screen.height / 2;
 		viewport_scroll(-dx / 2, -dy / 2);
 	}
 }
 
 static void
-screen_to_world (double sx, double sy, double *wx, double *wy)
+screen_to_world (const struct screen_pos *pos, double *wx, double *wy)
 {
 	const struct coords *center = world_get_center();
 	float center_x = center->tile.x;
@@ -109,8 +109,8 @@ screen_to_world (double sx, double sy, double *wx, double *wy)
 	// calculations; this also lets us "bootstrap" the world before
 	// the first OpenGL projection:
 	if (!camera_is_tilted() && !camera_is_rotated()) {
-		*wx = center_x + (sx - (double)screen.width / 2.0) / 256.0;
-		*wy = center_y + (sy - (double)screen.height / 2.0) / 256.0;
+		*wx = center_x + (pos->x - (double)screen.width / 2.0) / 256.0;
+		*wy = center_y + (pos->y - (double)screen.height / 2.0) / 256.0;
 		return;
 	}
 	GLdouble wax, way, waz;
@@ -118,8 +118,8 @@ screen_to_world (double sx, double sy, double *wx, double *wy)
 	GLint viewport[4] = { 0, 0, screen.width, screen.height };
 
 	// Project two points at different z index to get a vector in world space:
-	gluUnProject(sx, sy, 0.75, modelview, projection, viewport, &wax, &way, &waz);
-	gluUnProject(sx, sy, 1.0, modelview, projection, viewport, &wbx, &wby, &wbz);
+	gluUnProject(pos->x, pos->y, 0.75, modelview, projection, viewport, &wax, &way, &waz);
+	gluUnProject(pos->x, pos->y, 1.0, modelview, projection, viewport, &wbx, &wby, &wbz);
 
 	// Project this vector onto the world plane to get the world coordinates;
 	//
@@ -140,21 +140,21 @@ screen_to_world (double sx, double sy, double *wx, double *wy)
 }
 
 void
-viewport_hold_start (const int screen_x, const int screen_y)
+viewport_hold_start (const struct screen_pos *pos)
 {
 	// Save current world coordinates for later reference:
-	screen_to_world(screen_x, screen_y, &hold_x, &hold_y);
+	screen_to_world(pos, &hold_x, &hold_y);
 }
 
 void
-viewport_hold_move (const int screen_x, const int screen_y)
+viewport_hold_move (const struct screen_pos *pos)
 {
 	// Mouse has moved during a hold; ensure that (hold_x, hold_y)
 	// is under the cursor at the given screen position:
 	double wx, wy;
 
 	// Point currently under mouse:
-	screen_to_world(screen_x, screen_y, &wx, &wy);
+	screen_to_world(pos, &wx, &wy);
 
 	const struct coords *center = world_get_center();
 	float center_x = center->tile.x;
@@ -167,20 +167,24 @@ void
 viewport_scroll (const int dx, const int dy)
 {
 	double world_x, world_y;
+	struct screen_pos pos = {
+		.x = screen.width  / 2 + dx,
+		.y = screen.height / 2 + dy,
+	};
 
 	// Find out which world coordinate will be in the center of the screen
 	// after the offsets have been applied, then set the center to that
 	// value:
-	screen_to_world(screen.width / 2 + dx, screen.height / 2 + dy, &world_x, &world_y);
+	screen_to_world(&pos, &world_x, &world_y);
 	center_set(world_x, world_y);
 }
 
 void
-viewport_center_at (const int screen_x, const int screen_y)
+viewport_center_at (const struct screen_pos *pos)
 {
 	double world_x, world_y;
 
-	screen_to_world(screen_x, screen_y, &world_x, &world_y);
+	screen_to_world(pos, &world_x, &world_y);
 	center_set(world_x, world_y);
 }
 
