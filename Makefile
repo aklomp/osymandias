@@ -1,11 +1,24 @@
 CFLAGS += -std=c99 -D_GNU_SOURCE -O3 -msse3 -ffast-math -Wall -Wextra -pedantic -g
 LDFLAGS += -lm -lpng -lpthread
 
-GTK_CFLAGS  := $(shell pkg-config --cflags gtk+-2.0 glib-2.0)
-GTK_LDFLAGS := $(shell pkg-config --libs   gtk+-2.0 glib-2.0)
+# Compile for GTK+-3 if possible, else fall back to GTK+-2.
+# Need at least GTK+-3.16 for native GtkGLArea:
+GTK3 := $(shell pkg-config --atleast-version=3.16 gtk+-3.0 && echo 1 || echo 0)
 
-GTKGL_CFLAGS  := $(shell pkg-config --cflags gtkglext-1.0 gdkglext-1.0) -DGL_GLEXT_PROTOTYPES
-GTKGL_LDFLAGS := $(shell pkg-config --libs   gtkglext-1.0 gdkglext-1.0)
+ifeq ($(GTK3),1)
+  GTK_CFLAGS  := $(shell pkg-config --cflags gtk+-3.0)
+  GTK_LDFLAGS := $(shell pkg-config --libs   gtk+-3.0)
+
+  GTKGL_LDFLAGS := -lGL -lGLU
+else
+  GTK_CFLAGS  := $(shell pkg-config --cflags gtk+-2.0 glib-2.0)
+  GTK_LDFLAGS := $(shell pkg-config --libs   gtk+-2.0 glib-2.0)
+
+  GTKGL_CFLAGS  := $(shell pkg-config --cflags gtkglext-1.0 gdkglext-1.0) -DGL_GLEXT_PROTOTYPES
+  GTKGL_LDFLAGS := $(shell pkg-config --libs   gtkglext-1.0 gdkglext-1.0)
+
+  OBJS_GTK_GTKGL = gui/gtk2/glarea.o
+endif
 
 PROG = osymandias
 
@@ -26,15 +39,16 @@ OBJS = \
   $(patsubst %.c,%.o,$(wildcard worlds/*.c))
 
 OBJS_GTK = \
-  mouse.o \
   framerate.o \
+  gui/mouse.o \
+  gui/signal.o \
 
 OBJS_GTKGL = \
   programs.o \
   $(patsubst %.c,%.o,$(wildcard layers/*.c)) \
   $(patsubst %.c,%.o,$(wildcard programs/*.c))
 
-OBJS_GTK_GTKGL = \
+OBJS_GTK_GTKGL += \
   gui.o \
   viewport.o \
 

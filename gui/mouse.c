@@ -1,10 +1,11 @@
 #include <stdbool.h>
 #include <gtk/gtk.h>
 
-#include "vector.h"
-#include "camera.h"
-#include "viewport.h"
-#include "worlds.h"
+#include "../vector.h"
+#include "../camera.h"
+#include "../viewport.h"
+#include "../worlds.h"
+#include "signal.h"
 
 static int button_dragged = false;
 static int button_pressed = false;
@@ -28,7 +29,7 @@ static int click_halted_autoscroll = 0;
 // Event timestamp in usec:
 #define evtime	((int64_t)event->time * 1000)
 
-void
+static gboolean
 on_button_press (GtkWidget *widget, GdkEventButton *event)
 {
 	event_get_pos;
@@ -44,9 +45,12 @@ on_button_press (GtkWidget *widget, GdkEventButton *event)
 	// Does the press of this button cause the autoscroll to halt?
 	click_halted_autoscroll = world_autoscroll_stop();
 	world_autoscroll_measure_down(evtime);
+
+	// Don't propagate further:
+	return TRUE;
 }
 
-void
+static gboolean
 on_button_motion (GtkWidget *widget, GdkEventButton *event)
 {
 	event_get_pos;
@@ -72,35 +76,41 @@ on_button_motion (GtkWidget *widget, GdkEventButton *event)
 	}
 	gtk_widget_queue_draw(widget);
 	button_pressed_pos = pos;
+
+	// Don't propagate further:
+	return TRUE;
 }
 
-void
+static gboolean
 on_button_release (GtkWidget *widget, GdkEventButton *event)
 {
 	if (!button_pressed)
-		return;
+		return TRUE;
 
 	button_pressed = false;
 
 	// We have just released a drag; kickoff the autoscroller:
 	if (button_dragged) {
 		world_autoscroll_measure_free(evtime);
-		return;
+		return TRUE;
 	}
 
 	// We have a click, not a drag:
 	if (click_halted_autoscroll)
-		return;
+		return TRUE;
 
 	// Only recenter the viewport if this is the kind
 	// of button press that did not halt the autoscroll:
 	event_get_pos;
 	viewport_center_at(&pos);
 	gtk_widget_queue_draw(widget);
+
+	// Don't propagate further:
+	return TRUE;
 }
 
-void
-on_mouse_scroll (GtkWidget* widget, GdkEventScroll *event)
+static gboolean
+on_scroll (GtkWidget* widget, GdkEventScroll *event)
 {
 	switch (event->direction)
 	{
@@ -119,4 +129,21 @@ on_mouse_scroll (GtkWidget* widget, GdkEventScroll *event)
 	default:
 		break;
 	}
+
+	// Don't propagate further:
+	return TRUE;
+}
+
+// Add mouse signal handlers to given widget (a GL area).
+void
+mouse_signal_connect (GtkWidget *widget)
+{
+	struct signal map[] = {
+		{ "button-press-event",   G_CALLBACK(on_button_press),   GDK_BUTTON_PRESS_MASK   },
+		{ "button-release-event", G_CALLBACK(on_button_release), GDK_BUTTON_RELEASE_MASK },
+		{ "motion-notify-event",  G_CALLBACK(on_button_motion),  GDK_BUTTON_MOTION_MASK  },
+		{ "scroll-event",         G_CALLBACK(on_scroll),         GDK_SCROLL_MASK         },
+	};
+
+	signal_connect(widget, map, sizeof(map) / sizeof(map[0]));
 }
