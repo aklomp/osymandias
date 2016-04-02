@@ -10,6 +10,8 @@ ifeq ($(GTK3),1)
   GTK_LDFLAGS := $(shell pkg-config --libs   gtk+-3.0)
 
   GTKGL_LDFLAGS := -lGL -lGLU
+
+  OBJS_GTK_GTKGL = gui/gtk3/glarea.o
 else
   GTK_CFLAGS  := $(shell pkg-config --cflags gtk+-2.0 glib-2.0)
   GTK_LDFLAGS := $(shell pkg-config --libs   gtk+-2.0 glib-2.0)
