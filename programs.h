@@ -3,7 +3,7 @@
 
 struct shader {
 	enum inlinebin	 src;
-	const void	*buf;
+	const char	*buf;
 	size_t		 len;
 	GLuint		 id;
 };

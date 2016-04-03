@@ -13,6 +13,6 @@ enum inlinebin {
 	SHADER_FRUSTUM_FRAGMENT,
 };
 
-void inlinebin_get (enum inlinebin member, const void **buf, size_t *len);
+void inlinebin_get (enum inlinebin member, const char **buf, size_t *len);
 
 #endif	/* INLINEBIN_H */

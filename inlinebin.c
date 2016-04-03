@@ -1,50 +1,51 @@
-#include <stdbool.h>
-#include <stdint.h>
 #include <stddef.h>
 
 #include "inlinebin.h"
 
 #define DATA_DEF(name)							\
-	extern const uint8_t _binary_## name ##_start[];		\
-	extern const uint8_t _binary_## name ##_end[];
+	extern const char _binary_## name ##_start[];			\
+	extern const char _binary_## name ##_end[];
 
-#define DATA_ELEM(name)							\
-	{ .buf = _binary_## name ##_start				\
-	, .len = _binary_## name ##_end - _binary_## name ##_start	\
-	} ,
+#define DATA_ELEM(id, name)						\
+	[id] = {							\
+		.buf = _binary_## name ##_start,			\
+		.len = _binary_## name ##_end				\
+		     - _binary_## name ##_start,			\
+	},
 
-#define X_MAP					\
-	X (shaders_cursor_vertex_glsl)		\
-	X (shaders_cursor_fragment_glsl)	\
-	X (shaders_bkgd_vertex_glsl)		\
-	X (shaders_bkgd_fragment_glsl)		\
-	X (shaders_solid_vertex_glsl)		\
-	X (shaders_solid_fragment_glsl)		\
-	X (shaders_frustum_vertex_glsl)		\
-	X (shaders_frustum_fragment_glsl)
+#define X_MAP								\
+	X (SHADER_CURSOR_VERTEX,	shaders_cursor_vertex_glsl)	\
+	X (SHADER_CURSOR_FRAGMENT,	shaders_cursor_fragment_glsl)	\
+	X (SHADER_BKGD_VERTEX,		shaders_bkgd_vertex_glsl)	\
+	X (SHADER_BKGD_FRAGMENT,	shaders_bkgd_fragment_glsl)	\
+	X (SHADER_SOLID_VERTEX,		shaders_solid_vertex_glsl)	\
+	X (SHADER_SOLID_FRAGMENT,	shaders_solid_fragment_glsl)	\
+	X (SHADER_FRUSTUM_VERTEX,	shaders_frustum_vertex_glsl)	\
+	X (SHADER_FRUSTUM_FRAGMENT,	shaders_frustum_fragment_glsl)	\
 
 // Define variables pointing to inline data:
-#define X(x) DATA_DEF(x)
+#define X(id, name) DATA_DEF(name)
 X_MAP
 #undef X
 
 void
-inlinebin_get (enum inlinebin member, const void **buf, size_t *len)
+inlinebin_get (enum inlinebin member, const char **buf, size_t *len)
 {
 	// Define an array of inline data descriptors:
 	struct {
-		const uint8_t	*buf;
+		const char	*buf;
 		size_t		 len;
 	}
 	elems[] = {
 
 		// First element is empty sentinel:
-		{ .buf = NULL
-		, .len = 0
-		} ,
+		[INLINEBIN_NONE] = {
+			.buf = NULL,
+			.len = 0,
+		},
 
 		// Populate remaining elements:
-		#define X(x) DATA_ELEM(x)
+		#define X(id, name) DATA_ELEM(id, name)
 		X_MAP
 		#undef X
 	};
