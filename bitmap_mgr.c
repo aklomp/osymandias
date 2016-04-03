@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <pthread.h>
 
-#include "framerate.h"
+#include "gui/framerate.h"
 #include "quadtree.h"
 #include "threadpool.h"
 #include "pngloader.h"

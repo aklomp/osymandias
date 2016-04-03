@@ -39,7 +39,7 @@ OBJS = \
   $(patsubst %.c,%.o,$(wildcard worlds/*.c))
 
 OBJS_GTK = \
-  framerate.o \
+  gui/framerate.o \
   gui/mouse.o \
   gui/signal.o \
 

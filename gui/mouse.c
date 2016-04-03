@@ -5,7 +5,7 @@
 #include "../camera.h"
 #include "../viewport.h"
 #include "../worlds.h"
-#include "../framerate.h"
+#include "framerate.h"
 #include "signal.h"
 
 static int button_dragged = false;

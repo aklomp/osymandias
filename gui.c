@@ -3,9 +3,9 @@
 #include <gtk/gtk.h>
 #include <gdk/gdkkeysyms.h>
 
-#include "framerate.h"
 #include "viewport.h"
 #include "worlds.h"
+#include "gui/framerate.h"
 #include "gui/local.h"
 #include "gui/signal.h"
 

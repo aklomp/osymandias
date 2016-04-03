@@ -4,8 +4,8 @@
 #include <gtk/gtkgl.h>
 #include <GL/gl.h>
 
-#include "../../framerate.h"
 #include "../../viewport.h"
+#include "../framerate.h"
 #include "../signal.h"
 #include "../mouse.h"
 
@@ -30,6 +30,16 @@ opengl_init (int *argc, char ***argv)
 	}
 	fprintf(stderr, "OpenGL %d.%d\n", major, minor);
 	return true;
+}
+
+static void
+framerate_start (GtkWidget *canvas)
+{
+	// Refresh period at 60 Hz = 1000 / 60 msec = 16.666... msec
+	guint msec = 17;
+
+	// Kickoff the heartbeat timer:
+	g_timeout_add(msec, (GSourceFunc)framerate_on_tick, canvas);
 }
 
 static void
@@ -140,8 +150,8 @@ glarea_add (GtkWidget *window)
 	// Connect signals:
 	canvas_signal_connect(canvas);
 
-	// Start framerate timer:
-	framerate_init(canvas);
+	// Start frame clock:
+	framerate_start(canvas);
 }
 
 // Initialize GUI
