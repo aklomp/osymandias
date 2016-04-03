@@ -1,5 +1,5 @@
 #ifdef __GTK_H__
-void framerate_init (GtkWidget *canvas, void (*paint)(GtkWidget *));
+void framerate_init (GtkWidget *canvas);
 #endif
 
 void framerate_repaint (void);

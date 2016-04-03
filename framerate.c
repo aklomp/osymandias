@@ -6,7 +6,6 @@
 static struct {
 	GtkWidget *canvas;
 	bool repaint;
-	void (*paint)(GtkWidget *widget);
 } state;
 
 static gboolean
@@ -26,18 +25,17 @@ timer_tick (void)
 	if (!state.repaint)
 		return TRUE;
 
-	// Else call the paint callback:
-	state.paint(state.canvas);
+	// Else queue the widget for drawing:
+	gtk_widget_queue_draw(state.canvas);
 	state.repaint = false;
 
 	return TRUE;
 }
 
 void
-framerate_init (GtkWidget *canvas, void (*paint)(GtkWidget *))
+framerate_init (GtkWidget *canvas)
 {
 	state.canvas  = canvas;
-	state.paint   = paint;
 	state.repaint = true;
 
 	// Refresh period at 60 Hz = 1000 / 60 msec = 16.666... msec

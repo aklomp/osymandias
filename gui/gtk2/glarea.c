@@ -33,25 +33,6 @@ opengl_init (int *argc, char ***argv)
 }
 
 static void
-paint_canvas (GtkWidget *widget)
-{
-	GdkGLContext  *glcontext  = gtk_widget_get_gl_context(widget);
-	GdkGLDrawable *gldrawable = gtk_widget_get_gl_drawable(widget);
-
-	gdk_gl_drawable_gl_begin(gldrawable, glcontext);
-
-	viewport_paint();
-
-	if (gdk_gl_drawable_is_double_buffered(gldrawable)) {
-		gdk_gl_drawable_swap_buffers(gldrawable);
-	}
-	else {
-		glFlush();
-	}
-	gdk_gl_drawable_gl_end(gldrawable);
-}
-
-static void
 on_realize (GtkWidget *widget)
 {
 	GdkGLContext  *glcontext  = gtk_widget_get_gl_context(widget);
@@ -83,11 +64,27 @@ on_unrealize (GtkWidget *widget)
 	gdk_gl_drawable_gl_end(gldrawable);
 }
 
+// Unconditionally redraw:
 static gboolean
-on_expose (void)
+on_expose (GtkWidget *widget)
 {
-	framerate_repaint();
-	return FALSE;
+	GdkGLContext  *glcontext  = gtk_widget_get_gl_context(widget);
+	GdkGLDrawable *gldrawable = gtk_widget_get_gl_drawable(widget);
+
+	gdk_gl_drawable_gl_begin(gldrawable, glcontext);
+
+	viewport_paint();
+
+	if (gdk_gl_drawable_is_double_buffered(gldrawable)) {
+		gdk_gl_drawable_swap_buffers(gldrawable);
+	}
+	else {
+		glFlush();
+	}
+	gdk_gl_drawable_gl_end(gldrawable);
+
+	// Don't propagate further:
+	return TRUE;
 }
 
 static gboolean
@@ -144,7 +141,7 @@ glarea_add (GtkWidget *window)
 	canvas_signal_connect(canvas);
 
 	// Start framerate timer:
-	framerate_init(canvas, paint_canvas);
+	framerate_init(canvas);
 }
 
 // Initialize GUI

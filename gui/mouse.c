@@ -5,6 +5,7 @@
 #include "../camera.h"
 #include "../viewport.h"
 #include "../worlds.h"
+#include "../framerate.h"
 #include "signal.h"
 
 static int button_dragged = false;
@@ -74,7 +75,7 @@ on_button_motion (GtkWidget *widget, GdkEventButton *event)
 		if (dy != 0)
 			camera_tilt(dy * 0.005f);
 	}
-	gtk_widget_queue_draw(widget);
+	framerate_repaint();
 	button_pressed_pos = pos;
 
 	// Don't propagate further:
@@ -103,7 +104,7 @@ on_button_release (GtkWidget *widget, GdkEventButton *event)
 	// of button press that did not halt the autoscroll:
 	event_get_pos;
 	viewport_center_at(&pos);
-	gtk_widget_queue_draw(widget);
+	framerate_repaint();
 
 	// Don't propagate further:
 	return TRUE;
@@ -117,13 +118,13 @@ on_scroll (GtkWidget* widget, GdkEventScroll *event)
 	case GDK_SCROLL_UP: {
 		event_get_pos;
 		viewport_zoom_in(&pos);
-		gtk_widget_queue_draw(widget);
+		framerate_repaint();
 		break;
 	}
 	case GDK_SCROLL_DOWN: {
 		event_get_pos;
 		viewport_zoom_out(&pos);
-		gtk_widget_queue_draw(widget);
+		framerate_repaint();
 		break;
 	}
 	default:
