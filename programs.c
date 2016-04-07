@@ -31,17 +31,20 @@ compile_success (const struct shadermeta *meta)
 	GLint status;
 	GLsizei length;
 
-	glGetShaderiv(meta->shader->id, GL_COMPILE_STATUS, &status);
-	if (status != GL_FALSE)
-		return true;
-
+	// Get size of compile log:
 	glGetShaderiv(meta->shader->id, GL_INFO_LOG_LENGTH, &length);
-	GLchar *log = calloc(length, sizeof(GLchar));
-	glGetShaderInfoLog(meta->shader->id, length, NULL, log);
-	fprintf(stderr, "%s: %s: glCompileShader failed:\n%s\n",
+
+	// Print compile log:
+	if (length > 1) {
+		GLchar *log = calloc(length, sizeof(GLchar));
+		glGetShaderInfoLog(meta->shader->id, length, NULL, log);
+		fprintf(stderr, "%s: %s: glCompileShader failed:\n%s\n",
 			meta->progname, meta->typename, log);
-	free(log);
-	return false;
+		free(log);
+	}
+
+	glGetShaderiv(meta->shader->id, GL_COMPILE_STATUS, &status);
+	return (status == GL_TRUE);
 }
 
 static bool
