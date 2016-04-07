@@ -1,6 +1,6 @@
 #version 130
 
-varying vec2 fpos;
+in  vec2 fpos;
 out vec4 fragcolor;
 
 void main(void)

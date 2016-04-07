@@ -2,8 +2,8 @@
 
 uniform mat4 mat_proj;
 uniform mat4 mat_view;
-attribute vec2 vertex;
-varying vec2 fpos;
+in  vec2 vertex;
+out vec2 fpos;
 
 void main (void)
 {

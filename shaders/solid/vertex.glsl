@@ -1,9 +1,9 @@
 #version 130
 
 uniform mat4 matrix;
-attribute vec2 vertex;
-attribute vec4 color;
-varying vec4 fcolor;
+in  vec2 vertex;
+in  vec4 color;
+out vec4 fcolor;
 
 void main (void)
 {

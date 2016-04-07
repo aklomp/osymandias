@@ -1,7 +1,7 @@
 #version 130
 
 uniform sampler2D tex;
-varying vec2 ftex;
+in  vec2 ftex;
 out vec4 fragcolor;
 
 void main (void)

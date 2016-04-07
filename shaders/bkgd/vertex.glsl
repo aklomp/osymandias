@@ -1,8 +1,8 @@
 #version 130
 
-attribute vec2 vertex;
-attribute vec2 texture;
-varying vec2 ftex;
+in  vec2 vertex;
+in  vec2 texture;
+out vec2 ftex;
 
 void main (void)
 {

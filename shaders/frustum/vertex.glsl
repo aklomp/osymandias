@@ -2,8 +2,8 @@
 
 uniform mat4 mat_proj;
 uniform bool spherical;
-attribute vec2 vertex;
-varying vec4 fpos;
+in  vec2 vertex;
+out vec4 fpos;
 
 void main (void)
 {

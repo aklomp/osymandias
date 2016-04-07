@@ -5,7 +5,7 @@ uniform mat4 mat_model;
 uniform int world_size;
 uniform bool spherical;
 uniform vec4 camera;
-varying vec4 fpos;
+in  vec4 fpos;
 out vec4 fragcolor;
 
 #define M_PI 3.1415926535897932384626433832795
