@@ -6,6 +6,7 @@ uniform int world_size;
 uniform bool spherical;
 uniform vec4 camera;
 varying vec4 fpos;
+out vec4 fragcolor;
 
 #define M_PI 3.1415926535897932384626433832795
 
@@ -76,5 +77,5 @@ void main (void)
 	if (!inside)
 		discard;
 
-	gl_FragColor = vec4(1.0, 0.3, 0.3, 0.5);
+	fragcolor = vec4(1.0, 0.3, 0.3, 0.5);
 }
