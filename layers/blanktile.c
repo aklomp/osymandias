@@ -11,11 +11,8 @@
 #define FOG_END	20.0
 
 static void
-paint (void)
+paint_planar (void)
 {
-	if (world_get() != WORLD_PLANAR)
-		return;
-
 	int world_size = world_get_size();
 	const struct coords *center = world_get_center();
 	const float *mat_model = world_get_matrix();
@@ -92,6 +89,26 @@ paint (void)
 
 	glEnd();
 	glDisable(GL_FOG);
+}
+
+static void
+paint_spherical (void)
+{
+}
+
+static void
+paint (void)
+{
+	switch (world_get())
+	{
+	case WORLD_PLANAR:
+		paint_planar();
+		break;
+
+	case WORLD_SPHERICAL:
+		paint_spherical();
+		break;
+	}
 }
 
 const struct layer *
