@@ -22,6 +22,11 @@ on_key_press (GtkWidget *widget, GdkEventKey *event)
 		framerate_repaint();
 		break;
 
+	case GDK_KEY_q:
+	case GDK_KEY_Q:
+		gtk_main_quit();
+		break;
+
 	case GDK_KEY_s:
 	case GDK_KEY_S:
 		world_set(WORLD_SPHERICAL);
