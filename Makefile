@@ -25,6 +25,7 @@ endif
 PROG = osymandias
 
 OBJS = \
+  png.o \
   main.o \
   camera.o \
   matrix.o \
