@@ -1,42 +1,22 @@
 #include <stdbool.h>
+#include <stdlib.h>
+
 #include <GL/gl.h>
 
+#include "../png.h"
 #include "../layers.h"
 #include "../inlinebin.h"
 #include "../programs.h"
 #include "../programs/bkgd.h"
 
-// The background layer is the diagonal pinstripe pattern that is shown in the
-// out-of-bounds area of the viewport.
-
 static struct {
+	char		*rgb;
+	const char	*png;
+	size_t		 len;
 	GLuint		 id;
-	GLuint		 size;
-	const char	*data;
-}
-tex = {
-	.size = 16,
-	.data =
-	"///\"\"\"\37\37\37\"\"\"///###\37\37\37\"\"\"///###\37\37\37\"\"\"///###"
-	"\37\37\37\"\"\"\"\"\"\37\37\37\"\"\"///###\37\37\37\"\"\"///###\37\37\37"
-	"\"\"\"///###\37\37\37\"\"\"///\37\37\37\"\"\"///###\37\37\37\"\"\"///###"
-	"\37\37\37\"\"\"///###\37\37\37\"\"\"///###\"\"\"///###\37\37\37\"\"\"///"
-	"###\37\37\37\"\"\"///###\37\37\37\"\"\"///###\37\37\37///\"\"\"\37\37\37"
-	"\"\"\"///###\37\37\37\"\"\"///###\37\37\37\"\"\"///###\37\37\37\"\"\"\"\""
-	"\"\37\37\37\"\"\"///###\37\37\37\"\"\"///###\37\37\37\"\"\"///###\37\37\37"
-	"\"\"\"///\37\37\37\"\"\"///###\37\37\37\"\"\"///###\37\37\37\"\"\"///###"
-	"\37\37\37\"\"\"///###\"\"\"///###\37\37\37\"\"\"///###\37\37\37\"\"\"///"
-	"###\37\37\37\"\"\"///###\37\37\37///\"\"\"\37\37\37\"\"\"///###\37\37\37"
-	"\"\"\"///###\37\37\37\"\"\"///###\37\37\37\"\"\"\"\"\"\37\37\37\"\"\"///"
-	"###\37\37\37\"\"\"///###\37\37\37\"\"\"///###\37\37\37\"\"\"///\37\37\37"
-	"\"\"\"///###\37\37\37\"\"\"///###\37\37\37\"\"\"///###\37\37\37\"\"\"///"
-	"###\"\"\"///###\37\37\37\"\"\"///###\37\37\37\"\"\"///###\37\37\37\"\"\""
-	"///###\37\37\37///\"\"\"\37\37\37\"\"\"///###\37\37\37\"\"\"///###\37\37"
-	"\37\"\"\"///###\37\37\37\"\"\"\"\"\"\37\37\37\"\"\"///###\37\37\37\"\"\""
-	"///###\37\37\37\"\"\"///###\37\37\37\"\"\"///\37\37\37\"\"\"///###\37\37"
-	"\37\"\"\"///###\37\37\37\"\"\"///###\37\37\37\"\"\"///###\"\"\"///###\37"
-	"\37\37\"\"\"///###\37\37\37\"\"\"///###\37\37\37\"\"\"///###\37\37\37"
-};
+	unsigned int	 width;
+	unsigned int	 height;
+} tex;
 
 // Array of counterclockwise vertices:
 //
@@ -91,8 +71,8 @@ vertcoords (void)
 static void
 texcoords (float screen_wd, float screen_ht)
 {
-	float wd = screen_wd / tex.size;
-	float ht = screen_ht / tex.size;
+	float wd = screen_wd / tex.width;
+	float ht = screen_ht / tex.height;
 
 	// Bottom left:
 	vertex[0].u = 0;
@@ -172,7 +152,15 @@ init (void)
 	glGenTextures(1, &tex.id);
 	glBindTexture(GL_TEXTURE_2D, tex.id);
 
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, tex.size, tex.size, 0, GL_RGB, GL_UNSIGNED_BYTE, tex.data);
+	// Load texture:
+	inlinebin_get(TEXTURE_BACKGROUND, &tex.png, &tex.len);
+	png_load(tex.png, tex.len, &tex.height, &tex.width, &tex.rgb);
+
+	// Upload texture:
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, tex.width, tex.height, 0, GL_RGB, GL_UNSIGNED_BYTE, tex.rgb);
+
+	// Free memory:
+	free(tex.rgb);
 
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);

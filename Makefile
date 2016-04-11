@@ -9,6 +9,7 @@ ifeq ($(GTK3),1)
   GTK_CFLAGS  := $(shell pkg-config --cflags gtk+-3.0)
   GTK_LDFLAGS := $(shell pkg-config --libs   gtk+-3.0)
 
+  GTKGL_CFLAGS  := -DGL_GLEXT_PROTOTYPES
   GTKGL_LDFLAGS := -lGL -lGLU
 
   OBJS_GTK_GTKGL = gui/gtk3/glarea.o
@@ -55,15 +56,21 @@ OBJS_GTK_GTKGL += \
   gui.o \
   viewport.o \
 
-OBJS_BIN = \
+OBJS_BIN_GLSL = \
   $(patsubst %.glsl,%.o,$(wildcard shaders/*/*.glsl))
+
+OBJS_BIN_PNG = \
+  $(patsubst %.png,%.o,$(wildcard textures/*.png))
 
 all: $(PROG)
 
-$(PROG): $(OBJS) $(OBJS_GTK) $(OBJS_GTKGL) $(OBJS_GTK_GTKGL) $(OBJS_BIN)
+$(PROG): $(OBJS) $(OBJS_GTK) $(OBJS_GTKGL) $(OBJS_GTK_GTKGL) $(OBJS_BIN_GLSL) $(OBJS_BIN_PNG)
 	$(CC) $(LDFLAGS) $(GTK_LDFLAGS) $(GTKGL_LDFLAGS) -o $@ $^
 
-$(OBJS_BIN): %.o: %.glsl
+$(OBJS_BIN_GLSL): %.o: %.glsl
+	$(LD) --relocatable --format=binary -o $@ $^
+
+$(OBJS_BIN_PNG): %.o: %.png
 	$(LD) --relocatable --format=binary -o $@ $^
 
 $(OBJS_GTK_GTKGL): %.o: %.c
@@ -81,4 +88,4 @@ $(OBJS): %.o: %.c
 .PHONY: clean all
 
 clean:
-	rm -f $(OBJS_BIN) $(OBJS_GTK_GTKGL) $(OBJS_GTKGL) $(OBJS_GTK) $(OBJS) $(PROG)
+	rm -f $(OBJS_BIN_PNG) $(OBJS_BIN_GLSL) $(OBJS_GTK_GTKGL) $(OBJS_GTKGL) $(OBJS_GTK) $(OBJS) $(PROG)
