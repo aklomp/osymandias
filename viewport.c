@@ -200,6 +200,9 @@ viewport_resize (const unsigned int width, const unsigned int height)
 	screen.width = width;
 	screen.height = height;
 
+	// Setup viewport:
+	glViewport(0, 0, screen.width, screen.height);
+
 	// Update camera's projection matrix:
 	camera_projection(width, height);
 
@@ -210,9 +213,6 @@ viewport_resize (const unsigned int width, const unsigned int height)
 void
 viewport_gl_setup_world (void)
 {
-	// Setup viewport:
-	glViewport(0, 0, screen.width, screen.height);
-
 	// Setup camera:
 	camera_setup();
 
