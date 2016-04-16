@@ -71,6 +71,12 @@ world_get_matrix (void)
 	return worlds[current]->matrix();
 }
 
+const float *
+world_get_matrix_inverse (void)
+{
+	return worlds[current]->matrix_inverse();
+}
+
 static inline void
 coords_zoom_in (struct coords *coords)
 {

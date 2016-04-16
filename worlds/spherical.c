@@ -17,6 +17,10 @@ static struct {
 	float translate[16];
 	float scale[16];
 	float model[16];
+	struct {
+		float model[16];
+		bool model_fresh;
+	} inverse;
 } matrix;
 
 static void
@@ -50,6 +54,9 @@ update_matrix_model (void)
 	mat_multiply(matrix.model, matrix.rotate.lat, matrix.rotate.lon);
 	mat_multiply(matrix.model, matrix.translate, matrix.model);
 	mat_multiply(matrix.model, matrix.scale, matrix.model);
+
+	// This invalidates the inverse model matrix:
+	matrix.inverse.model_fresh = false;
 }
 
 static void
@@ -99,6 +106,17 @@ matrix_model (void)
 	return matrix.model;
 }
 
+static const float *
+matrix_model_inverse (void)
+{
+	// Lazy instantiation:
+	if (!matrix.inverse.model_fresh) {
+		mat_invert(matrix.inverse.model, matrix.model);
+		matrix.inverse.model_fresh = true;
+	}
+	return matrix.inverse.model;
+}
+
 static bool
 autoscroll_update (struct world_state *state, int64_t now)
 {
@@ -128,6 +146,7 @@ world_spherical (void)
 {
 	static const struct world world = {
 		.matrix			= matrix_model,
+		.matrix_inverse		= matrix_model_inverse,
 		.move			= move,
 		.project		= project,
 		.zoom			= zoom,

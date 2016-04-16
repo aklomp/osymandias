@@ -11,6 +11,10 @@
 // Transformation matrices:
 static struct {
 	float model[16];
+	struct {
+		float model[16];
+		bool model_fresh;
+	} inverse;
 } matrix;
 
 static inline void
@@ -53,6 +57,9 @@ update_matrix_model (const struct world_state *state)
 
 	// Translate world so that this position is at origin:
 	mat_translate(matrix.model, -x, -y, 0.0f);
+
+	// This invalidates the inverse model matrix:
+	matrix.inverse.model_fresh = false;
 }
 
 static void
@@ -88,6 +95,17 @@ matrix_model (void)
 	return matrix.model;
 }
 
+static const float *
+matrix_model_inverse (void)
+{
+	// Lazy instantiation:
+	if (!matrix.inverse.model_fresh) {
+		mat_invert(matrix.inverse.model, matrix.model);
+		matrix.inverse.model_fresh = true;
+	}
+	return matrix.inverse.model;
+}
+
 static bool
 autoscroll_update (struct world_state *state, int64_t now)
 {
@@ -117,6 +135,7 @@ world_planar (void)
 {
 	static const struct world world = {
 		.matrix			= matrix_model,
+		.matrix_inverse		= matrix_model_inverse,
 		.move			= move,
 		.project		= project,
 		.zoom			= zoom,
