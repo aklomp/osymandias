@@ -20,12 +20,16 @@ static struct {
 } clip;
 
 static struct {
-	float tilt[16];		// Tilt matrix
-	float rotate[16];	// Rotate matrix
-	float translate[16];	// Translation from origin
-	float view[16];		// View matrix
-	float proj[16];		// Projection matrix
-	float viewproj[16];	// View-projection matrix
+	float tilt[16];			// Tilt matrix
+	float rotate[16];		// Rotation matrix
+	float translate[16];		// Translation from origin
+	float view[16];			// View matrix
+	float proj[16];			// Projection matrix
+	float viewproj[16];		// View-projection matrix
+	struct {
+		float viewproj[16];	// Inverse of view-projection matrix
+		bool viewproj_fresh;	// Whether the inverse is up to date
+	} inverse;
 } matrix;
 
 // Update view-projection matrix after view or projection changed:
@@ -34,6 +38,9 @@ mat_viewproj_update (void)
 {
 	// Generate the view-projection matrix:
 	mat_multiply(matrix.viewproj, matrix.proj, matrix.view);
+
+	// This invalidates the inverse view-projection matrix:
+	matrix.inverse.viewproj_fresh = false;
 }
 
 // Update view matrix after tilt/rot/trans changed:
@@ -54,6 +61,24 @@ mat_view_update (void)
 
 	// This changes the view-projection matrix:
 	mat_viewproj_update();
+}
+
+const float *
+camera_mat_viewproj (void)
+{
+	return matrix.viewproj;
+}
+
+const float *
+camera_mat_viewproj_inv (void)
+{
+	// Lazy instantiation:
+	if (!matrix.inverse.viewproj_fresh) {
+		mat_invert(matrix.inverse.viewproj, matrix.viewproj);
+		matrix.inverse.viewproj_fresh = true;
+	}
+
+	return matrix.inverse.viewproj;
 }
 
 // Recaculate the projection matrix when screen size changes:
@@ -84,8 +109,7 @@ void
 camera_unproject (struct vector *v, const unsigned int x, const unsigned int y, const unsigned int screen_wd, const unsigned int screen_ht)
 {
 	// Get inverse view-projection matrix:
-	float inv[16];
-	mat_invert(inv, matrix.viewproj);
+	const float *inv = camera_mat_viewproj_inv();
 
 	// Scale x and y to clip space (-1..1):
 	float sx = (float)x / (screen_wd / 2.0f) - 1.0f;
@@ -326,12 +350,6 @@ bool
 camera_is_rotated (void)
 {
 	return (cam.rotate != 0.0f);
-}
-
-const float *
-camera_mat_viewproj (void)
-{
-	return matrix.viewproj;
 }
 
 const float *
