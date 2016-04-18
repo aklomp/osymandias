@@ -17,17 +17,14 @@
 #include "programs.h"
 #include "viewport.h"
 
-static double hold_x;		// Mouse hold/drag at this world coordinate
-static double hold_y;
+static float hold_x;		// Mouse hold/drag at this world coordinate
+static float hold_y;
 
 // Screen dimensions:
 static struct {
 	unsigned int width;
 	unsigned int height;
 } screen;
-
-static double modelview[16];	// OpenGL projection matrices
-static double projection[16];
 
 static void
 center_set (const double world_x, const double world_y)
@@ -99,44 +96,32 @@ viewport_zoom_out (const struct screen_pos *pos)
 }
 
 static void
-screen_to_world (const struct screen_pos *pos, double *wx, double *wy)
+screen_to_world (const struct screen_pos *pos, float *wx, float *wy)
 {
 	const struct coords *center = world_get_center();
 	float center_x = center->tile.x;
 	float center_y = world_get_size() - center->tile.y;
 
-	// Shortcut: if we know the world is orthogonal, use simpler
-	// calculations; this also lets us "bootstrap" the world before
-	// the first OpenGL projection:
-	if (!camera_is_tilted() && !camera_is_rotated()) {
-		*wx = center_x + (pos->x - (double)screen.width / 2.0) / 256.0;
-		*wy = center_y + (pos->y - (double)screen.height / 2.0) / 256.0;
-		return;
-	}
-	GLdouble wax, way, waz;
-	GLdouble wbx, wby, wbz;
-	GLint viewport[4] = { 0, 0, screen.width, screen.height };
+	struct vector p1, p2;
 
-	// Project two points at different z index to get a vector in world space:
-	gluUnProject(pos->x, pos->y, 0.75, modelview, projection, viewport, &wax, &way, &waz);
-	gluUnProject(pos->x, pos->y, 1.0, modelview, projection, viewport, &wbx, &wby, &wbz);
+	// Unproject two points at different z index through the
+	// view-projection matrix to get two points in world coordinates:
+	camera_unproject(&p1, &p2, pos->x, pos->y, screen.width, screen.height);
 
-	// Project this vector onto the world plane to get the world coordinates;
-	//
-	//     (p0 - l0) . n
-	// t = -------------
-	//        l . n
-	//
-	// n = normal vector of plane = (0, 0, 1);
-	// p0 = point in plane, (0, 0, 0);
-	// l0 = point on line, (wax, way, waz);
-	// l = point on line, (wbx, wby, wbz);
-	//
-	// This can be rewritten as:
-	double t = -waz / wbz;
+	// Direction vector is difference between points:
+	struct vector dir = {
+		.x = p2.x - p1.x,
+		.y = p2.y - p1.y,
+		.z = p2.z - p1.z,
+	};
 
-	*wx = wax + t * (wbx - wax) + center_x;
-	*wy = way + t * (wby - way) + center_y;
+	// Get time value to the intersection point with the planar world,
+	// where z = 0:
+	float t = -p1.z / dir.z;
+
+	// Get x and y coordinates of hit point:
+	*wx = p1.x + t * dir.x + center_x;
+	*wy = p1.y + t * dir.y + center_y;
 }
 
 void
@@ -151,7 +136,7 @@ viewport_hold_move (const struct screen_pos *pos)
 {
 	// Mouse has moved during a hold; ensure that (hold_x, hold_y)
 	// is under the cursor at the given screen position:
-	double wx, wy;
+	float wx, wy;
 
 	// Point currently under mouse:
 	screen_to_world(pos, &wx, &wy);
@@ -166,7 +151,7 @@ viewport_hold_move (const struct screen_pos *pos)
 void
 viewport_scroll (const int dx, const int dy)
 {
-	double world_x, world_y;
+	float world_x, world_y;
 	struct screen_pos pos = {
 		.x = screen.width  / 2 + dx,
 		.y = screen.height / 2 + dy,
@@ -182,7 +167,7 @@ viewport_scroll (const int dx, const int dy)
 void
 viewport_center_at (const struct screen_pos *pos)
 {
-	double world_x, world_y;
+	float world_x, world_y;
 
 	screen_to_world(pos, &world_x, &world_y);
 	center_set(world_x, world_y);
@@ -215,10 +200,6 @@ viewport_gl_setup_world (void)
 {
 	// Setup camera:
 	camera_setup();
-
-	// Get matrices for unproject:
-	glGetDoublev(GL_MODELVIEW_MATRIX, modelview);
-	glGetDoublev(GL_PROJECTION_MATRIX, projection);
 
 	// FIXME: only do this when moved?
 	tilepicker_recalc();
