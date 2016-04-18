@@ -104,31 +104,28 @@ camera_projection (const int screen_wd, const int screen_ht)
 	mat_viewproj_update();
 }
 
-// Unproject a screen coordinate to get a vector in world space:
+// Unproject a screen coordinate to get points p1 and p2 in world space:
 void
-camera_unproject (struct vector *v, const unsigned int x, const unsigned int y, const unsigned int screen_wd, const unsigned int screen_ht)
+camera_unproject (struct vector *p1, struct vector *p2, const unsigned int x, const unsigned int y, const unsigned int screen_wd, const unsigned int screen_ht)
 {
 	// Get inverse view-projection matrix:
 	const float *inv = camera_mat_viewproj_inv();
 
 	// Scale x and y to clip space (-1..1):
-	float sx = (float)x / (screen_wd / 2.0f) - 1.0f;
-	float sy = (float)y / (screen_ht / 2.0f) - 1.0f;
+	const float sx = (float)x / (screen_wd / 2.0f) - 1.0f;
+	const float sy = (float)y / (screen_ht / 2.0f) - 1.0f;
 
-	// Multiply with a z of 0:
-	struct vector a = { sx, sy, 0.0f, 1.0f };
-	mat_vec_multiply(&a.x, inv, &a.x);
+	// Define two points at extremes of z clip space (0..1):
+	const struct vector a = { sx, sy, 0.0f, 1.0f };
+	const struct vector b = { sx, sy, 1.0f, 1.0f };
 
-	// Multiply again with a z of 1:
-	struct vector b = { sx, sy, 1.0f, 1.0f };
-	mat_vec_multiply(&b.x, inv, &b.x);
+	// Multiply with the inverse view-projection matrix:
+	mat_vec_multiply(&p1->x, inv, &a.x);
+	mat_vec_multiply(&p2->x, inv, &b.x);
 
-	// Convert to vector type, divide by w:
-	vec4f va = VEC4F(a) / vec4f_float(a.w);
-	vec4f vb = VEC4F(b) / vec4f_float(b.w);
-
-	// Subtract vectors to get direction:
-	*(vec4f *)v = vb - va;
+	// Divide by w:
+	VEC4F(*p1) /= vec4f_float(p1->w);
+	VEC4F(*p2) /= vec4f_float(p2->w);
 }
 
 void
