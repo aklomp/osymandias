@@ -18,7 +18,13 @@ static struct vertex {
 	float x;
 	float y;
 } __attribute__((packed))
-vertex[4];
+vertex[4] =
+{
+	[0] = { -15, -15 },
+	[1] = {  15, -15 },
+	[2] = {  15,  15 },
+	[3] = { -15,  15 },
+};
 
 // Array of indices. We define two counterclockwise triangles:
 // 3-0-2 and 0-1-2
@@ -45,26 +51,6 @@ static bool
 occludes (void)
 {
 	return false;
-}
-
-static void
-vertcoords (void)
-{
-	// Bottom left:
-	vertex[0].x = -15;
-	vertex[0].y = -15;
-
-	// Bottom right:
-	vertex[1].x =  15;
-	vertex[1].y = -15;
-
-	// Top right:
-	vertex[2].x =  15;
-	vertex[2].y =  15;
-
-	// Top left:
-	vertex[3].x = -15;
-	vertex[3].y =  15;
 }
 
 static void
@@ -122,9 +108,6 @@ init (void)
 	glVertexAttribPointer(program_cursor_loc_vertex(), 2, GL_FLOAT, GL_FALSE,
 		sizeof(struct vertex),
 		(void *)(&((struct vertex *)0)->x));
-
-	// Populate vertex coordinates:
-	vertcoords();
 
 	// Copy vertices to buffer:
 	glBufferData(GL_ARRAY_BUFFER, sizeof(vertex), vertex, GL_STATIC_DRAW);
