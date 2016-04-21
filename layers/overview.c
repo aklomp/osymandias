@@ -276,6 +276,16 @@ zoom (const unsigned int zoom)
 	glBufferData(GL_ARRAY_BUFFER, sizeof(bkgd), bkgd, GL_STREAM_DRAW);
 }
 
+#define OFFSET_COORDS	&((struct vertex *)0)->coords
+#define OFFSET_COLOR	&((struct vertex *)0)->color
+
+static void
+add_pointer (unsigned int loc, int size, const void *ptr)
+{
+	glEnableVertexAttribArray(loc);
+	glVertexAttribPointer(loc, size, GL_FLOAT, GL_FALSE, sizeof (struct vertex), ptr);
+}
+
 static void
 init_bkgd (void)
 {
@@ -283,17 +293,9 @@ init_bkgd (void)
 	glBindBuffer(GL_ARRAY_BUFFER, *vbo_bkgd);
 	glBindVertexArray(*vao_bkgd);
 
-	// Add pointer to 'vertex' attribute:
-	glEnableVertexAttribArray(program_solid_loc_vertex());
-	glVertexAttribPointer(program_solid_loc_vertex(), 2, GL_FLOAT, GL_FALSE,
-		sizeof(struct vertex),
-		(void *)(&((struct vertex *)0)->coords));
-
-	// Add pointer to 'color' attribute:
-	glEnableVertexAttribArray(program_solid_loc_color());
-	glVertexAttribPointer(program_solid_loc_color(), 4, GL_FLOAT, GL_FALSE,
-		sizeof(struct vertex),
-		(void *)(&((struct vertex *)0)->color));
+	// Add pointer to 'vertex' and 'color' attributes:
+	add_pointer(program_solid_loc_vertex(), 2, OFFSET_COORDS);
+	add_pointer(program_solid_loc_color(),  4, OFFSET_COLOR);
 }
 
 static void
@@ -304,10 +306,7 @@ init_frustum (void)
 	glBindVertexArray(*vao_frustum);
 
 	// Add pointer to 'vertex' attribute:
-	glEnableVertexAttribArray(program_frustum_loc_vertex());
-	glVertexAttribPointer(program_frustum_loc_vertex(), 2, GL_FLOAT, GL_FALSE,
-		sizeof(struct vertex),
-		(void *)(&((struct vertex *)0)->coords));
+	add_pointer(program_frustum_loc_vertex(), 2, OFFSET_COORDS);
 }
 
 static void
@@ -317,17 +316,9 @@ init_tiles (void)
 	glBindBuffer(GL_ARRAY_BUFFER, *vbo_tiles);
 	glBindVertexArray(*vao_tiles);
 
-	// Add pointer to 'vertex' attribute:
-	glEnableVertexAttribArray(program_solid_loc_vertex());
-	glVertexAttribPointer(program_solid_loc_vertex(), 2, GL_FLOAT, GL_FALSE,
-		sizeof(struct vertex),
-		(void *)(&((struct vertex *)0)->coords));
-
-	// Add pointer to 'color' attribute:
-	glEnableVertexAttribArray(program_solid_loc_color());
-	glVertexAttribPointer(program_solid_loc_color(), 4, GL_FLOAT, GL_FALSE,
-		sizeof(struct vertex),
-		(void *)(&((struct vertex *)0)->color));
+	// Add pointer to 'vertex' and 'color' attributes:
+	add_pointer(program_solid_loc_vertex(), 2, OFFSET_COORDS);
+	add_pointer(program_solid_loc_color(),  4, OFFSET_COLOR);
 }
 
 static bool
