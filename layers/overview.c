@@ -44,13 +44,6 @@ struct vertex {
 	} color;
 } __attribute__((packed));
 
-static bool
-occludes (void)
-{
-	// The overview never occludes:
-	return false;
-}
-
 static inline void
 setup_viewport (void)
 {
@@ -350,7 +343,6 @@ layer_overview (void)
 {
 	static struct layer layer = {
 		.init     = &init,
-		.occludes = &occludes,
 		.paint    = &paint,
 		.zoom     = &zoom,
 		.destroy  = &destroy,

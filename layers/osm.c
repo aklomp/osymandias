@@ -107,12 +107,6 @@ destroy (void)
 	bitmap_mgr_destroy();
 }
 
-static bool
-occludes (void)
-{
-	return false;
-}
-
 static void
 tile_draw (const struct tilepicker *tile, const struct quadtree_req *req, GLuint id, enum cache_source source)
 {
@@ -252,7 +246,6 @@ layer_osm (void)
 {
 	static struct layer layer = {
 		.init     = &init,
-		.occludes = &occludes,
 		.paint    = &paint,
 		.zoom     = &zoom,
 		.destroy  = &destroy,

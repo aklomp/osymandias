@@ -18,19 +18,7 @@ static int nlayers = 0;
 void
 layers_paint (void)
 {
-	int i;
-
-	// Loop over all layers front to back,
-	// check if they occlude the background;
-	// if they do, then don't bother painting lower layers:
-	for (i = nlayers - 1; i >= 0; i--)
-		if (layers[i]->occludes)
-			if (layers[i]->occludes())
-				break;
-
-	// If none of the layers claimed full occlusion,
-	// start with the first layer:
-	for (i = (i < 0) ? 0 : i; i < nlayers; i++)
+	for (int i = 0; i < nlayers; i++)
 		if (layers[i]->paint)
 			layers[i]->paint();
 }

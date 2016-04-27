@@ -41,13 +41,6 @@ static GLubyte index[6] = {
 
 static GLuint vao, vbo;
 
-static bool
-occludes (void)
-{
-	// The background always fully occludes:
-	return true;
-}
-
 static void
 vertcoords (void)
 {
@@ -189,7 +182,6 @@ layer_background (void)
 {
 	static struct layer layer = {
 		.init     = &init,
-		.occludes = &occludes,
 		.paint    = &paint,
 		.resize   = &resize,
 		.destroy  = &destroy,

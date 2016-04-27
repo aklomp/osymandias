@@ -47,12 +47,6 @@ static struct {
 
 static GLuint vao, vbo;
 
-static bool
-occludes (void)
-{
-	return false;
-}
-
 static void
 paint (void)
 {
@@ -130,7 +124,6 @@ layer_cursor (void)
 {
 	static struct layer layer = {
 		.init     = &init,
-		.occludes = &occludes,
 		.paint    = &paint,
 		.resize   = &resize,
 		.destroy  = &destroy,

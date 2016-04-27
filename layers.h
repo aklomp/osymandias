@@ -1,6 +1,5 @@
 struct layer {
 	bool (*init)     (void);
-	bool (*occludes) (void);
 	void (*paint)    (void);
 	void (*zoom)     (const unsigned int zoom);
 	void (*resize)   (const unsigned int width, const unsigned int height);
