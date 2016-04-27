@@ -30,7 +30,12 @@ static struct vertex {
 	float u;
 	float v;
 } __attribute__((packed))
-vertex[4];
+vertex[4] = {
+	[0] = { .x = -1.0, .y = -1.0 },
+	[1] = { .x =  1.0, .y = -1.0 },
+	[2] = { .x =  1.0, .y =  1.0 },
+	[3] = { .x = -1.0, .y =  1.0 },
+};
 
 // Array of indices. We define two counterclockwise triangles:
 // 3-0-2 and 0-1-2
@@ -40,26 +45,6 @@ static GLubyte index[6] = {
 };
 
 static GLuint vao, vbo;
-
-static void
-vertcoords (void)
-{
-	// Bottom left:
-	vertex[0].x = -1.0;
-	vertex[0].y = -1.0;
-
-	// Bottom right:
-	vertex[1].x =  1.0;
-	vertex[1].y = -1.0;
-
-	// Top right:
-	vertex[2].x =  1.0;
-	vertex[2].y =  1.0;
-
-	// Top left:
-	vertex[3].x = -1.0;
-	vertex[3].y =  1.0;
-}
 
 static void
 texcoords (float screen_wd, float screen_ht)
@@ -120,9 +105,6 @@ resize (const unsigned int width, const unsigned int height)
 static bool
 init (void)
 {
-	// Populate vertex coordinates:
-	vertcoords();
-
 	// Generate vertex buffer object:
 	glGenBuffers(1, &vbo);
 
