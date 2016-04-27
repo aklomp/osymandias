@@ -176,6 +176,10 @@ viewport_center_at (const struct screen_pos *pos)
 void
 viewport_paint (void)
 {
+	// Clear the depth buffer:
+	glClear(GL_DEPTH_BUFFER_BIT);
+
+	// Paint all layers:
 	layers_paint();
 }
 
@@ -216,7 +220,6 @@ viewport_gl_setup_world (void)
 	case WORLD_SPHERICAL:
 		glEnable(GL_DEPTH_TEST);
 		glDepthMask(GL_TRUE);
-		glClear(GL_DEPTH_BUFFER_BIT);
 		break;
 	}
 }
