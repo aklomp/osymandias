@@ -12,6 +12,7 @@ enum inlinebin {
 	SHADER_FRUSTUM_VERTEX,
 	SHADER_FRUSTUM_FRAGMENT,
 	TEXTURE_BACKGROUND,
+	TEXTURE_CURSOR,
 };
 
 void inlinebin_get (enum inlinebin member, const char **buf, size_t *len);

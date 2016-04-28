@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg xmlns="http://www.w3.org/2000/svg" height="16" width="16">
+ <defs>
+  <linearGradient id="gradientgrey" gradientUnits="userSpaceOnUse" x1="0" x2="0" y1="0" y2="8">
+   <stop style="stop-color:#000000" offset="0"/>
+   <stop style="stop-color:#000000;stop-opacity:0" offset="1"/>
+  </linearGradient>
+ </defs>
+  <!-- White cross -->
+  <g style="opacity:.5;fill:#ffffff">
+    <rect width="7" height="2" x="0" y="5"/>
+    <rect width="7" height="2" x="9" y="5"/>
+    <rect width="7" height="2" x="0" y="9"/>
+    <rect width="7" height="2" x="9" y="9"/>
+    <rect width="2" height="7" x="5" y="0"/>
+    <rect width="2" height="7" x="9" y="0"/>
+    <rect width="2" height="7" x="5" y="9"/>
+    <rect width="2" height="7" x="9" y="9"/>
+  </g>
+  <!-- Crosshairs -->
+  <g style="opacity:.75;fill-rule:evenodd;fill:url(#gradientgrey)">
+    <rect width="2" height="16" x="7" y="0"/>
+    <rect width="2" height="16" x="7" y="0" transform="translate(16, 16) rotate(180)"/>
+    <rect width="2" height="16" x="7" y="0" transform="translate(16,  0) rotate( 90)"/>
+    <rect width="2" height="16" x="7" y="0" transform="translate( 0, 16) rotate(270)"/>
+  </g>
+</svg>
