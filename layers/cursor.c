@@ -1,4 +1,5 @@
 #include <stdbool.h>
+#include <stdlib.h>
 #include <GL/gl.h>
 
 #include "../matrix.h"
@@ -7,6 +8,7 @@
 #include "../programs.h"
 #include "../programs/cursor.h"
 #include "../viewport.h"
+#include "../png.h"
 
 // Array of counterclockwise vertices:
 //
@@ -17,13 +19,14 @@
 static struct vertex {
 	float x;
 	float y;
+	float u;
+	float v;
 } __attribute__((packed))
-vertex[4] =
-{
-	[0] = { -15, -15 },
-	[1] = {  15, -15 },
-	[2] = {  15,  15 },
-	[3] = { -15,  15 },
+vertex[4] = {
+	[0] = { .u = 0.0f, .v = 0.0f },
+	[1] = { .u = 1.0f, .v = 0.0f },
+	[2] = { .u = 1.0f, .v = 1.0f },
+	[3] = { .u = 0.0f, .v = 1.0f },
 };
 
 // Array of indices. We define two counterclockwise triangles:
@@ -33,10 +36,9 @@ static GLubyte index[6] = {
 	0, 1, 2,
 };
 
-// Projection and view matrices:
+// Projection matrix:
 static struct {
 	float proj[16];
-	float view[16];
 } matrix;
 
 // Screen size:
@@ -44,6 +46,16 @@ static struct {
 	float width;
 	float height;
 } screen;
+
+// Cursor texture:
+static struct {
+	char		*raw;
+	const char	*png;
+	size_t		 len;
+	GLuint		 id;
+	unsigned int	 width;
+	unsigned int	 height;
+} tex;
 
 static GLuint vao, vbo;
 
@@ -61,8 +73,11 @@ paint (void)
 	// Use the cursor program:
 	program_cursor_use(&((struct program_cursor) {
 		.mat_proj = matrix.proj,
-		.mat_view = matrix.view,
 	}));
+
+	// Activate cursor texture:
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, tex.id);
 
 	// Draw all triangles in the buffer:
 	glBindVertexArray(vao);
@@ -78,15 +93,47 @@ resize (const unsigned int width, const unsigned int height)
 	screen.height = height;
 
 	// Projection matrix maps 1:1 to screen:
-	mat_ortho(matrix.proj, 0, screen.width, 0, screen.height, 0, 1);
+	mat_scale(matrix.proj, 2.0f / screen.width, 2.0f / screen.height, 0.0f);
+}
 
-	// Modelview matrix translates vertices to center screen:
-	mat_translate(matrix.view, screen.width / 2.0f, screen.height / 2.0f, 0.0f);
+static void
+init_texture (void)
+{
+	// Generate texture:
+	glGenTextures(1, &tex.id);
+	glBindTexture(GL_TEXTURE_2D, tex.id);
+
+	// Load cursor texture:
+	inlinebin_get(TEXTURE_CURSOR, &tex.png, &tex.len);
+	png_load(tex.png, tex.len, &tex.height, &tex.width, &tex.raw);
+
+	// Upload texture:
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, tex.width, tex.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, tex.raw);
+
+	// Free memory:
+	free(tex.raw);
+
+	int halfwd = tex.width  / 2;
+	int halfht = tex.height / 2;
+
+	// Size vertex array to texture:
+	vertex[0].x = -halfwd; vertex[0].y = -halfht;
+	vertex[1].x =  halfwd; vertex[1].y = -halfht;
+	vertex[2].x =  halfwd; vertex[2].y =  halfht;
+	vertex[3].x = -halfwd; vertex[3].y =  halfht;
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 }
 
 static bool
 init (void)
 {
+	GLint loc;
+
+	// Init texture:
+	init_texture();
+
 	// Generate vertex buffer object:
 	glGenBuffers(1, &vbo);
 
@@ -98,10 +145,18 @@ init (void)
 	glBindVertexArray(vao);
 
 	// Add pointer to 'vertex' attribute:
-	glEnableVertexAttribArray(program_cursor_loc_vertex());
-	glVertexAttribPointer(program_cursor_loc_vertex(), 2, GL_FLOAT, GL_FALSE,
+	loc = program_cursor_loc(LOC_CURSOR_VERTEX);
+	glEnableVertexAttribArray(loc);
+	glVertexAttribPointer(loc, 2, GL_FLOAT, GL_FALSE,
 		sizeof(struct vertex),
 		(void *)(&((struct vertex *)0)->x));
+
+	// Add pointer to 'texture' attribute:
+	loc = program_cursor_loc(LOC_CURSOR_TEXTURE);
+	glEnableVertexAttribArray(loc);
+	glVertexAttribPointer(loc, 2, GL_FLOAT, GL_FALSE,
+		sizeof(struct vertex),
+		(void *)(&((struct vertex *)0)->u));
 
 	// Copy vertices to buffer:
 	glBufferData(GL_ARRAY_BUFFER, sizeof(vertex), vertex, GL_STATIC_DRAW);
@@ -112,6 +167,9 @@ init (void)
 static void
 destroy (void)
 {
+	// Delete texture:
+	glDeleteTextures(1, &tex.id);
+
 	// Delete vertex array object:
 	glDeleteVertexArrays(1, &vao);
 

@@ -58,6 +58,7 @@ png_load (const char *data, size_t len, unsigned int *height, unsigned int *widt
 	png_structp png_ptr;
 	png_infop info_ptr;
 	bool err = false;
+	char channels;
 
 	// Initialize caller-supplied pointer:
 	*rawbits = NULL;
@@ -131,9 +132,10 @@ png_load (const char *data, size_t len, unsigned int *height, unsigned int *widt
 
 	*width  = png_get_image_width  (png_ptr, info_ptr);
 	*height = png_get_image_height (png_ptr, info_ptr);
+	channels = png_get_channels(png_ptr, info_ptr);
 
 	// Allocate the rawbits image data:
-	if ((*rawbits = malloc(*width * *height * 3)) == NULL) {
+	if ((*rawbits = malloc(*width * *height * channels)) == NULL) {
 		err = true;
 		goto exit;
 	}
@@ -142,7 +144,7 @@ png_load (const char *data, size_t len, unsigned int *height, unsigned int *widt
 	// TODO: check if it's wise to allocate this on the stack:
 	{
 		png_byte *b = *rawbits;
-		size_t row_stride = *width * 3;
+		size_t row_stride = *width * channels;
 		png_bytep row_pointers[*height];
 
 		for (unsigned int i = 0; i < *height; i++) {

@@ -1,12 +1,12 @@
 #version 130
 
 uniform mat4 mat_proj;
-uniform mat4 mat_view;
 in  vec2 vertex;
-out vec2 fpos;
+in  vec2 texture;
+out vec2 ftex;
 
 void main (void)
 {
-	fpos = vertex;
-	gl_Position = mat_proj * mat_view * vec4(vertex, 0.0, 1.0);
+	ftex = texture;
+	gl_Position = mat_proj * vec4(vertex, 0.0, 1.0);
 }
