@@ -1,8 +1,8 @@
-struct program_bkgd {
-	int tex;
+enum LocBkgd {
+	LOC_BKGD_VERTEX,
+	LOC_BKGD_TEXTURE,
 };
 
 struct program *program_bkgd (void);
-GLint program_bkgd_loc_vertex (void);
-GLint program_bkgd_loc_texture (void);
-void program_bkgd_use (struct program_bkgd *);
+void program_bkgd_use (void);
+GLint program_bkgd_loc (const enum LocBkgd);

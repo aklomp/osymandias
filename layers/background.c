@@ -77,9 +77,7 @@ paint (void)
 	glDepthMask(GL_FALSE);
 
 	// Use the background program:
-	program_bkgd_use(&((struct program_bkgd) {
-		.tex = 0,
-	}));
+	program_bkgd_use();
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, tex.id);
@@ -105,6 +103,8 @@ resize (const unsigned int width, const unsigned int height)
 static bool
 init (void)
 {
+	GLint loc;
+
 	// Generate vertex buffer object:
 	glGenBuffers(1, &vbo);
 
@@ -116,14 +116,16 @@ init (void)
 	glBindVertexArray(vao);
 
 	// Add pointer to 'vertex' attribute:
-	glEnableVertexAttribArray(program_bkgd_loc_vertex());
-	glVertexAttribPointer(program_bkgd_loc_vertex(), 2, GL_FLOAT, GL_FALSE,
+	loc = program_bkgd_loc(LOC_BKGD_VERTEX);
+	glEnableVertexAttribArray(loc);
+	glVertexAttribPointer(loc, 2, GL_FLOAT, GL_FALSE,
 		sizeof(struct vertex),
 		(void *)(&((struct vertex *)0)->x));
 
 	// Add pointer to 'texture' attribute:
-	glEnableVertexAttribArray(program_bkgd_loc_texture());
-	glVertexAttribPointer(program_bkgd_loc_texture(), 2, GL_FLOAT, GL_FALSE,
+	loc = program_bkgd_loc(LOC_BKGD_TEXTURE);
+	glEnableVertexAttribArray(loc);
+	glVertexAttribPointer(loc, 2, GL_FLOAT, GL_FALSE,
 		sizeof(struct vertex),
 		(void *)(&((struct vertex *)0)->u));
 
