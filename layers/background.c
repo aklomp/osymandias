@@ -72,10 +72,6 @@ texcoords (float screen_wd, float screen_ht)
 static void
 paint (void)
 {
-	// The background is infinitely far away:
-	glDisable(GL_DEPTH_TEST);
-	glDepthMask(GL_FALSE);
-
 	// Use the background program:
 	program_bkgd_use();
 

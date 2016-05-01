@@ -67,8 +67,6 @@ paint (void)
 
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	glDisable(GL_DEPTH_TEST);
-	glDepthMask(GL_FALSE);
 
 	// Use the cursor program:
 	program_cursor_use(&((struct program_cursor) {

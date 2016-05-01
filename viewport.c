@@ -178,6 +178,8 @@ viewport_paint (void)
 {
 	// Clear the depth buffer:
 	glClear(GL_DEPTH_BUFFER_BIT);
+	glDisable(GL_DEPTH_TEST);
+	glDepthMask(GL_FALSE);
 
 	// Paint all layers:
 	layers_paint();
@@ -209,19 +211,6 @@ viewport_gl_setup_world (void)
 	tilepicker_recalc();
 
 	glDisable(GL_BLEND);
-
-	switch (world_get())
-	{
-	case WORLD_PLANAR:
-		glDisable(GL_DEPTH_TEST);
-		glDepthMask(GL_FALSE);
-		break;
-
-	case WORLD_SPHERICAL:
-		glEnable(GL_DEPTH_TEST);
-		glDepthMask(GL_TRUE);
-		break;
-	}
 }
 
 unsigned int
