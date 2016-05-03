@@ -6,6 +6,7 @@
 #include "../png.h"
 #include "../layers.h"
 #include "../inlinebin.h"
+#include "../glutil.h"
 #include "../programs.h"
 #include "../programs/bkgd.h"
 
@@ -24,24 +25,12 @@ static struct {
 //   |  |
 //   0--1
 //
-static struct vertex {
-	float x;
-	float y;
-	float u;
-	float v;
-} __attribute__((packed))
-vertex[4] = {
+static struct glutil_vertex_uv vertex[4] =
+{
 	[0] = { .x = -1.0, .y = -1.0 },
 	[1] = { .x =  1.0, .y = -1.0 },
 	[2] = { .x =  1.0, .y =  1.0 },
 	[3] = { .x = -1.0, .y =  1.0 },
-};
-
-// Array of indices. We define two counterclockwise triangles:
-// 3-0-2 and 0-1-2
-static GLubyte index[6] = {
-	3, 0, 2,
-	0, 1, 2,
 };
 
 static GLuint vao, vbo;
@@ -54,19 +43,19 @@ texcoords (float screen_wd, float screen_ht)
 
 	// Bottom left:
 	vertex[0].u = 0;
-	vertex[0].v = 0;
+	vertex[0].v = ht;
 
 	// Bottom right:
 	vertex[1].u = wd;
-	vertex[1].v = 0;
+	vertex[1].v = ht;
 
 	// Top right:
 	vertex[2].u = wd;
-	vertex[2].v = ht;
+	vertex[2].v = 0;
 
 	// Top left:
 	vertex[3].u = 0;
-	vertex[3].v = ht;
+	vertex[3].v = 0;
 }
 
 static void
@@ -84,7 +73,7 @@ paint (void)
 
 	// Draw all triangles in the buffer:
 	glBindVertexArray(vao);
-	glDrawElements(GL_TRIANGLES, sizeof(index) / sizeof(index[0]), GL_UNSIGNED_BYTE, index);
+	glutil_draw_quad();
 
 	program_none();
 }
@@ -99,8 +88,6 @@ resize (const unsigned int width, const unsigned int height)
 static bool
 init (void)
 {
-	GLint loc;
-
 	// Generate vertex buffer object:
 	glGenBuffers(1, &vbo);
 
@@ -111,19 +98,10 @@ init (void)
 	glBindBuffer(GL_ARRAY_BUFFER, vbo);
 	glBindVertexArray(vao);
 
-	// Add pointer to 'vertex' attribute:
-	loc = program_bkgd_loc(LOC_BKGD_VERTEX);
-	glEnableVertexAttribArray(loc);
-	glVertexAttribPointer(loc, 2, GL_FLOAT, GL_FALSE,
-		sizeof(struct vertex),
-		(void *)(&((struct vertex *)0)->x));
-
-	// Add pointer to 'texture' attribute:
-	loc = program_bkgd_loc(LOC_BKGD_TEXTURE);
-	glEnableVertexAttribArray(loc);
-	glVertexAttribPointer(loc, 2, GL_FLOAT, GL_FALSE,
-		sizeof(struct vertex),
-		(void *)(&((struct vertex *)0)->u));
+	// Link 'vertex' and 'texture' attributes:
+	glutil_vertex_uv_link(
+		program_bkgd_loc(LOC_BKGD_VERTEX),
+		program_bkgd_loc(LOC_BKGD_TEXTURE));
 
 	// Generate texture:
 	glGenTextures(1, &tex.id);

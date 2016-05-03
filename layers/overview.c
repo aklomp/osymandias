@@ -10,6 +10,7 @@
 #include "../layers.h"
 #include "../tilepicker.h"
 #include "../inlinebin.h"
+#include "../glutil.h"
 #include "../programs.h"
 #include "../programs/frustum.h"
 #include "../programs/solid.h"
@@ -66,17 +67,10 @@ setup_viewport (void)
 static void
 paint_background (GLuint vao)
 {
-	// Array of indices. We define two counterclockwise triangles:
-	// 0-1-3 and 1-2-3
-	static const GLubyte index[6] = {
-		0, 1, 3,
-		1, 2, 3,
-	};
-
 	// Draw solid background:
 	glBindVertexArray(vao);
 	glBindBuffer(GL_ARRAY_BUFFER, *vbo_bkgd);
-	glDrawElements(GL_TRIANGLES, sizeof(index), GL_UNSIGNED_BYTE, index);
+	glutil_draw_quad();
 }
 
 static void

@@ -4,6 +4,7 @@
 
 #include "../matrix.h"
 #include "../inlinebin.h"
+#include "../glutil.h"
 #include "../layers.h"
 #include "../programs.h"
 #include "../programs/cursor.h"
@@ -16,25 +17,7 @@
 //   |  |
 //   0--1
 //
-static struct vertex {
-	float x;
-	float y;
-	float u;
-	float v;
-} __attribute__((packed))
-vertex[4] = {
-	[0] = { .u = 0.0f, .v = 0.0f },
-	[1] = { .u = 1.0f, .v = 0.0f },
-	[2] = { .u = 1.0f, .v = 1.0f },
-	[3] = { .u = 0.0f, .v = 1.0f },
-};
-
-// Array of indices. We define two counterclockwise triangles:
-// 3-0-2 and 0-1-2
-static GLubyte index[6] = {
-	3, 0, 2,
-	0, 1, 2,
-};
+static struct glutil_vertex_uv vertex[4] = GLUTIL_VERTEX_UV_DEFAULT;
 
 // Projection matrix:
 static struct {
@@ -79,7 +62,7 @@ paint (void)
 
 	// Draw all triangles in the buffer:
 	glBindVertexArray(vao);
-	glDrawElements(GL_TRIANGLES, sizeof(index) / sizeof(index[0]), GL_UNSIGNED_BYTE, index);
+	glutil_draw_quad();
 
 	program_none();
 }
@@ -127,8 +110,6 @@ init_texture (void)
 static bool
 init (void)
 {
-	GLint loc;
-
 	// Init texture:
 	init_texture();
 
@@ -142,19 +123,10 @@ init (void)
 	glBindBuffer(GL_ARRAY_BUFFER, vbo);
 	glBindVertexArray(vao);
 
-	// Add pointer to 'vertex' attribute:
-	loc = program_cursor_loc(LOC_CURSOR_VERTEX);
-	glEnableVertexAttribArray(loc);
-	glVertexAttribPointer(loc, 2, GL_FLOAT, GL_FALSE,
-		sizeof(struct vertex),
-		(void *)(&((struct vertex *)0)->x));
-
-	// Add pointer to 'texture' attribute:
-	loc = program_cursor_loc(LOC_CURSOR_TEXTURE);
-	glEnableVertexAttribArray(loc);
-	glVertexAttribPointer(loc, 2, GL_FLOAT, GL_FALSE,
-		sizeof(struct vertex),
-		(void *)(&((struct vertex *)0)->u));
+	// Link 'vertex' and 'texture' attributes:
+	glutil_vertex_uv_link(
+		program_cursor_loc(LOC_CURSOR_VERTEX),
+		program_cursor_loc(LOC_CURSOR_TEXTURE));
 
 	// Copy vertices to buffer:
 	glBufferData(GL_ARRAY_BUFFER, sizeof(vertex), vertex, GL_STATIC_DRAW);
