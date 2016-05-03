@@ -24,6 +24,7 @@
 	X (SHADER_FRUSTUM_FRAGMENT,	shaders_frustum_fragment_glsl)	\
 	X (TEXTURE_BACKGROUND,		textures_background_png)	\
 	X (TEXTURE_CURSOR,		textures_cursor_png)		\
+	X (TEXTURE_COPYRIGHT,		textures_copyright_png)		\
 
 // Define variables pointing to inline data:
 #define X(id, name) DATA_DEF(name)
