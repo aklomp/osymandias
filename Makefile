@@ -48,6 +48,7 @@ OBJS_GTK = \
   gui/signal.o \
 
 OBJS_GTKGL = \
+  glutil.o \
   programs.o \
   $(patsubst %.c,%.o,$(wildcard layers/*.c)) \
   $(patsubst %.c,%.o,$(wildcard programs/*.c))
