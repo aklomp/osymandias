@@ -10,15 +10,6 @@
 #include "../programs.h"
 #include "../programs/bkgd.h"
 
-static struct {
-	char		*rgb;
-	const char	*png;
-	size_t		 len;
-	GLuint		 id;
-	unsigned int	 width;
-	unsigned int	 height;
-} tex;
-
 // Array of counterclockwise vertices:
 //
 //   3--2
@@ -31,6 +22,12 @@ static struct glutil_vertex_uv vertex[4] =
 	[1] = { .x =  1.0, .y = -1.0 },
 	[2] = { .x =  1.0, .y =  1.0 },
 	[3] = { .x = -1.0, .y =  1.0 },
+};
+
+// Background texture:
+static struct glutil_texture tex = {
+	.src  = TEXTURE_BACKGROUND,
+	.type = GL_RGB,
 };
 
 static GLuint vao, vbo;
@@ -88,6 +85,14 @@ resize (const unsigned int width, const unsigned int height)
 static bool
 init (void)
 {
+	// Load texture:
+	if (glutil_texture_load(&tex) == false)
+		return false;
+
+	// Make a tiling texture:
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
 	// Generate vertex buffer object:
 	glGenBuffers(1, &vbo);
 
@@ -102,26 +107,6 @@ init (void)
 	glutil_vertex_uv_link(
 		program_bkgd_loc(LOC_BKGD_VERTEX),
 		program_bkgd_loc(LOC_BKGD_TEXTURE));
-
-	// Generate texture:
-	glGenTextures(1, &tex.id);
-	glBindTexture(GL_TEXTURE_2D, tex.id);
-
-	// Load texture:
-	inlinebin_get(TEXTURE_BACKGROUND, &tex.png, &tex.len);
-	png_load(tex.png, tex.len, &tex.height, &tex.width, &tex.rgb);
-
-	// Upload texture:
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, tex.width, tex.height, 0, GL_RGB, GL_UNSIGNED_BYTE, tex.rgb);
-
-	// Free memory:
-	free(tex.rgb);
-
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 
 	return true;
 }

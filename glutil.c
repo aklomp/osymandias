@@ -1,4 +1,9 @@
+#include <stdbool.h>
+#include <stdlib.h>
 #include <GL/gl.h>
+
+#include "inlinebin.h"
+#include "png.h"
 #include "glutil.h"
 
 // Array of indices. If we have a quad defined by these corners:
@@ -44,4 +49,44 @@ glutil_draw_quad (void)
 {
 	// Draw two triangles which together form one quad:
 	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_BYTE, glutil_index);
+}
+
+bool
+glutil_texture_load (struct glutil_texture *tex)
+{
+	char		*raw;
+	const char	*png;
+	size_t		 len;
+
+	// Get inline texture as PNG blob:
+	inlinebin_get(tex->src, &png, &len);
+
+	// Decode PNG to raw format:
+	if (png_load(png, len, &tex->height, &tex->width, &raw) == false)
+		return false;
+
+	// Generate texture:
+	glGenTextures(1, &tex->id);
+	glBindTexture(GL_TEXTURE_2D, tex->id);
+
+	// Default texture settings:
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+
+	// Upload raw texture data:
+	glTexImage2D	( GL_TEXTURE_2D		// Target
+			, 0			// Mipmap level
+			, tex->type		// Internal format
+			, tex->width		// Width
+			, tex->height		// height
+			, 0			// Border, must be 0
+			, tex->type		// Format
+			, GL_UNSIGNED_BYTE	// Data type
+			, raw			// Raw data
+			) ;
+
+	// Free memory:
+	free(raw);
+
+	return true;
 }

@@ -31,14 +31,10 @@ static struct {
 } screen;
 
 // Cursor texture:
-static struct {
-	char		*raw;
-	const char	*png;
-	size_t		 len;
-	GLuint		 id;
-	unsigned int	 width;
-	unsigned int	 height;
-} tex;
+static struct glutil_texture tex = {
+	.src  = TEXTURE_CURSOR,
+	.type = GL_RGBA,
+};
 
 static GLuint vao, vbo;
 
@@ -77,22 +73,12 @@ resize (const unsigned int width, const unsigned int height)
 	mat_scale(matrix.proj, 2.0f / screen.width, 2.0f / screen.height, 0.0f);
 }
 
-static void
+static bool
 init_texture (void)
 {
-	// Generate texture:
-	glGenTextures(1, &tex.id);
-	glBindTexture(GL_TEXTURE_2D, tex.id);
-
-	// Load cursor texture:
-	inlinebin_get(TEXTURE_CURSOR, &tex.png, &tex.len);
-	png_load(tex.png, tex.len, &tex.height, &tex.width, &tex.raw);
-
-	// Upload texture:
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, tex.width, tex.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, tex.raw);
-
-	// Free memory:
-	free(tex.raw);
+	// Load texture:
+	if (glutil_texture_load(&tex) == false)
+		return false;
 
 	int halfwd = tex.width  / 2;
 	int halfht = tex.height / 2;
@@ -103,15 +89,15 @@ init_texture (void)
 	vertex[2].x =  halfwd; vertex[2].y =  halfht;
 	vertex[3].x = -halfwd; vertex[3].y =  halfht;
 
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	return true;
 }
 
 static bool
 init (void)
 {
 	// Init texture:
-	init_texture();
+	if (init_texture() == false)
+		return false;
 
 	// Generate vertex buffer object:
 	glGenBuffers(1, &vbo);

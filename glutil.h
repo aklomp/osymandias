@@ -30,5 +30,17 @@ struct glutil_vertex_uv {
 void glutil_vertex_link    (const GLuint loc_xy);
 void glutil_vertex_uv_link (const GLuint loc_xy, const GLuint loc_uv);
 
+// Glutil texture:
+struct glutil_texture {
+	GLuint		id;
+	enum inlinebin	src;
+	GLenum		type;
+	unsigned int	width;
+	unsigned int	height;
+};
+
+// Operations on textures:
+bool glutil_texture_load (struct glutil_texture *);
+
 // Draw one quad from two triangles:
 void glutil_draw_quad (void);
