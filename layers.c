@@ -5,6 +5,7 @@
 #include "layers.h"
 #include "layers/background.h"
 #include "layers/blanktile.h"
+#include "layers/copyright.h"
 #include "layers/cursor.h"
 #include "layers/osm.h"
 #include "layers/overview.h"
@@ -56,6 +57,7 @@ layers_init (void)
 		layer_background(),
 		layer_blanktile(),
 		layer_osm(),
+		layer_copyright(),
 		layer_overview(),
 		layer_cursor(),
 	};
