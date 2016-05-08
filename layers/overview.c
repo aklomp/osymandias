@@ -18,6 +18,8 @@
 #define SIZE	256.0f
 #define MARGIN	 10.0f
 
+#define MEMBERS(x)	(sizeof(x) / sizeof((x)[0]))
+
 // Projection matrix:
 static struct {
 	float proj[16];
@@ -209,12 +211,12 @@ paint (void)
 
 	// Paint background using frustum program:
 	program_frustum_use(&((struct program_frustum) {
-		.mat_proj = matrix.proj,
-		.mat_frustum = camera_mat_viewproj(),
-		.mat_model = world_get_matrix(),
-		.world_size = world_get_size(),
-		.spherical = (world_get() == WORLD_SPHERICAL),
-		.camera = camera_pos(),
+		.mat_proj	= matrix.proj,
+		.mat_frustum	= camera_mat_viewproj(),
+		.mat_model	= world_get_matrix(),
+		.world_size	= world_get_size(),
+		.spherical	= (world_get() == WORLD_SPHERICAL),
+		.camera		= camera_pos(),
 	}));
 
 	paint_background(*vao_frustum);
@@ -309,8 +311,8 @@ static bool
 init (void)
 {
 	// Generate vertex buffer and array objects:
-	glGenBuffers(sizeof(vbo) / sizeof(vbo[0]), vbo);
-	glGenVertexArrays(sizeof(vao) / sizeof(vao[0]), vao);
+	glGenBuffers(MEMBERS(vbo), vbo);
+	glGenVertexArrays(MEMBERS(vao), vao);
 
 	init_bkgd();
 	init_frustum();
@@ -325,8 +327,8 @@ static void
 destroy (void)
 {
 	// Delete vertex array and buffer objects:
-	glDeleteVertexArrays(sizeof(vao) / sizeof(vao[0]), vao);
-	glDeleteBuffers(sizeof(vbo) / sizeof(vbo[0]), vbo);
+	glDeleteVertexArrays(MEMBERS(vao), vao);
+	glDeleteBuffers(MEMBERS(vbo), vbo);
 }
 
 const struct layer *
