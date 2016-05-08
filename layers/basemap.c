@@ -112,7 +112,7 @@ paint (void)
 }
 
 const struct layer *
-layer_blanktile (void)
+layer_basemap (void)
 {
 	static struct layer layer = {
 		.paint    = &paint,

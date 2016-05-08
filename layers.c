@@ -4,7 +4,7 @@
 
 #include "layers.h"
 #include "layers/background.h"
-#include "layers/blanktile.h"
+#include "layers/basemap.h"
 #include "layers/copyright.h"
 #include "layers/cursor.h"
 #include "layers/osm.h"
@@ -55,7 +55,7 @@ layers_init (void)
 {
 	const struct layer *l[] = {
 		layer_background(),
-		layer_blanktile(),
+		layer_basemap(),
 		layer_osm(),
 		layer_copyright(),
 		layer_overview(),
