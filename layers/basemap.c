@@ -5,90 +5,107 @@
 #include "../matrix.h"
 #include "../vector.h"
 #include "../worlds.h"
+#include "../camera.h"
+#include "../inlinebin.h"
+#include "../glutil.h"
+#include "../programs.h"
+#include "../programs/cursor.h"
 #include "../viewport.h"
 #include "../layers.h"
 
-#define FOG_END	20.0
+#define MEMBERS(x)	(sizeof(x) / sizeof((x)[0]))
+
+static struct {
+	float scale[16];
+	float translate[16];
+	float project[16];
+} matrix;
+
+// Array of counterclockwise vertices:
+//
+//   3--2
+//   |  |
+//   0--1
+//
+static struct glutil_vertex_uv vertex_planar[4] = {
+	[0] = {
+		.x = -0.5f, .y = -0.5f,
+		.u =  0.0f, .v =  1.0f
+	},
+	[1] = {
+		.x = 0.5f, .y = -0.5f,
+		.u = 1.0f, .v =  1.0f
+	},
+	[2] = {
+		.x = 0.5f, .y = 0.5f,
+		.u = 1.0f, .v = 0.0f
+	},
+	[3] = {
+		.x = -0.5f, .y = 0.5f,
+		.u =  0.0f, .v = 0.0f
+	},
+};
+
+// Basemap texture:
+static struct glutil_texture tex = {
+	.src  = TEXTURE_BASEMAP,
+	.type = GL_RGB,
+};
+
+// Vertex array and buffer objects:
+static GLuint vao[1], vbo[1];
+static const GLuint *vao_planar = &vao[0];
+static const GLuint *vbo_planar = &vbo[0];
+
+static void
+zoom (const unsigned int zoom)
+{
+	(void)zoom;
+
+	float world_size = world_get_size();
+
+	// Scale 1x1 planar quad to new world size:
+	mat_scale(matrix.scale, world_size, world_size, 1.0f);
+}
+
+static void
+move_planar (void)
+{
+	const struct coords *center = world_get_center();
+	float halfsz = world_get_size() / 2.0f;
+
+	// Create translation matrix:
+	// FIXME: this should eventually use world_get_matrix():
+	mat_translate(matrix.translate, halfsz - center->tile.x, center->tile.y - halfsz, 0.0f);
+}
 
 static void
 paint_planar (void)
 {
-	int world_size = world_get_size();
-	const struct coords *center = world_get_center();
-	const float *mat_model = world_get_matrix();
-
 	// Draw to world coordinates:
 	viewport_gl_setup_world();
 
-	// Draw a giant quad to the current world size:
-	float points[4][4] = {
-		{ 0.0f,       0.0f,       0.0f, 1.0f },
-		{ 0.0f,       world_size, 0.0f, 1.0f },
-		{ world_size, world_size, 0.0f, 1.0f },
-		{ world_size, 0.0f,       0.0f, 1.0f },
-	};
+	// Create translation matrix:
+	move_planar();
 
-	glColor3f(0.12, 0.12, 0.12);
+	// Multiply matrices:
+	mat_multiply(matrix.project, matrix.translate, matrix.scale);
+	mat_multiply(matrix.project, camera_mat_viewproj(), matrix.project);
 
-	glBegin(GL_QUADS);
-	for (int i = 0; i < 4; i++) {
-		struct vector *p = (struct vector *)points[i];
-		mat_vec_multiply(points[i], mat_model, points[i]);
-		glVertex2f(p->x, p->y);
-	}
-	glEnd();
+	// Use the cursor program:
+	program_cursor_use(&((struct program_cursor) {
+		.mat_proj = matrix.project,
+	}));
 
-	// Setup fog:
-	glEnable(GL_FOG);
-	glFogfv(GL_FOG_COLOR, (float[]){ 0.12, 0.12, 0.12, 1.0 });
-	glHint(GL_FOG_HINT, GL_DONT_CARE);
-	glFogi(GL_FOG_MODE, GL_LINEAR);
-	glFogf(GL_FOG_DENSITY, 1.0);
-	glFogf(GL_FOG_START, 1.0);
-	glFogf(GL_FOG_END, FOG_END);
+	// Activate basemap texture:
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, tex.id);
 
-	// Clip tile size to non-fog region:
-	int l = center->tile.x - FOG_END - 5;
-	int r = center->tile.x + FOG_END + 5;
-	int t = world_size - center->tile.y + FOG_END + 5;
-	int b = world_size - center->tile.y - FOG_END - 5;
+	// Draw all triangles in the buffer:
+	glBindVertexArray(*vao_planar);
+	glutil_draw_quad();
 
-	l = (l < 0) ? 0 : (l >= world_size) ? world_size : l;
-	r = (r < 0) ? 0 : (r >= world_size) ? world_size : r;
-	t = (t < 0) ? 0 : (t >= world_size) ? world_size : t;
-	b = (b < 0) ? 0 : (b >= world_size) ? world_size : b;
-
-	glColor3f(0.20, 0.20, 0.20);
-	glBegin(GL_LINES);
-
-	// Vertical grid lines:
-	for (int x = l; x <= r; x++) {
-		float line[2][4] = {
-			{ x, t, 0.0f, 1.0f },
-			{ x, b, 0.0f, 1.0f },
-		};
-		mat_vec_multiply(line[0], mat_model, line[0]);
-		mat_vec_multiply(line[1], mat_model, line[1]);
-
-		glVertex2d(line[0][0], line[0][1]);
-		glVertex2d(line[1][0], line[1][1]);
-	}
-
-	// Horizontal grid lines:
-	for (int y = b; y <= t; y++) {
-		float line[2][4] = {
-			{ l, y, 0.0f, 1.0f },
-			{ r, y, 0.0f, 1.0f },
-		};
-		mat_vec_multiply(line[0], mat_model, line[0]);
-		mat_vec_multiply(line[1], mat_model, line[1]);
-
-		glVertex2d(line[0][0], line[0][1]);
-		glVertex2d(line[1][0], line[1][1]);
-	}
-
-	glEnd();
-	glDisable(GL_FOG);
+	program_none();
 }
 
 static void
@@ -111,11 +128,59 @@ paint (void)
 	}
 }
 
+static void
+init_planar (void)
+{
+	// Planar basemap: bind buffer and vertex array:
+	glBindBuffer(GL_ARRAY_BUFFER, *vbo_planar);
+	glBindVertexArray(*vao_planar);
+
+	// Link 'vertex' and 'texture' attributes:
+	glutil_vertex_uv_link(
+		program_cursor_loc(LOC_CURSOR_VERTEX),
+		program_cursor_loc(LOC_CURSOR_TEXTURE));
+
+	// Copy vertices to buffer:
+	glBufferData(GL_ARRAY_BUFFER, sizeof(vertex_planar), vertex_planar, GL_STATIC_DRAW);
+}
+
+static bool
+init (void)
+{
+	// Load basemap texture:
+	if (glutil_texture_load(&tex) == false)
+		return false;
+
+	// Generate vertex buffer and array objects:
+	glGenBuffers(MEMBERS(vbo), vbo);
+	glGenVertexArrays(MEMBERS(vao), vao);
+
+	init_planar();
+
+	zoom(0);
+
+	return true;
+}
+
+static void
+destroy (void)
+{
+	// Delete texture:
+	glDeleteTextures(1, &tex.id);
+
+	// Delete vertex array and buffer objects:
+	glDeleteVertexArrays(MEMBERS(vao), vao);
+	glDeleteBuffers(MEMBERS(vbo), vbo);
+}
+
 const struct layer *
 layer_basemap (void)
 {
 	static struct layer layer = {
+		.init     = &init,
 		.paint    = &paint,
+		.zoom     = &zoom,
+		.destroy  = &destroy,
 	};
 
 	return &layer;
