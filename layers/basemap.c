@@ -11,7 +11,13 @@
 #include "../programs.h"
 #include "../programs/cursor.h"
 #include "../viewport.h"
+#include "../camera.h"
 #include "../layers.h"
+#include "../inlinebin.h"
+#include "../png.h"
+#include "../programs.h"
+#include "../programs/basemap_spherical.h"
+#include "../quadtree.h"
 
 #define MEMBERS(x)	(sizeof(x) / sizeof((x)[0]))
 
@@ -46,6 +52,14 @@ static struct glutil_vertex_uv vertex_planar[4] = {
 	},
 };
 
+static const struct glutil_vertex vertex_spherical[4] =
+{
+	[0] = { -1.0, -1.0 },
+	[1] = {  1.0, -1.0 },
+	[2] = {  1.0,  1.0 },
+	[3] = { -1.0,  1.0 },
+};
+
 // Basemap texture:
 static struct glutil_texture tex = {
 	.src  = TEXTURE_BASEMAP,
@@ -53,9 +67,11 @@ static struct glutil_texture tex = {
 };
 
 // Vertex array and buffer objects:
-static GLuint vao[1], vbo[1];
-static const GLuint *vao_planar = &vao[0];
-static const GLuint *vbo_planar = &vbo[0];
+static GLuint vao[2], vbo[2];
+static const GLuint *vao_planar    = &vao[0];
+static const GLuint *vao_spherical = &vao[1];
+static const GLuint *vbo_planar    = &vbo[0];
+static const GLuint *vbo_spherical = &vbo[1];
 
 static void
 zoom (const unsigned int zoom)
@@ -111,6 +127,21 @@ paint_planar (void)
 static void
 paint_spherical (void)
 {
+	// Use the basemap_spherical program:
+	program_basemap_spherical_use(&((struct program_basemap_spherical) {
+		.mat_viewproj_inv = camera_mat_viewproj_inv(),
+		.mat_model_inv = world_get_matrix_inverse(),
+	}));
+
+	// Activate map texture:
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, tex.id);
+
+	// Draw all triangles in the buffer:
+	glBindVertexArray(*vao_spherical);
+	glutil_draw_quad();
+
+	program_none();
 }
 
 static void
@@ -144,6 +175,21 @@ init_planar (void)
 	glBufferData(GL_ARRAY_BUFFER, sizeof(vertex_planar), vertex_planar, GL_STATIC_DRAW);
 }
 
+static void
+init_spherical (void)
+{
+	// Spherical basemap: bind buffer and vertex array:
+	glBindBuffer(GL_ARRAY_BUFFER, *vbo_spherical);
+	glBindVertexArray(*vao_spherical);
+
+	// Link 'vertex' attribute:
+	glutil_vertex_link(program_basemap_spherical_loc_vertex());
+
+	// Copy vertices to buffer:
+	glBindBuffer(GL_ARRAY_BUFFER, *vbo_spherical);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(vertex_spherical), vertex_spherical, GL_STATIC_DRAW);
+}
+
 static bool
 init (void)
 {
@@ -156,6 +202,7 @@ init (void)
 	glGenVertexArrays(MEMBERS(vao), vao);
 
 	init_planar();
+	init_spherical();
 
 	zoom(0);
 
