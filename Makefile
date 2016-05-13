@@ -57,21 +57,19 @@ OBJS_GTK_GTKGL += \
   gui.o \
   viewport.o \
 
-OBJS_BIN_GLSL = \
+OBJS_BIN = \
+  $(patsubst %.png,%.o,$(wildcard textures/*.png)) \
   $(patsubst %.glsl,%.o,$(wildcard shaders/*/*.glsl))
-
-OBJS_BIN_PNG = \
-  $(patsubst %.png,%.o,$(wildcard textures/*.png))
 
 all: $(PROG)
 
-$(PROG): $(OBJS) $(OBJS_GTK) $(OBJS_GTKGL) $(OBJS_GTK_GTKGL) $(OBJS_BIN_GLSL) $(OBJS_BIN_PNG)
+$(PROG): $(OBJS) $(OBJS_GTK) $(OBJS_GTKGL) $(OBJS_GTK_GTKGL) $(OBJS_BIN) $(OBJS_BIN)
 	$(CC) $(LDFLAGS) $(GTK_LDFLAGS) $(GTKGL_LDFLAGS) -o $@ $^
 
-$(OBJS_BIN_GLSL): %.o: %.glsl
+%.o: %.glsl
 	$(LD) --relocatable --format=binary -o $@ $^
 
-$(OBJS_BIN_PNG): %.o: %.png
+%.o: %.png
 	$(LD) --relocatable --format=binary -o $@ $^
 
 $(OBJS_GTK_GTKGL): %.o: %.c
@@ -89,4 +87,4 @@ $(OBJS): %.o: %.c
 .PHONY: clean all
 
 clean:
-	rm -f $(OBJS_BIN_PNG) $(OBJS_BIN_GLSL) $(OBJS_GTK_GTKGL) $(OBJS_GTKGL) $(OBJS_GTK) $(OBJS) $(PROG)
+	rm -f $(OBJS_BIN) $(OBJS_GTK_GTKGL) $(OBJS_GTKGL) $(OBJS_GTK) $(OBJS) $(PROG)
