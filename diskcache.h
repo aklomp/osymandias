@@ -1,6 +1,3 @@
-#ifndef FILENAME_H
-#define FILENAME_H
-
-char *tile_filename (unsigned int zoom, int tile_x, int tile_y);
-
-#endif	/* FILENAME_H */
+bool diskcache_add (unsigned int zoom, int tile_x, int tile_y, const char *data, size_t size);
+bool diskcache_del (unsigned int zoom, int tile_x, int tile_y);
+int diskcache_open (unsigned int zoom, int tile_x, int tile_y);

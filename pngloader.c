@@ -82,13 +82,10 @@ pngloader_main (void *data)
 
 	cancel_flag = false;
 
-	if ((p->filename = tile_filename(p->req.zoom, p->req.x, p->req.y)) == NULL || cancel_flag)
-		goto exit;
-
 	// Get a file descriptor to the file. We just want a file descriptor to
 	// associate with this thread so that we know what to clean up, and not
 	// wait for the disk to actually deliver, so we issue a nonblocking call:
-	if ((fd = open(p->filename, O_RDONLY | O_NONBLOCK)) < 0 || cancel_flag)
+	if ((fd = diskcache_open(p->req.zoom, p->req.x, p->req.y)) < 0 || cancel_flag)
 		goto exit;
 
 	// Now that we have the fd, make it properly blocking:
@@ -113,7 +110,6 @@ pngloader_main (void *data)
 exit:	if (fd >= 0)
 		close(fd);
 
-	free(p->filename);
 	free(p);
 }
 

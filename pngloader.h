@@ -7,8 +7,6 @@ struct pngloader
 	void (*on_completed)(struct pngloader *, void *);
 
 	struct quadtree_req req;
-
-	char *filename;
 };
 
 void pngloader_on_init (void);
