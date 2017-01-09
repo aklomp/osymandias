@@ -37,7 +37,10 @@ have_anisotropic (void)
 
 	if (!init) {
 		const char *ext = (const char *)glGetString(GL_EXTENSIONS);
-		have = strstr(ext, "GL_EXT_texture_filter_anisotropic");
+
+		if (ext)
+			have = strstr(ext, "GL_EXT_texture_filter_anisotropic");
+
 		init = true;
 	}
 
