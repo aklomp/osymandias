@@ -8,9 +8,9 @@
 #include "programs.h"
 #include "programs/basemap_spherical.h"
 #include "programs/bkgd.h"
-#include "programs/cursor.h"
 #include "programs/frustum.h"
 #include "programs/solid.h"
+#include "programs/tile2d.h"
 
 #define FOREACH_PROGRAM \
 	for (struct program **p = programs, *program; \
@@ -234,9 +234,9 @@ programs_init (void)
 	struct program *p[] = {
 		program_basemap_spherical(),
 		program_bkgd(),
-		program_cursor(),
-		program_solid(),
 		program_frustum(),
+		program_solid(),
+		program_tile2d(),
 	};
 
 	// Count the number of programs:

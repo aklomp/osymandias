@@ -9,7 +9,7 @@
 #include "../inlinebin.h"
 #include "../glutil.h"
 #include "../programs.h"
-#include "../programs/cursor.h"
+#include "../programs/tile2d.h"
 #include "../viewport.h"
 #include "../camera.h"
 #include "../layers.h"
@@ -109,7 +109,7 @@ paint_planar (void)
 	mat_multiply(matrix.project, camera_mat_viewproj(), matrix.project);
 
 	// Use the cursor program:
-	program_cursor_use(&((struct program_cursor) {
+	program_tile2d_use(&((struct program_tile2d) {
 		.mat_proj = matrix.project,
 	}));
 
@@ -168,8 +168,8 @@ init_planar (void)
 
 	// Link 'vertex' and 'texture' attributes:
 	glutil_vertex_uv_link(
-		program_cursor_loc(LOC_CURSOR_VERTEX),
-		program_cursor_loc(LOC_CURSOR_TEXTURE));
+		program_tile2d_loc(LOC_TILE2D_VERTEX),
+		program_tile2d_loc(LOC_TILE2D_TEXTURE));
 
 	// Copy vertices to buffer:
 	glBufferData(GL_ARRAY_BUFFER, sizeof(vertex_planar), vertex_planar, GL_STATIC_DRAW);
