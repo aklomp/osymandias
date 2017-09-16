@@ -12,6 +12,11 @@
 #include "programs/frustum.h"
 #include "programs/solid.h"
 
+#define FOREACH_PROGRAM \
+	for (struct program **p = programs, *program; \
+		p < programs + nprograms && (program = *p); \
+		p++)
+
 // Local helper struct for compiling shaders:
 struct shadermeta {
 	struct shader	*shader;
@@ -216,9 +221,9 @@ program_create (struct program *program)
 void
 programs_destroy (void)
 {
-	for (int i = 0; i < nprograms; i++)
-		if (programs[i]->created)
-			glDeleteProgram(programs[i]->id);
+	FOREACH_PROGRAM
+		if (program->created)
+			glDeleteProgram(program->id);
 
 	free(programs);
 }
@@ -244,8 +249,8 @@ programs_init (void)
 	// Copy to static list:
 	memcpy(programs, p, sizeof(p));
 
-	for (int i = 0; i < nprograms; i++)
-		if (!program_create(programs[i])) {
+	FOREACH_PROGRAM
+		if (!program_create(program)) {
 			programs_destroy();
 			return false;
 		}
