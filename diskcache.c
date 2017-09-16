@@ -43,13 +43,32 @@ get_filename (unsigned int zoom, int tile_x, int tile_y)
 	}
 }
 
+static bool
+safe_write (const char *buf, size_t len, int fd)
+{
+	ssize_t nwrite;
+
+	while (len) {
+		if ((nwrite = write(fd, buf, len)) < 0) {
+			if (errno == EINTR)
+				continue;
+
+			return false;
+		}
+		buf += nwrite;
+		len -= nwrite;
+	}
+
+	return true;
+}
+
 // Add given blob to the disk cache.
 bool
 diskcache_add (unsigned int zoom, int tile_x, int tile_y, const char *data, size_t size)
 {
 	int fd;
 	char *filename;
-	ssize_t nwrite;
+	bool ret = true;
 
 	if ((filename = get_filename(zoom, tile_x, tile_y)) == NULL)
 		return false;
@@ -59,23 +78,14 @@ diskcache_add (unsigned int zoom, int tile_x, int tile_y, const char *data, size
 		return false;
 	}
 
-	while (size) {
-		if ((nwrite = write(fd, data, size)) < 0) {
-			if (errno == EINTR)
-				continue;
-
-			close(fd);
-			unlink(filename);
-			free(filename);
-			return false;
-		}
-		data += nwrite;
-		size -= nwrite;
+	if (safe_write(data, size, fd) == false) {
+		unlink(filename);
+		ret = false;
 	}
 
 	close(fd);
 	free(filename);
-	return true;
+	return ret;
 }
 
 // Remove blob stored at given location.
