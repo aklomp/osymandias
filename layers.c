@@ -10,6 +10,11 @@
 #include "layers/osm.h"
 #include "layers/overview.h"
 
+#define FOREACH_LAYER \
+	for (struct layer **l = layers, *layer; \
+		l < layers + nlayers && (layer = *l); \
+		l++)
+
 // Master list of layers, filled by layers_init():
 static struct layer **layers = NULL;
 
@@ -27,25 +32,25 @@ layers_paint (void)
 void
 layers_zoom (const unsigned int zoom)
 {
-	for (int i = 0; i < nlayers; i++)
-		if (layers[i]->zoom)
-			layers[i]->zoom(zoom);
+	FOREACH_LAYER
+		if (layer->zoom)
+			layer->zoom(zoom);
 }
 
 void
 layers_resize (const unsigned int width, const unsigned int height)
 {
-	for (int i = 0; i < nlayers; i++)
-		if (layers[i]->resize)
-			layers[i]->resize(width, height);
+	FOREACH_LAYER
+		if (layer->resize)
+			layer->resize(width, height);
 }
 
 void
 layers_destroy (void)
 {
-	for (int i = 0; i < nlayers; i++)
-		if (layers[i]->destroy)
-			layers[i]->destroy();
+	FOREACH_LAYER
+		if (layer->destroy)
+			layer->destroy();
 
 	free(layers);
 }
@@ -72,12 +77,11 @@ layers_init (void)
 	// Copy to static list:
 	memcpy(layers, l, sizeof(l));
 
-	for (int i = 0; i < nlayers; i++)
-		if (layers[i]->init)
-			if (!layers[i]->init()) {
-				layers_destroy();
-				return false;
-			}
+	FOREACH_LAYER
+		if (layer->init && layer->init() == false) {
+			layers_destroy();
+			return false;
+		}
 
 	return true;
 }
