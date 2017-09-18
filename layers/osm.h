@@ -1,1 +1,1 @@
-const struct layer *layer_osm (void);
+extern const struct layer layer_osm;

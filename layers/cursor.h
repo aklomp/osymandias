@@ -1,1 +1,1 @@
-const struct layer *layer_cursor (void);
+extern const struct layer layer_cursor;

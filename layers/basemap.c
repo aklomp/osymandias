@@ -220,15 +220,10 @@ destroy (void)
 	glDeleteBuffers(MEMBERS(vbo), vbo);
 }
 
-const struct layer *
-layer_basemap (void)
-{
-	static struct layer layer = {
-		.init     = &init,
-		.paint    = &paint,
-		.zoom     = &zoom,
-		.destroy  = &destroy,
-	};
-
-	return &layer;
-}
+// Export public methods:
+const struct layer layer_basemap = {
+	.init    = &init,
+	.paint   = &paint,
+	.zoom    = &zoom,
+	.destroy = &destroy,
+};

@@ -133,15 +133,10 @@ destroy (void)
 	glDeleteBuffers(1, &vbo);
 }
 
-const struct layer *
-layer_cursor (void)
-{
-	static struct layer layer = {
-		.init     = &init,
-		.paint    = &paint,
-		.resize   = &resize,
-		.destroy  = &destroy,
-	};
-
-	return &layer;
-}
+// Export public methods:
+const struct layer layer_cursor = {
+	.init    = &init,
+	.paint   = &paint,
+	.resize  = &resize,
+	.destroy = &destroy,
+};

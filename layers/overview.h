@@ -1,1 +1,1 @@
-const struct layer *layer_overview (void);
+extern const struct layer layer_overview;

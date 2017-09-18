@@ -244,15 +244,10 @@ zoom (const unsigned int zoom)
 	bitmap_zoom_change(zoom);
 }
 
-const struct layer *
-layer_osm (void)
-{
-	static struct layer layer = {
-		.init     = &init,
-		.paint    = &paint,
-		.zoom     = &zoom,
-		.destroy  = &destroy,
-	};
-
-	return &layer;
-}
+// Export public methods:
+const struct layer layer_osm = {
+	.init    = &init,
+	.paint   = &paint,
+	.zoom    = &zoom,
+	.destroy = &destroy,
+};

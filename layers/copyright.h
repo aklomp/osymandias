@@ -1,1 +1,1 @@
-const struct layer *layer_copyright (void);
+extern const struct layer layer_copyright;

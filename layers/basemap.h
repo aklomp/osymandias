@@ -1,1 +1,1 @@
-const struct layer *layer_basemap (void);
+extern const struct layer layer_basemap;
