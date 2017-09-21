@@ -12,24 +12,6 @@ vec4f_float (const float f)
 	return (vec4f){ f, f, f, f };
 }
 
-static inline vec4f
-vec4f_sqrt (const vec4f v)
-{
-	return (vec4f){ sqrtf(v[0]), sqrtf(v[1]), sqrtf(v[2]), sqrtf(v[3]) };
-}
-
-static inline float
-vec4f_hmin (const vec4f v)
-{
-	return fminf(fminf(v[0], v[1]), fminf(v[2], v[3]));
-}
-
-static inline float
-vec4f_hmax (const vec4f v)
-{
-	return fmaxf(fmaxf(v[0], v[1]), fmaxf(v[2], v[3]));
-}
-
 static inline float
 vec4f_hsum (const vec4f v)
 {

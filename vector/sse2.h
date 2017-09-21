@@ -14,28 +14,6 @@ vec4f_float (const float f)
 	return (vec4f)_mm_set1_ps(f);
 }
 
-static inline vec4f
-vec4f_sqrt (const vec4f v)
-{
-	return (vec4f)_mm_sqrt_ps(v);
-}
-
-static inline float
-vec4f_hmin (const vec4f v)
-{
-	vec4f tmp = _mm_min_ps(_mm_movehl_ps(v, v), v);
-	tmp = (vec4f)_mm_min_ps(vec4f_shuffle(tmp, 1, 1, 1, 1), tmp);
-	return tmp[0];
-}
-
-static inline float
-vec4f_hmax (const vec4f v)
-{
-	vec4f tmp = _mm_max_ps(_mm_movehl_ps(v, v), v);
-	tmp = (vec4f)_mm_max_ps(vec4f_shuffle(tmp, 1, 1, 1, 1), tmp);
-	return tmp[0];
-}
-
 static inline float
 vec4f_hsum (const vec4f v)
 {
