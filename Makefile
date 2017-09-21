@@ -1,5 +1,7 @@
-CFLAGS += -std=c99 -D_GNU_SOURCE -O3 -msse3 -ffast-math -Wall -Wextra -pedantic -g
-LDFLAGS += -lm -lpng -lpthread
+CFLAGS	+= -std=c11 -D_GNU_SOURCE -O3 -msse3 -ffast-math
+CFLAGS	+= -Wall -Wextra -pedantic -g
+
+LDFLAGS	+= -lm -lpng -lpthread
 
 # Compile for GTK+-3 if possible, else fall back to GTK+-2.
 # Need at least GTK+-3.16 for native GtkGLArea:
