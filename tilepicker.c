@@ -7,7 +7,6 @@
 #include "worlds.h"
 #include "viewport.h"
 #include "vector.h"
-#include "vector2d.h"
 #include "camera.h"
 #include "tile2d.h"
 #include "tilepicker.h"
