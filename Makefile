@@ -1,4 +1,5 @@
-CFLAGS	+= -std=c11 -D_GNU_SOURCE -O3 -msse3 -ffast-math
+CFLAGS	+= -std=c11 -D_GNU_SOURCE
+CFLAGS	+= -march=native -O3 -ffast-math
 CFLAGS	+= -Wall -Wextra -pedantic -g
 
 LDFLAGS	+= -lm -lpng -lpthread
