@@ -1,0 +1,3 @@
+[submodule "vec"]
+	path = lib/vec
+	url = https://github.com/aklomp/vec
