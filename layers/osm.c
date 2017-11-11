@@ -8,7 +8,6 @@
 #include "../bitmap_mgr.h"
 #include "../worlds.h"
 #include "../viewport.h"
-#include "../vector.h"
 #include "../tilepicker.h"
 #include "../tiledrawer.h"
 #include "../layers.h"

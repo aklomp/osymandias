@@ -4,7 +4,6 @@
 #include <GL/gl.h>
 
 #include "worlds.h"
-#include "vector.h"
 #include "tilepicker.h"
 #include "tiledrawer.h"
 

@@ -1,7 +1,11 @@
+#include <vec/vec.h>
+
+#include "vec.h"
+
 // The zoom decay determines the rate by which the zoom level drops off with distance:
 #define ZOOM_DECAY	50.0
 
-static inline vec4i
+static inline union vec
 tile2d_get_corner_zooms_abs (int x1, int y1, int x2, int y2, const struct coords *center, int world_zoom)
 {
 	// The corner tiles are the 1x1 unit tiles at the edges of this larger
@@ -14,27 +18,27 @@ tile2d_get_corner_zooms_abs (int x1, int y1, int x2, int y2, const struct coords
 	// |,   ,| V              .
 	// +-----+ y2
 	//
-	vec4f x = { x1, x2 - 1, x2 - 1, x1 };
-	vec4f y = { y1, y1, y2 - 1, y2 - 1 };
+	union vec x = vec_to_float(vec_i(x1, x2 - 1, x2 - 1, x1));
+	union vec y = vec_to_float(vec_i(y1, y1, y2 - 1, y2 - 1));
 
 	// Translate tile coordinates to world coordinates:
-	x += vec4f_float(0.5 - center->tile.x);
-	y += vec4f_float(0.5 - center->tile.y);
+	x = vec_add(x, vec_1(0.5f - center->tile.x));
+	y = vec_add(y, vec_1(0.5f - center->tile.y));
 
 	// Use distance-squared, save a square root:
-	vec4f d = camera_distance_squared_quad(x, y, (vec4f){ 0, 0, 0, 0 });
+	union vec d = camera_distance_squared_quad(x, y, vec_zero());
 
 	// Scale the distances down to zoom levels and convert to int:
-	vec4i vz = vec4f_to_vec4i(d / vec4f_float(ZOOM_DECAY));
+	union vec vz = vec_to_int(vec_div(d, vec_1(ZOOM_DECAY)));
 
 	// Turn distance gradients into absolute zoom levels:
-	vz = vec4i_int(world_zoom) - vz;
+	vz = vec_isub(vec_i1(world_zoom), vz);
 
 	// Clip negative absolute zooms to zero:
-	return vz & (vz > vec4i_zero());
+	return vec_and(vz, vec_igt(vz, vec_zero()));
 }
 
-static inline vec4i
+static inline union vec
 tile2d_get_corner_zooms (int x, int y, int sz, const struct coords *center, int world_zoom)
 {
 	return tile2d_get_corner_zooms_abs(x, y, x + sz, y + sz, center, world_zoom);
@@ -44,10 +48,10 @@ static inline int
 tile2d_get_zoom (int x, int y, int world_zoom)
 {
 	// Use centerpoint of tile as reference:
-	vec4f point = (vec4f){ x + 0.5, world_get_size() - (y + 0.5), 0, 0 };
+	union vec point = vec(x + 0.5f, world_get_size() - (y + 0.5f), 0.0f, 0.0f);
 
 	// Calculate squared distance from camera position, scale to zoomlevel:
-	int dist = camera_distance_squared((struct vector *)&point) / ZOOM_DECAY;
+	int dist = camera_distance_squared(&point) / ZOOM_DECAY;
 
 	// Find absolute zoomlevel by subtracting it from the current world zoom:
 	int zoom = world_zoom - dist;
@@ -66,42 +70,42 @@ tile2d_get_max_zoom (int x, int y, int sz, const struct coords *center, int worl
 	return tile2d_get_zoom(rx, ry, world_zoom);
 }
 
-static inline vec4i
-zooms_quad (int world_zoom, const vec4f x, const vec4f y, const vec4f z)
+static inline union vec
+zooms_quad (int world_zoom, const union vec x, const union vec y, const union vec z)
 {
 	// Get distance squared from camera location:
-	vec4f d = camera_distance_squared_quad(x, y, z);
+	union vec d = camera_distance_squared_quad(x, y, z);
 
 	// Scale down to zoom gradients, convert to int:
-	vec4i vz = vec4f_to_vec4i(d / vec4f_float(ZOOM_DECAY));
+	union vec vz = vec_to_int(vec_div(d, vec_1(ZOOM_DECAY)));
 
 	// Turn distance gradient into absolute zoom levels:
-	vz = vec4i_int(world_zoom) - vz;
+	vz = vec_isub(vec_i1(world_zoom), vz);
 
 	// Clip negative zooms to zero:
-	return vz & (vz > vec4i_zero());
+	return vec_and(vz, vec_igt(vz, vec_zero()));
 }
 
 static inline int
-zoom_edges_highest (int world_zoom, const vec4f x, const vec4f y, const vec4f z)
+zoom_edges_highest (int world_zoom, const union vec x, const union vec y, const union vec z)
 {
 	// Get squared distances from camera to each edge line:
-	vec4f d = camera_distance_squared_quadedge(x, y, z);
+	union vec d = camera_distance_squared_quadedge(x, y, z);
 
 	// Scale down to zoom gradients, convert to int:
-	vec4i vz = vec4f_to_vec4i(d / vec4f_float(ZOOM_DECAY));
+	union vec vz = vec_to_int(vec_div(d, vec_1(ZOOM_DECAY)));
 
 	// Turn into absolute zoom levels:
-	vz = vec4i_int(world_zoom) - vz;
+	vz = vec_isub(vec_i1(world_zoom), vz);
 
 	// Clip negative zooms to zero:
-	vz &= (vz > vec4i_zero());
+	vz = vec_and(vz, vec_igt(vz, vec_zero()));
 
-	return vec4i_hmax(vz);
+	return vec_imax(vz);
 }
 
 static inline int
-zoom_point (int world_zoom, const struct vector *v)
+zoom_point (int world_zoom, const union vec *v)
 {
 	float f = camera_distance_squared(v);
 	int r = world_zoom - (f / ZOOM_DECAY);

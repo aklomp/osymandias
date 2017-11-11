@@ -3,7 +3,6 @@
 #include <GL/gl.h>
 
 #include "../matrix.h"
-#include "../vector.h"
 #include "../worlds.h"
 #include "../camera.h"
 #include "../inlinebin.h"

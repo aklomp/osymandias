@@ -3,10 +3,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <vec/vec.h>
 
 #include "worlds.h"
 #include "viewport.h"
-#include "vector.h"
 #include "camera.h"
 #include "tile2d.h"
 #include "tilepicker.h"
@@ -26,8 +26,8 @@ struct vertex {
 		float x;
 		float y;
 	} tile;
-	struct vector coords;
-	struct vector normal;
+	union vec coords;
+	union vec normal;
 };
 
 // A tile is split up into four quadrants:
@@ -88,22 +88,22 @@ static int mempool_idx = 0;
 static void reduce_block (struct tile *tile, int maxzoom, float minsize);
 static void optimize_block (int x, int y, int relzoom);
 
-static inline vec4f
+static inline union vec
 vertex_all_x (const struct vertex *v)
 {
-	return (vec4f){ v[0].coords.x, v[1].coords.x, v[2].coords.x, v[3].coords.x };
+	return vec(v[0].coords.x, v[1].coords.x, v[2].coords.x, v[3].coords.x);
 }
 
-static inline vec4f
+static inline union vec
 vertex_all_y (const struct vertex *v)
 {
-	return (vec4f){ v[0].coords.y, v[1].coords.y, v[2].coords.y, v[3].coords.y };
+	return vec(v[0].coords.y, v[1].coords.y, v[2].coords.y, v[3].coords.y);
 }
 
-static inline vec4f
+static inline union vec
 vertex_all_z (const struct vertex *v)
 {
-	return (vec4f){ v[0].coords.z, v[1].coords.z, v[2].coords.z, v[3].coords.z };
+	return vec(v[0].coords.z, v[1].coords.z, v[2].coords.z, v[3].coords.z);
 }
 
 static struct tile *
@@ -210,13 +210,13 @@ drawlist_detach (struct tile *t)
 static inline void
 project (struct vertex *v)
 {
-	world_project_tile(&v->coords.x, &v->normal.x, v->tile.x, v->tile.y);
+	world_project_tile(&v->coords, &v->normal, v->tile.x, v->tile.y);
 }
 
 static bool
 tile_is_visible (struct tile *const tile)
 {
-	const struct vector *coords[4] = {
+	const union vec *coords[4] = {
 		&tile->vertex[0].coords,
 		&tile->vertex[1].coords,
 		&tile->vertex[2].coords,
@@ -366,13 +366,13 @@ reduce_block (struct tile *tile, int maxzoom, float minsize)
 
 	// Tile is already the smallest possible size, cannot split, must accept:
 	if (tile->wd <= minsize) {
-		vec4i vzooms = zooms_quad(
+		union vec vzooms = zooms_quad(
 			world_zoom,
 			vertex_all_x(tile->vertex),
 			vertex_all_y(tile->vertex),
 			vertex_all_z(tile->vertex)
 		);
-		tile->zoom = vec4i_hmax(vzooms);
+		tile->zoom = vec_imax(vzooms);
 		drawlist_add(tile);
 		return;
 	}
@@ -443,7 +443,7 @@ reduce_block (struct tile *tile, int maxzoom, float minsize)
 		project(&vertex_new[i]);
 
 	// Get zooms for new vertices:
-	vec4i zooms_new = zooms_quad(
+	union vec zooms_new = zooms_quad(
 		world_zoom,
 		vertex_all_x(vertex_new),
 		vertex_all_y(vertex_new),
@@ -452,7 +452,7 @@ reduce_block (struct tile *tile, int maxzoom, float minsize)
 
 	// Assign zooms:
 	for (int i = 0; i < 4; i++)
-		vertex_new[i].zoom = zooms_new[i];
+		vertex_new[i].zoom = zooms_new.elem.i[i];
 
 	// Don't forget the zoom for the midpoint:
 	vertex_new[4].zoom = zoom_point(world_zoom, &vertex_new[4].coords);
@@ -615,8 +615,8 @@ tilepicker_next (struct tilepicker *tile)
 		return false;
 
 	for (int i = 0; i < 4; i++) {
-		memcpy(&tile->coords[i], &drawlist_iter->vertex[i].coords, sizeof(struct vector));
-		memcpy(&tile->normal[i], &drawlist_iter->vertex[i].normal, sizeof(struct vector));
+		memcpy(&tile->coords[i], &drawlist_iter->vertex[i].coords, sizeof(union vec));
+		memcpy(&tile->normal[i], &drawlist_iter->vertex[i].normal, sizeof(union vec));
 	}
 
 	tile->pos.x	= drawlist_iter->x;

@@ -3,7 +3,6 @@
 #include <math.h>
 
 #include "../matrix.h"
-#include "../vector.h"
 #include "../worlds.h"
 #include "local.h"
 #include "autoscroll.h"
@@ -25,25 +24,19 @@ latlon_to_world (const struct world_state *state, float *x, float *y, const floa
 }
 
 static void
-project (const struct world_state *state, float *vertex, float *normal, const float lat, const float lon)
+project (const struct world_state *state, union vec *vertex, union vec *normal, const float lat, const float lon)
 {
-	struct vector *v = (struct vector *)vertex;
-	struct vector *n = (struct vector *)normal;
-
 	// Convert lat/lon to world coordinates:
-	latlon_to_world(state, &v->x, &v->y, lat, lon);
+	latlon_to_world(state, &vertex->x, &vertex->y, lat, lon);
 
-	v->z = 0.0f;
-	v->w = 1.0f;
+	vertex->z = 0.0f;
+	vertex->w = 1.0f;
 
-	n->x = 0.0f;
-	n->y = 0.0f;
-	n->z = 1.0f;
-	n->w = 0.0f;
+	*normal = vec(0.0f, 0.0f, 1.0f, 0.0f);
 
 	// Apply model matrix:
-	mat_vec_multiply(&v->x, matrix.model, &v->x);
-	mat_vec_multiply(&n->x, matrix.model, &n->x);
+	mat_vec_multiply(vertex->elem.f, matrix.model, vertex->elem.f);
+	mat_vec_multiply(normal->elem.f, matrix.model, normal->elem.f);
 }
 
 static void

@@ -1,7 +1,9 @@
+#include <vec/vec.h>
+
 // This structure contains a tile picked for display by the tilepicker:
 struct tilepicker {
-	struct vector coords[4];
-	struct vector normal[4];
+	union vec coords[4];
+	union vec normal[4];
 	struct {
 		float x;
 		float y;

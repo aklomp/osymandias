@@ -2,7 +2,6 @@
 #include <string.h>
 #include <GL/gl.h>
 
-#include "../vector.h"
 #include "../matrix.h"
 #include "../worlds.h"
 #include "../viewport.h"

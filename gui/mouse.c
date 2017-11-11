@@ -1,7 +1,6 @@
 #include <stdbool.h>
 #include <gtk/gtk.h>
 
-#include "../vector.h"
 #include "../camera.h"
 #include "../viewport.h"
 #include "../worlds.h"

@@ -1,9 +1,9 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <math.h>
+#include <vec/vec.h>
 
 #include "../matrix.h"
-#include "../vector.h"
 #include "../worlds.h"
 #include "local.h"
 #include "autoscroll.h"
@@ -24,28 +24,22 @@ static struct {
 } matrix;
 
 static void
-project (const struct world_state *state, float *vertex, float *normal, const float lat, const float lon)
+project (const struct world_state *state, union vec *vertex, union vec *normal, const float lat, const float lon)
 {
 	(void)state;
 
-	struct vector *v = (struct vector *)vertex;
-	struct vector *n = (struct vector *)normal;
-
 	// Basic lat/lon projection on a unit sphere:
-	v->x = cosf(lat) * sinf(lon);
-	v->z = cosf(lat) * cosf(lon);
-	v->y = sinf(lat);
-	v->w = 1.0f;
+	vertex->x = cosf(lat) * sinf(lon);
+	vertex->z = cosf(lat) * cosf(lon);
+	vertex->y = sinf(lat);
+	vertex->w = 1.0f;
 
 	// Normal is identical to position, but with zero w:
-	n->x = v->x;
-	n->y = v->y;
-	n->z = v->z;
-	n->w = 0.0f;
+	*normal = vec(vertex->x, vertex->y, vertex->z, 0.0f);
 
 	// Apply model matrix:
-	mat_vec_multiply(vertex, matrix.model, vertex);
-	mat_vec_multiply(normal, matrix.model, normal);
+	mat_vec_multiply(vertex->elem.f, matrix.model, vertex->elem.f);
+	mat_vec_multiply(normal->elem.f, matrix.model, normal->elem.f);
 }
 
 static void

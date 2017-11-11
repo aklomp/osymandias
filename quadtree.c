@@ -3,8 +3,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
+#include <vec/vec.h>
 
-#include "vector.h"
 #include "camera.h"
 #include "worlds.h"
 #include "tile2d.h"
@@ -176,7 +176,7 @@ node_update_viewzoom (struct quadtree *t, struct node *n)
 	);
 
 	// Get min zoom by getting the corner zooms of the tile:
-	vec4i zooms = tile2d_get_corner_zooms (
+	union vec zooms = tile2d_get_corner_zooms (
 
 		// Coordinate of this tile at current world zoom:
 		n->x << zoomdiff,
@@ -188,10 +188,7 @@ node_update_viewzoom (struct quadtree *t, struct node *n)
 		// Current view data:
 		t->center, t->world_zoom
 	);
-	int m1 = (zooms[0] < zooms[1]) ? zooms[0] : zooms[1];
-	int m2 = (zooms[2] < zooms[3]) ? zooms[2] : zooms[3];
-	n->viewzoom_min = (m1 < m2) ? m1 : m2;
-
+	n->viewzoom_min = vec_imin(zooms);
 	n->stamp = t->stamp;
 }
 

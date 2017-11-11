@@ -3,11 +3,11 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+#include <vec/vec.h>
 
 #include <GL/gl.h>
 #include <GL/glu.h>
 
-#include "vector.h"
 #include "matrix.h"
 #include "worlds.h"
 #include "camera.h"
@@ -102,18 +102,14 @@ screen_to_world (const struct screen_pos *pos, float *wx, float *wy)
 	float center_x = center->tile.x;
 	float center_y = world_get_size() - center->tile.y;
 
-	struct vector p1, p2;
+	union vec p1, p2;
 
 	// Unproject two points at different z index through the
 	// view-projection matrix to get two points in world coordinates:
 	camera_unproject(&p1, &p2, pos->x, pos->y, screen.width, screen.height);
 
 	// Direction vector is difference between points:
-	struct vector dir = {
-		.x = p2.x - p1.x,
-		.y = p2.y - p1.y,
-		.z = p2.z - p1.z,
-	};
+	union vec dir = vec_sub(p2, p1);
 
 	// Get time value to the intersection point with the planar world,
 	// where z = 0:

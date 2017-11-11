@@ -170,7 +170,7 @@ world_moveto_latlon (const float lat, const float lon)
 }
 
 void
-world_project_tile (float *vertex, float *normal, const float x, const float y)
+world_project_tile (union vec *vertex, union vec *normal, const float x, const float y)
 {
 	float lat, lon;
 
@@ -182,7 +182,7 @@ world_project_tile (float *vertex, float *normal, const float x, const float y)
 }
 
 void
-world_project_latlon (float *vertex, float *normal, const float lat, const float lon)
+world_project_latlon (union vec *vertex, union vec *normal, const float lat, const float lon)
 {
 	// Project:
 	worlds[current]->project(&state, vertex, normal, lat, lon);

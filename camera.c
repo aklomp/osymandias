@@ -1,17 +1,17 @@
 #include <stdbool.h>
 #include <math.h>
 #include <GL/gl.h>
+#include <vec/vec.h>
 
-#include "vector.h"
-#include "vector3d.h"
 #include "matrix.h"
+#include "vec.h"
 
 static struct {
-	struct vector pos;	// position in world space
+	union vec pos;	// position in world space
 
-	float tilt;		// tilt from vertical, in radians
-	float rotate;		// rotation along z axis, in radians
-	float zdist;		// distance from camera to origin (camera height)
+	float tilt;	// tilt from vertical, in radians
+	float rotate;	// rotation along z axis, in radians
+	float zdist;	// distance from camera to origin (camera height)
 } cam;
 
 static struct {
@@ -106,7 +106,7 @@ camera_projection (const int screen_wd, const int screen_ht)
 
 // Unproject a screen coordinate to get points p1 and p2 in world space:
 void
-camera_unproject (struct vector *p1, struct vector *p2, const unsigned int x, const unsigned int y, const unsigned int screen_wd, const unsigned int screen_ht)
+camera_unproject (union vec *p1, union vec *p2, const unsigned int x, const unsigned int y, const unsigned int screen_wd, const unsigned int screen_ht)
 {
 	// Get inverse view-projection matrix:
 	const float *inv = camera_mat_viewproj_inv();
@@ -116,16 +116,16 @@ camera_unproject (struct vector *p1, struct vector *p2, const unsigned int x, co
 	const float sy = (float)y / (screen_ht / 2.0f) - 1.0f;
 
 	// Define two points at extremes of z clip space (0..1):
-	const struct vector a = { sx, sy, 0.0f, 1.0f };
-	const struct vector b = { sx, sy, 1.0f, 1.0f };
+	const union vec a = vec(sx, sy, 0.0f, 1.0f);
+	const union vec b = vec(sx, sy, 1.0f, 1.0f);
 
 	// Multiply with the inverse view-projection matrix:
-	mat_vec_multiply(&p1->x, inv, &a.x);
-	mat_vec_multiply(&p2->x, inv, &b.x);
+	mat_vec_multiply(p1->elem.f, inv, a.elem.f);
+	mat_vec_multiply(p2->elem.f, inv, b.elem.f);
 
 	// Divide by w:
-	VEC4F(*p1) /= vec4f_float(p1->w);
-	VEC4F(*p2) /= vec4f_float(p2->w);
+	*p1 = vec_div(*p1, vec_1(p1->w));
+	*p2 = vec_div(*p2, vec_1(p2->w));
 }
 
 void
@@ -173,32 +173,24 @@ camera_setup (void)
 }
 
 float
-camera_distance_squared (const struct vector *v)
+camera_distance_squared (const union vec *v)
 {
-	return vec_distance_squared(v, &cam.pos);
+	return vec_distance_squared(cam.pos, *v);
 }
 
-vec4f
-camera_distance_squared_quad (const vec4f x, const vec4f y, const vec4f z)
+union vec
+camera_distance_squared_quad (const union vec x, const union vec y, const union vec z)
 {
 	// Difference vectors:
-	vec4f dx = x - vec4f_float(cam.pos.x);
-	vec4f dy = y - vec4f_float(cam.pos.y);
-	vec4f dz = z - vec4f_float(cam.pos.z);
+	const union vec dx = vec_square(vec_sub(x, vec_1(cam.pos.x)));
+	const union vec dy = vec_square(vec_sub(y, vec_1(cam.pos.y)));
+	const union vec dz = vec_square(vec_sub(z, vec_1(cam.pos.z)));
 
-	return (dx * dx) + (dy * dy) + (dz * dz);
+	return vec_add3(dx, dy, dz);
 }
 
-static inline float
-dot (const vec4f a, const vec4f b)
-{
-	// Disregard w value:
-	const vec4f c = a * b;
-	return vec4f_hsum(vec4f_shuffle(c, 0, 1, 2, -1));
-}
-
-vec4f
-camera_distance_squared_quadedge (const vec4f x, const vec4f y, const vec4f z)
+union vec
+camera_distance_squared_quadedge (const union vec x, const union vec y, const union vec z)
 {
 	// Calculate the four squared distances from the camera location
 	// to the perpendicular foot on each of the edges.
@@ -207,78 +199,63 @@ camera_distance_squared_quadedge (const vec4f x, const vec4f y, const vec4f z)
 
 	// Get "difference vectors" between edge points:
 	// e.g. xdiff = (x1 - x0), (x2 - x1), (x3 - x2), (x0 - x3)
-	vec4f xdiff = vec4f_shuffle(x, 1, 2, 3, 0) - x;
-	vec4f ydiff = vec4f_shuffle(y, 1, 2, 3, 0) - y;
-	vec4f zdiff = vec4f_shuffle(z, 1, 2, 3, 0) - z;
+	union vec xdiff = vec_sub(vec_shuffle(x, 1, 2, 3, 0), x);
+	union vec ydiff = vec_sub(vec_shuffle(y, 1, 2, 3, 0), y);
+	union vec zdiff = vec_sub(vec_shuffle(z, 1, 2, 3, 0), z);
 
 	// Get "difference vectors" between camera position and first edge point:
-	vec4f xdiffcam = x - vec4f_float(cam.pos.x);
-	vec4f ydiffcam = y - vec4f_float(cam.pos.y);
-	vec4f zdiffcam = z - vec4f_float(cam.pos.z);
+	union vec xdiffcam = vec_sub(x, vec_1(cam.pos.x));
+	union vec ydiffcam = vec_sub(y, vec_1(cam.pos.y));
+	union vec zdiffcam = vec_sub(z, vec_1(cam.pos.z));
 
 	// Dot products of (xdiff, ydiff, zdiff) and (xdiffcam, ydiffcam, zdiffcam):
-	vec4f dots = (xdiff * xdiffcam) + (ydiff * ydiffcam) + (zdiff * zdiffcam);
+	union vec dots = vec_add3(vec_mul(xdiff, xdiffcam), vec_mul(ydiff, ydiffcam), vec_mul(zdiff, zdiffcam));
 
 	// Squared magnitudes of (xdiff, ydiff, zdiff):
-	vec4f squared_magnitudes = (xdiff * xdiff) + (ydiff * ydiff) + (zdiff * zdiff);
+	union vec squared_magnitudes = vec_add3(vec_square(xdiff), vec_square(ydiff), vec_square(zdiff));
 
 	// Find the parameter t for the perpendicular foot on the edge:
-	vec4f t = -dots / squared_magnitudes;
+	union vec t = vec_div(vec_negate(dots), squared_magnitudes);
 
 	// Clamp: if t < 0, t = 0:
-	t = (vec4f)((vec4i)t & (t >= vec4f_zero()));
+	t = vec_and(t, vec_ge(t, vec_zero()));
 
 	// Clamp: if t > 1, t = 1:
-	vec4f ones = vec4f_float(1.0f);
-	vec4i mask = (t <= ones);
-	vec4i left = (vec4i)ones & ~mask;
-	t = (vec4f)((vec4i)t & mask);
-	t = (vec4f)((vec4i)t | left);
+	union vec ones = vec_1(1.0f);
+	union vec mask = vec_gt(t, ones);
+	t = vec_or(vec_and(ones, mask), vec_and(t, vec_not(mask)));
 
 	// Substitute these t values in the squared-distance formula:
-	xdiffcam += xdiff * t;
-	ydiffcam += ydiff * t;
-	zdiffcam += zdiff * t;
-	xdiffcam *= xdiffcam;
-	ydiffcam *= ydiffcam;
-	zdiffcam *= zdiffcam;
+	xdiffcam = vec_square(vec_add(xdiffcam, vec_mul(xdiff, t)));
+	ydiffcam = vec_square(vec_add(ydiffcam, vec_mul(ydiff, t)));
+	zdiffcam = vec_square(vec_add(zdiffcam, vec_mul(zdiff, t)));
 
-	return xdiffcam + ydiffcam + zdiffcam;
+	return vec_add3(xdiffcam, ydiffcam, zdiffcam);
 }
 
 bool
-camera_visible_quad (const struct vector *coords[4])
+camera_visible_quad (const union vec *coords[4])
 {
-	// Convert camera position to vector:
-	const vec4f vcam = VEC4F(cam.pos);
-
-	// Convert coords to vector:
-	vec4f vcoords[4] = {
-		VEC4F(*coords[0]),
-		VEC4F(*coords[1]),
-		VEC4F(*coords[2]),
-		VEC4F(*coords[3]),
-	};
-
 	// Normal of quad is cross product of its diagonals:
-	const vec4f quad_normal = vector3d_cross(vcoords[2] - vcoords[0], vcoords[3] - vcoords[1]);
+	const union vec quad_normal = vec_cross(vec_sub(*coords[2], *coords[0]),
+	                                        vec_sub(*coords[3], *coords[1]));
 
 	// The "ray" between camera and a random vertex;
 	// if one vertex is visible, they all are:
-	const vec4f ray = vcoords[0] - vcam;
+	const union vec ray = vec_sub(*coords[0], cam.pos);
 
 	// If the dot product of this vector and the quad normal is negative,
 	// the quad is not visible:
-	if (dot(quad_normal, ray) < 0.0f)
+	if (vec_dot(quad_normal, ray) < 0.0f)
 		return false;
 
 	// Project all four vertices through the frustum:
-	struct vector proj[4];
+	union vec proj[4];
 
-	mat_vec_multiply(&proj[0].x, matrix.viewproj, (const float *)&vcoords[0]);
-	mat_vec_multiply(&proj[1].x, matrix.viewproj, (const float *)&vcoords[1]);
-	mat_vec_multiply(&proj[2].x, matrix.viewproj, (const float *)&vcoords[2]);
-	mat_vec_multiply(&proj[3].x, matrix.viewproj, (const float *)&vcoords[3]);
+	mat_vec_multiply(proj[0].elem.f, matrix.viewproj, coords[0]->elem.f);
+	mat_vec_multiply(proj[1].elem.f, matrix.viewproj, coords[1]->elem.f);
+	mat_vec_multiply(proj[2].elem.f, matrix.viewproj, coords[2]->elem.f);
+	mat_vec_multiply(proj[3].elem.f, matrix.viewproj, coords[3]->elem.f);
 
 	// For each of the dimensions x, y and z, if all the projected vertices
 	// are < -w or > w at the same time, the quad is not visible:
@@ -365,10 +342,7 @@ camera_init (void)
 {
 	// Initial position in space:
 	cam.zdist = 4.0f;
-	cam.pos.x = 0.0f;
-	cam.pos.y = 0.0f;
-	cam.pos.z = cam.zdist;
-	cam.pos.w = 1.0f;
+	cam.pos = vec(0.0f, 0.0f, cam.zdist, 1.0f);
 
 	// Initial attitude:
 	cam.tilt   = 0.0f;
