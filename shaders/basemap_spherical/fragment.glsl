@@ -40,6 +40,10 @@ void main (void)
 	// Get the time value to intersection point:
 	float t = sqrt(det) - raydot;
 
+	// If the intersection is behind us, discard:
+	if (t >= 0.0)
+		discard;
+
 	// Get the intersection point:
 	vec3 hit = start + t * delta;
 

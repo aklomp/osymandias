@@ -349,7 +349,7 @@ camera_init (void)
 	cam.rotate = 0.0f;
 
 	// Clip planes:
-	clip.near =   1.0f;
+	clip.near =   0.5f;
 	clip.far  = 100.0f;
 
 	// Initialize tilt, rotate and translate matrices:
