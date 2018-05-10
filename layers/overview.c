@@ -261,8 +261,8 @@ zoom (const unsigned int zoom)
 	glBufferData(GL_ARRAY_BUFFER, sizeof(bkgd), bkgd, GL_STREAM_DRAW);
 }
 
-#define OFFSET_COORDS	&((struct vertex *)0)->coords
-#define OFFSET_COLOR	&((struct vertex *)0)->color
+#define OFFSET_COORDS	((void *) offsetof(struct vertex, coords))
+#define OFFSET_COLOR	((void *) offsetof(struct vertex, color))
 
 static void
 add_pointer (unsigned int loc, int size, const void *ptr)

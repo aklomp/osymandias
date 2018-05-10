@@ -25,7 +25,7 @@ glutil_vertex_link (const GLuint loc_xy)
 	glEnableVertexAttribArray(loc_xy);
 	glVertexAttribPointer(loc_xy, 2, GL_FLOAT, GL_FALSE,
 		sizeof (struct glutil_vertex),
-		(void *)(&((struct glutil_vertex *)0)->x));
+		(void *) offsetof(struct glutil_vertex, x));
 }
 
 void
@@ -35,13 +35,13 @@ glutil_vertex_uv_link (const GLuint loc_xy, const GLuint loc_uv)
 	glEnableVertexAttribArray(loc_xy);
 	glVertexAttribPointer(loc_xy, 2, GL_FLOAT, GL_FALSE,
 		sizeof (struct glutil_vertex_uv),
-		(void *)(&((struct glutil_vertex_uv *)0)->x));
+		(void *) offsetof(struct glutil_vertex_uv, x));
 
 	// Add pointer to uv attribute:
 	glEnableVertexAttribArray(loc_uv);
 	glVertexAttribPointer(loc_uv, 2, GL_FLOAT, GL_FALSE,
 		sizeof (struct glutil_vertex_uv),
-		(void *)(&((struct glutil_vertex_uv *)0)->u));
+		(void *) offsetof(struct glutil_vertex_uv, u));
 }
 
 void
