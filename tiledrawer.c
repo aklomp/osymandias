@@ -5,6 +5,7 @@
 #include "tiledrawer.h"
 #include "programs.h"
 #include "programs/planar.h"
+#include "programs/spherical.h"
 #include "worlds.h"
 
 struct texture {
@@ -89,13 +90,29 @@ tiledrawer_start (void)
 
 	glBindVertexArray(vao);
 
-	glutil_vertex_uv_link(
-		program_planar_loc(LOC_PLANAR_VERTEX),
-		program_planar_loc(LOC_PLANAR_TEXTURE));
+	if (world_get() == WORLD_PLANAR) {
+		glutil_vertex_uv_link(
+			program_planar_loc(LOC_PLANAR_VERTEX),
+			program_planar_loc(LOC_PLANAR_TEXTURE));
 
-	program_planar_use(&((struct program_planar) {
-		.mat_viewproj = camera_mat_viewproj(),
-		.mat_model    = world_get_matrix(),
-		.world_size   = world_get_size(),
-	}));
+		program_planar_use(&((struct program_planar) {
+			.mat_viewproj = camera_mat_viewproj(),
+			.mat_model    = world_get_matrix(),
+			.world_size   = world_get_size(),
+		}));
+	}
+	else {
+		glutil_vertex_uv_link(
+			program_spherical_loc(LOC_SPHERICAL_VERTEX),
+			program_spherical_loc(LOC_SPHERICAL_TEXTURE));
+
+		program_spherical_loc(LOC_SPHERICAL_VERTEX),
+		program_spherical_loc(LOC_SPHERICAL_TEXTURE);
+
+		program_spherical_use(&((struct program_spherical) {
+			.mat_viewproj = camera_mat_viewproj(),
+			.mat_model    = world_get_matrix(),
+			.world_size   = world_get_size(),
+		}));
+	}
 }

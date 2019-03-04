@@ -22,6 +22,8 @@
 	X (SHADER_PLANAR_FRAGMENT,		shaders_planar_fragment_glsl)			\
 	X (SHADER_SOLID_VERTEX,			shaders_solid_vertex_glsl)			\
 	X (SHADER_SOLID_FRAGMENT,		shaders_solid_fragment_glsl)			\
+	X (SHADER_SPHERICAL_VERTEX,		shaders_spherical_vertex_glsl)			\
+	X (SHADER_SPHERICAL_FRAGMENT,		shaders_spherical_fragment_glsl)		\
 	X (SHADER_TILE2D_VERTEX,		shaders_tile2d_vertex_glsl)			\
 	X (SHADER_TILE2D_FRAGMENT,		shaders_tile2d_fragment_glsl)			\
 	X (TEXTURE_BACKGROUND,			textures_background_png)			\

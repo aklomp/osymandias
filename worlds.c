@@ -24,8 +24,8 @@ static struct world_state state;
 void
 world_tile_to_latlon (float *lat, float *lon, const float x, const float y)
 {
-	*lat = atanf(sinhf((0.5f - y / state.size) * 2.0f * M_PI));
-	*lon = (x / state.size - 0.5f) * 2.0f * M_PI;
+	*lat = atanf(sinhf((float) M_PI * (1.0f - 2.0f * (y / state.size))));
+	*lon = (x / state.size - 0.5f) * 2.0f * (float) M_PI;
 }
 
 void
