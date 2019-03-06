@@ -1,10 +1,5 @@
-#include <stdbool.h>
 #include <math.h>
 
-#include <GL/gl.h>
-
-#include "worlds.h"
-#include "tilepicker.h"
 #include "tiledrawer.h"
 
 struct texture {

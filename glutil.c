@@ -1,10 +1,7 @@
-#include <stdbool.h>
 #include <stdlib.h>
-#include <GL/gl.h>
 
-#include "inlinebin.h"
-#include "png.h"
 #include "glutil.h"
+#include "png.h"
 
 // Array of indices. If we have a quad defined by these corners:
 //

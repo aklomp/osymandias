@@ -1,12 +1,5 @@
-#include <stdbool.h>
-#include <stdint.h>
 #include <stdlib.h>
-#include <stdio.h>
-#include <math.h>
-#include <vec/vec.h>
 
-#include "camera.h"
-#include "worlds.h"
 #include "tile2d.h"
 #include "quadtree.h"
 

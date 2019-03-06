@@ -1,5 +1,7 @@
 #include <math.h>
 
+#include "matrix.h"
+
 void
 mat_identity (float *matrix)
 {

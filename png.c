@@ -3,6 +3,8 @@
 #include <string.h>
 #include <png.h>
 
+#include "png.h"
+
 // Structure for memory read I/O:
 struct io {
 	const char	*buf;

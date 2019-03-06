@@ -2,6 +2,8 @@
 
 #include <GL/gl.h>
 
+#include "tilepicker.h"
+
 struct tiledrawer {
 	const struct tilepicker *pick;
 	struct {

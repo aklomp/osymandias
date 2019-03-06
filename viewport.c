@@ -1,19 +1,10 @@
-#include <stdbool.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <math.h>
-#include <vec/vec.h>
-
 #include <GL/gl.h>
 #include <GL/glu.h>
 
-#include "matrix.h"
 #include "worlds.h"
 #include "camera.h"
 #include "tilepicker.h"
 #include "layers.h"
-#include "inlinebin.h"
 #include "programs.h"
 #include "viewport.h"
 

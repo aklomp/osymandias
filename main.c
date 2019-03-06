@@ -1,5 +1,3 @@
-#include <stdbool.h>
-
 #include "gui.h"
 
 // Application entry point

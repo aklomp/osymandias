@@ -1,5 +1,3 @@
-#include <stddef.h>
-
 #include "inlinebin.h"
 
 #define DATA_DEF(name)							\

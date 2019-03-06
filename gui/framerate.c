@@ -1,7 +1,5 @@
-#include <stdbool.h>
-#include <gtk/gtk.h>
-
 #include "../worlds.h"
+#include "framerate.h"
 
 static bool repaint = true;
 

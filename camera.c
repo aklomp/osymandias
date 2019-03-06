@@ -1,8 +1,7 @@
-#include <stdbool.h>
 #include <math.h>
 #include <GL/gl.h>
-#include <vec/vec.h>
 
+#include "camera.h"
 #include "matrix.h"
 #include "vec.h"
 

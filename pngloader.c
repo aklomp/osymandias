@@ -6,7 +6,6 @@
 #include <unistd.h>
 #include <png.h>
 
-#include "quadtree.h"
 #include "diskcache.h"
 #include "png.h"
 #include "pngloader.h"

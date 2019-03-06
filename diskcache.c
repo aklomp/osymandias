@@ -7,6 +7,8 @@
 #include <unistd.h>
 #include <errno.h>
 
+#include "diskcache.h"
+
 // Return a malloc()'ed string containing the filename,
 // to be freed by the caller with free(), or NULL on error.
 

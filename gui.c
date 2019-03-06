@@ -1,9 +1,7 @@
-#include <stdbool.h>
-
 #include <gtk/gtk.h>
 #include <gdk/gdkkeysyms.h>
 
-#include "viewport.h"
+#include "gui.h"
 #include "worlds.h"
 #include "gui/framerate.h"
 #include "gui/local.h"

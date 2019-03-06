@@ -1,15 +1,11 @@
-#include <stdbool.h>
-#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-#include <vec/vec.h>
 
-#include "worlds.h"
-#include "viewport.h"
 #include "camera.h"
 #include "tile2d.h"
 #include "tilepicker.h"
+#include "worlds.h"
 
 #define MEMPOOL_BLOCK_SIZE 100
 

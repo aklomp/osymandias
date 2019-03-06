@@ -1,9 +1,6 @@
-#include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <GL/gl.h>
 
-#include "inlinebin.h"
 #include "programs.h"
 
 // Start and end of linker array:
