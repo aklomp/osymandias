@@ -1,5 +1,4 @@
-#ifndef INLINEBIN_H
-#define INLINEBIN_H
+#pragma once
 
 enum inlinebin {
 	INLINEBIN_NONE,
@@ -20,5 +19,3 @@ enum inlinebin {
 };
 
 void inlinebin_get (enum inlinebin member, const char **buf, size_t *len);
-
-#endif	/* INLINEBIN_H */

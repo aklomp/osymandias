@@ -1,3 +1,5 @@
+#pragma once
+
 // Glutil vertex with only world coordinates:
 struct glutil_vertex {
 	float x;

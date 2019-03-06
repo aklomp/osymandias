@@ -1,3 +1,5 @@
+#pragma once
+
 struct program_basemap_spherical {
 	const float *mat_viewproj_inv;
 	const float *mat_model_inv;

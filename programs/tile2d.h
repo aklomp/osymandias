@@ -1,3 +1,5 @@
+#pragma once
+
 struct program_tile2d {
 	const float *mat_proj;
 };

@@ -1,5 +1,4 @@
-#ifndef PROGRAMS_H
-#define PROGRAMS_H
+#pragma once
 
 struct shader {
 	enum inlinebin	 src;
@@ -31,5 +30,3 @@ struct program {
 bool programs_init (void);
 void programs_destroy (void);
 void program_none (void);
-
-#endif	/* PROGRAMS_H */

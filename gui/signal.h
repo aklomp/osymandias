@@ -1,3 +1,5 @@
+#pragma once
+
 // Hold init data for GTK signals:
 struct signal {
 	const gchar	*signal;
@@ -5,4 +7,4 @@ struct signal {
 	GdkEventMask	 mask;
 };
 
-void signal_connect (GtkWidget *widget, struct signal *signals, size_t members);
+extern void signal_connect (GtkWidget *widget, struct signal *signals, size_t members);

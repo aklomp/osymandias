@@ -1,3 +1,5 @@
+#pragma once
+
 #include <vec/vec.h>
 
 // This structure contains a tile picked for display by the tilepicker:

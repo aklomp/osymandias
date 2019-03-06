@@ -1,5 +1,6 @@
-#ifdef __GTK_H__
-gboolean framerate_on_tick (void);
-#endif
+#pragma once
 
-void framerate_repaint (void);
+#include <gtk/gtk.h>
+
+extern gboolean framerate_on_tick (void);
+extern void     framerate_repaint (void);

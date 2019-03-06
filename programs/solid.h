@@ -1,3 +1,5 @@
+#pragma once
+
 struct program_solid {
 	const float *matrix;
 };

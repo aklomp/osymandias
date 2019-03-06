@@ -1,5 +1,4 @@
-#ifndef PNGLOADER_H
-#define PNGLOADER_H
+#pragma once
 
 struct pngloader
 {
@@ -13,5 +12,3 @@ void pngloader_on_init (void);
 void pngloader_main (void *data);
 void pngloader_on_cancel (void);
 void pngloader_on_exit (void);
-
-#endif /* PNGLOADER_H */

@@ -1,3 +1,5 @@
+#pragma once
+
 struct tiledrawer {
 	const struct tilepicker *pick;
 	struct {

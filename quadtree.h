@@ -1,5 +1,4 @@
-#ifndef QUADTREE_H
-#define QUADTREE_H
+#pragma once
 
 struct quadtree;
 
@@ -20,5 +19,3 @@ struct quadtree * quadtree_create (int capacity, void *(*callback_procure)(struc
 bool quadtree_request (struct quadtree *t, struct quadtree_req *req);
 bool quadtree_data_insert (struct quadtree *t, struct quadtree_req *req, void *data);
 void quadtree_destroy (struct quadtree **t);
-
-#endif	/* QUADTREE_H */

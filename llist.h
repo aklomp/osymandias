@@ -1,5 +1,4 @@
-#ifndef LLIST_H
-#define LLIST_H
+#pragma once
 
 struct list {
 	void *prev;
@@ -74,5 +73,3 @@ struct list {
 		list_last(f, p);				\
 		list_insert(p, x);				\
 	}
-
-#endif	/* LLIST_H */

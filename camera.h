@@ -1,3 +1,5 @@
+#pragma once
+
 #include <vec/vec.h>
 
 bool camera_init (void);

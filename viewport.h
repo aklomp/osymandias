@@ -1,3 +1,5 @@
+#pragma once
+
 struct screen_pos {
 	unsigned int x;
 	unsigned int y;

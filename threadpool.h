@@ -1,5 +1,4 @@
-#ifndef THREADPOOL_H
-#define THREADPOOL_H
+#pragma once
 
 struct threadpool;
 
@@ -41,5 +40,3 @@ bool threadpool_job_cancel (struct threadpool *const p, int job_id);
 
 // Destroy the threadpool structure and all associated resources:
 void threadpool_destroy (struct threadpool **const p);
-
-#endif	// THREADPOOL_H

@@ -1,3 +1,5 @@
+#pragma once
+
 enum LocBkgd {
 	LOC_BKGD_VERTEX,
 	LOC_BKGD_TEXTURE,

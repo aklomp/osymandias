@@ -1,3 +1,5 @@
+#pragma once
+
 struct program_frustum {
 	const float *mat_proj;
 	const float *mat_frustum;

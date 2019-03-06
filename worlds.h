@@ -1,3 +1,5 @@
+#pragma once
+
 #include <vec/vec.h>
 
 enum worlds {
