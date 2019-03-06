@@ -1,5 +1,11 @@
 #pragma once
 
+#include <stdbool.h>
+#include <stddef.h>
+#include <GL/gl.h>
+
+#include "inlinebin.h"
+
 struct shader {
 	enum inlinebin	 src;
 	const char	*buf;
@@ -27,6 +33,6 @@ struct program {
 	bool		 created;
 };
 
-bool programs_init (void);
-void programs_destroy (void);
-void program_none (void);
+extern bool programs_init    (void);
+extern void programs_destroy (void);
+extern void program_none     (void);

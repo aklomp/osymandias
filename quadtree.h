@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stdbool.h>
+
 struct quadtree;
 
 struct quadtree_req {
@@ -15,7 +17,7 @@ struct quadtree_req {
 	int found_y;		// The y coord of the tile in that zoom level
 };
 
-struct quadtree * quadtree_create (int capacity, void *(*callback_procure)(struct quadtree_req *req), void (*callback_destroy)(void *data));
-bool quadtree_request (struct quadtree *t, struct quadtree_req *req);
-bool quadtree_data_insert (struct quadtree *t, struct quadtree_req *req, void *data);
-void quadtree_destroy (struct quadtree **t);
+extern struct quadtree * quadtree_create (int capacity, void *(*callback_procure)(struct quadtree_req *req), void (*callback_destroy)(void *data));
+extern bool quadtree_request     (struct quadtree *t, struct quadtree_req *req);
+extern bool quadtree_data_insert (struct quadtree *t, struct quadtree_req *req, void *data);
+extern void quadtree_destroy     (struct quadtree **t);

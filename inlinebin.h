@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stddef.h>
+
 enum inlinebin {
 	INLINEBIN_NONE,
 	SHADER_BASEMAP_SPHERICAL_VERTEX,

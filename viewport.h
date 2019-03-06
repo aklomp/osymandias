@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stdbool.h>
+
 struct screen_pos {
 	unsigned int x;
 	unsigned int y;

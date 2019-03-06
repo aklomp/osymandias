@@ -2,7 +2,9 @@
 
 #include <vec/vec.h>
 
+#include "camera.h"
 #include "vec.h"
+#include "worlds.h"
 
 // The zoom decay determines the rate by which the zoom level drops off with distance:
 #define ZOOM_DECAY	50.0

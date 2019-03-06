@@ -1,5 +1,10 @@
 #pragma once
 
+#include <stdbool.h>
+#include <GL/gl.h>
+
+#include "inlinebin.h"
+
 // Glutil vertex with only world coordinates:
 struct glutil_vertex {
 	float x;
@@ -29,8 +34,8 @@ struct glutil_vertex_uv {
 	}
 
 // Operations on vertices:
-void glutil_vertex_link    (const GLuint loc_xy);
-void glutil_vertex_uv_link (const GLuint loc_xy, const GLuint loc_uv);
+extern void glutil_vertex_link    (const GLuint loc_xy);
+extern void glutil_vertex_uv_link (const GLuint loc_xy, const GLuint loc_uv);
 
 // Glutil texture:
 struct glutil_texture {
@@ -42,7 +47,7 @@ struct glutil_texture {
 };
 
 // Operations on textures:
-bool glutil_texture_load (struct glutil_texture *);
+extern bool glutil_texture_load (struct glutil_texture *);
 
 // Draw one quad from two triangles:
-void glutil_draw_quad (void);
+extern void glutil_draw_quad (void);

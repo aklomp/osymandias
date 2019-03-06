@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stdbool.h>
+
 #include <vec/vec.h>
 
 // This structure contains a tile picked for display by the tilepicker:
@@ -17,7 +19,7 @@ struct tilepicker {
 	unsigned int zoom;
 };
 
-void tilepicker_recalc (void);
-bool tilepicker_first (struct tilepicker *tile);
-bool tilepicker_next (struct tilepicker *tile);
-void tilepicker_destroy (void);
+extern void tilepicker_recalc  (void);
+extern bool tilepicker_first   (struct tilepicker *tile);
+extern bool tilepicker_next    (struct tilepicker *tile);
+extern void tilepicker_destroy (void);

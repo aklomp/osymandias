@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stdbool.h>
+
 #include <vec/vec.h>
 
 bool camera_init (void);

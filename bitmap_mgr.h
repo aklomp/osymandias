@@ -1,5 +1,9 @@
 #pragma once
 
+#include <stdbool.h>
+
+#include "quadtree.h"
+
 struct quadtree_req;
 
 bool bitmap_mgr_init (void);

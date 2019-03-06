@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include <vec/vec.h>
+
 // Return square of input vector (a * a):
 static inline union vec
 vec_square (const union vec a)

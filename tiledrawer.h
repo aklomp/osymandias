@@ -1,5 +1,7 @@
 #pragma once
 
+#include <GL/gl.h>
+
 struct tiledrawer {
 	const struct tilepicker *pick;
 	struct {
@@ -9,4 +11,4 @@ struct tiledrawer {
 	GLuint texture_id;
 };
 
-void tiledrawer (const struct tiledrawer *);
+extern void tiledrawer (const struct tiledrawer *);
