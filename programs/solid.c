@@ -17,18 +17,12 @@ static struct input inputs[] =
 	,		  { .name = NULL }
 	} ;
 
-static struct program program =
+struct program program_solid __attribute((section(".programs"))) =
 	{ .name     = "solid"
 	, .fragment = { .src = SHADER_SOLID_FRAGMENT }
 	, .vertex   = { .src = SHADER_SOLID_VERTEX }
 	, .inputs   = inputs
 	} ;
-
-struct program *
-program_solid (void)
-{
-	return &program;
-}
 
 GLint
 program_solid_loc_color (void)
@@ -45,6 +39,6 @@ program_solid_loc_vertex (void)
 void
 program_solid_use (struct program_solid *values)
 {
-	glUseProgram(program.id);
+	glUseProgram(program_solid.id);
 	glUniformMatrix4fv(inputs[MATRIX].loc, 1, GL_FALSE, values->matrix);
 }

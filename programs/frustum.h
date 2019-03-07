@@ -7,6 +7,5 @@ struct program_frustum {
 	const float *camera;
 };
 
-struct program *program_frustum (void);
 GLint program_frustum_loc_vertex (void);
 void program_frustum_use (struct program_frustum *values);

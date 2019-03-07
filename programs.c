@@ -1,21 +1,18 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <string.h>
 #include <GL/gl.h>
 
 #include "inlinebin.h"
 #include "programs.h"
-#include "programs/basemap_spherical.h"
-#include "programs/bkgd.h"
-#include "programs/frustum.h"
-#include "programs/solid.h"
-#include "programs/tile2d.h"
 
-#define FOREACH_PROGRAM \
-	for (struct program **p = programs, *program; \
-		p < programs + nprograms && (program = *p); \
-		p++)
+// Start and end of linker array:
+extern const void programs_list_start;
+extern const void programs_list_end;
+
+// Pointers to start and end of linker array:
+static struct program *list_start = (void *) &programs_list_start;
+static struct program *list_end   = (void *) &programs_list_end;
 
 // Local helper struct for compiling shaders:
 struct shadermeta {
@@ -24,12 +21,6 @@ struct shadermeta {
 	const char	*typename;
 	GLenum		 type;
 };
-
-// Master list of programs, filled by programs_init():
-static struct program **programs = NULL;
-
-// Number of programs:
-static int nprograms = 0;
 
 static bool
 compile_success (const struct shadermeta *meta)
@@ -221,36 +212,16 @@ program_create (struct program *program)
 void
 programs_destroy (void)
 {
-	FOREACH_PROGRAM
-		if (program->created)
-			glDeleteProgram(program->id);
-
-	free(programs);
+	for (struct program *p = list_start; p != list_end; p++)
+		if (p->created)
+			glDeleteProgram(p->id);
 }
 
 bool
 programs_init (void)
 {
-	struct program *p[] = {
-		program_basemap_spherical(),
-		program_bkgd(),
-		program_frustum(),
-		program_solid(),
-		program_tile2d(),
-	};
-
-	// Count the number of programs:
-	nprograms = sizeof(p) / sizeof(p[0]);
-
-	// Allocate space for static list:
-	if ((programs = malloc(sizeof(p))) == NULL)
-		return false;
-
-	// Copy to static list:
-	memcpy(programs, p, sizeof(p));
-
-	FOREACH_PROGRAM
-		if (!program_create(program)) {
+	for (struct program *p = list_start; p != list_end; p++)
+		if (!program_create(p)) {
 			programs_destroy();
 			return false;
 		}

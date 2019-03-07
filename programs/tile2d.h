@@ -8,6 +8,5 @@ enum LocCursor {
 	LOC_TILE2D_TEXTURE,
 };
 
-struct program *program_tile2d (void);
 void program_tile2d_use (struct program_tile2d *);
 GLint program_tile2d_loc (const enum LocCursor);

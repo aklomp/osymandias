@@ -12,18 +12,12 @@ static struct input inputs[] =
 	,			  { .name = NULL }
 	} ;
 
-static struct program program =
+struct program program_tile2d __attribute__((section(".programs"))) =
 	{ .name     = "tile2d"
 	, .vertex   = { .src = SHADER_TILE2D_VERTEX }
 	, .fragment = { .src = SHADER_TILE2D_FRAGMENT }
 	, .inputs   = inputs
 	} ;
-
-struct program *
-program_tile2d (void)
-{
-	return &program;
-}
 
 GLint
 program_tile2d_loc (const enum LocCursor index)
@@ -34,6 +28,6 @@ program_tile2d_loc (const enum LocCursor index)
 void
 program_tile2d_use (struct program_tile2d *values)
 {
-	glUseProgram(program.id);
+	glUseProgram(program_tile2d.id);
 	glUniformMatrix4fv(inputs[LOC_TILE2D_MAT_PROJ].loc, 1, GL_FALSE, values->mat_proj);
 }

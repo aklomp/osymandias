@@ -11,18 +11,12 @@ static struct input inputs[] =
 	,			  { .name = NULL }
 	} ;
 
-static struct program program =
+struct program program_bkgd __attribute__((section(".programs"))) =
 	{ .name     = "bkgd"
 	, .vertex   = { .src = SHADER_BKGD_VERTEX }
 	, .fragment = { .src = SHADER_BKGD_FRAGMENT }
 	, .inputs   = inputs
 	} ;
-
-struct program *
-program_bkgd (void)
-{
-	return &program;
-}
 
 GLint
 program_bkgd_loc (const enum LocBkgd index)
@@ -33,5 +27,5 @@ program_bkgd_loc (const enum LocBkgd index)
 void
 program_bkgd_use (void)
 {
-	glUseProgram(program.id);
+	glUseProgram(program_bkgd.id);
 }

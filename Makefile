@@ -3,7 +3,8 @@ CFLAGS	+= -march=native -O3 -ffast-math
 CFLAGS	+= -Wall -Wextra -pedantic -g
 CFLAGS	+= -I lib/vec/include
 
-LDFLAGS	+= -lm -lpng -lpthread
+LDFLAGS += -lm -lpng -lpthread
+LDFLAGS += -T programs.ld
 
 # Compile for GTK+-3 if possible, else fall back to GTK+-2.
 # Need at least GTK+-3.16 for native GtkGLArea:

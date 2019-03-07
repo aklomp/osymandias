@@ -25,18 +25,12 @@ static struct input inputs[] =
 	,		  { .name = NULL }
 	} ;
 
-static struct program program =
+struct program program_frustum __attribute__((section(".programs"))) =
 	{ .name     = "frustum"
 	, .fragment = { .src = SHADER_FRUSTUM_FRAGMENT }
 	, .vertex   = { .src = SHADER_FRUSTUM_VERTEX }
 	, .inputs   = inputs
 	} ;
-
-struct program *
-program_frustum (void)
-{
-	return &program;
-}
 
 GLint
 program_frustum_loc_vertex (void)
@@ -47,7 +41,7 @@ program_frustum_loc_vertex (void)
 void
 program_frustum_use (struct program_frustum *values)
 {
-	glUseProgram(program.id);
+	glUseProgram(program_frustum.id);
 	glUniformMatrix4fv(inputs[MAT_PROJ].loc, 1, GL_FALSE, values->mat_proj);
 	glUniformMatrix4fv(inputs[MAT_FRUSTUM].loc, 1, GL_FALSE, values->mat_frustum);
 	glUniformMatrix4fv(inputs[MAT_MODEL].loc, 1, GL_FALSE, values->mat_model);
