@@ -3,7 +3,7 @@ CFLAGS	+= -march=native -O3 -ffast-math
 CFLAGS	+= -Wall -Wextra -pedantic -g
 CFLAGS	+= -I lib/vec/include
 
-LDFLAGS += -lm -lpng -lpthread
+LDFLAGS += -lpng -pthread -lm
 LDFLAGS += -T layers.ld
 LDFLAGS += -T programs.ld
 
@@ -18,7 +18,7 @@ ifeq ($(GTK3),1)
   GTKGL_CFLAGS  := -DGL_GLEXT_PROTOTYPES
   GTKGL_LDFLAGS := -lGL -lGLU
 
-  OBJS_GTK_GTKGL = gui/gtk3/glarea.o
+  SRCS = $(wildcard gui/gtk3/*.c)
 else
   GTK_CFLAGS  := $(shell pkg-config --cflags gtk+-2.0 glib-2.0)
   GTK_LDFLAGS := $(shell pkg-config --libs   gtk+-2.0 glib-2.0)
@@ -26,42 +26,18 @@ else
   GTKGL_CFLAGS  := $(shell pkg-config --cflags gtkglext-1.0 gdkglext-1.0) -DGL_GLEXT_PROTOTYPES
   GTKGL_LDFLAGS := $(shell pkg-config --libs   gtkglext-1.0 gdkglext-1.0)
 
-  OBJS_GTK_GTKGL = gui/gtk2/glarea.o
+  SRCS = $(wildcard gui/gtk2/*.c)
 endif
 
 PROG = osymandias
 
-OBJS = \
-  png.o \
-  main.o \
-  camera.o \
-  matrix.o \
-  layers.o \
-  worlds.o \
-  quadtree.o \
-  diskcache.o \
-  pngloader.o \
-  inlinebin.o \
-  bitmap_mgr.o \
-  threadpool.o \
-  tiledrawer.o \
-  tilepicker.o \
-  $(patsubst %.c,%.o,$(wildcard worlds/*.c))
+SRCS += $(wildcard *.c)          \
+        $(wildcard gui/*.c)      \
+        $(wildcard layers/*.c)   \
+        $(wildcard programs/*.c) \
+        $(wildcard worlds/*.c)
 
-OBJS_GTK = \
-  gui/framerate.o \
-  gui/mouse.o \
-  gui/signal.o \
-
-OBJS_GTKGL = \
-  glutil.o \
-  programs.o \
-  $(patsubst %.c,%.o,$(wildcard layers/*.c)) \
-  $(patsubst %.c,%.o,$(wildcard programs/*.c))
-
-OBJS_GTK_GTKGL += \
-  gui.o \
-  viewport.o \
+OBJS += $(patsubst %.c,%.o,$(SRCS))
 
 OBJS_BIN = \
   $(patsubst %.png,%.o,$(wildcard textures/*.png)) \
@@ -69,7 +45,7 @@ OBJS_BIN = \
 
 all: $(PROG)
 
-$(PROG): $(OBJS) $(OBJS_GTK) $(OBJS_GTKGL) $(OBJS_GTK_GTKGL) $(OBJS_BIN) $(OBJS_BIN)
+$(PROG): $(OBJS) $(OBJS_BIN)
 	$(CC) $(LDFLAGS) $(GTK_LDFLAGS) $(GTKGL_LDFLAGS) -o $@ $^
 
 %.o: %.glsl
@@ -78,19 +54,10 @@ $(PROG): $(OBJS) $(OBJS_GTK) $(OBJS_GTKGL) $(OBJS_GTK_GTKGL) $(OBJS_BIN) $(OBJS_
 %.o: %.png
 	$(LD) --relocatable --format=binary -o $@ $^
 
-$(OBJS_GTK_GTKGL): %.o: %.c
-	$(CC) $(CFLAGS) $(GTK_CFLAGS) $(GTKGL_CFLAGS) -c $< -o $@
-
-$(OBJS_GTKGL): %.o: %.c
-	$(CC) $(CFLAGS) $(GTKGL_CFLAGS) -c $< -o $@
-
-$(OBJS_GTK): %.o: %.c
-	$(CC) $(CFLAGS) $(GTK_CFLAGS) -c $< -o $@
-
 $(OBJS): %.o: %.c
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) $(GTK_CFLAGS) $(GTKGL_CFLAGS) -c $< -o $@
 
 .PHONY: clean all
 
 clean:
-	rm -f $(OBJS_BIN) $(OBJS_GTK_GTKGL) $(OBJS_GTKGL) $(OBJS_GTK) $(OBJS) $(PROG)
+	rm -f $(OBJS_BIN) $(OBJS) $(PROG)
