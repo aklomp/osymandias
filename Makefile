@@ -4,6 +4,7 @@ CFLAGS	+= -Wall -Wextra -pedantic -g
 CFLAGS	+= -I lib/vec/include
 
 LDFLAGS += -lm -lpng -lpthread
+LDFLAGS += -T layers.ld
 LDFLAGS += -T programs.ld
 
 # Compile for GTK+-3 if possible, else fall back to GTK+-2.

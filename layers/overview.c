@@ -331,7 +331,7 @@ destroy (void)
 }
 
 // Export public methods:
-const struct layer layer_overview = {
+LAYER(50) = {
 	.init    = &init,
 	.paint   = &paint,
 	.zoom    = &zoom,

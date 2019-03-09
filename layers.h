@@ -1,3 +1,5 @@
+#define LAYER(Z)	const struct layer layer_ ## Z __attribute__((section(".layer." # Z)))
+
 struct layer {
 	bool (*init)     (void);
 	void (*paint)    (void);

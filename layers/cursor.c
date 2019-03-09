@@ -134,7 +134,7 @@ destroy (void)
 }
 
 // Export public methods:
-const struct layer layer_cursor = {
+LAYER(60) = {
 	.init    = &init,
 	.paint   = &paint,
 	.resize  = &resize,

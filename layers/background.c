@@ -125,7 +125,7 @@ destroy (void)
 }
 
 // Export public methods:
-const struct layer layer_background = {
+LAYER(10) = {
 	.init    = &init,
 	.paint   = &paint,
 	.resize  = &resize,

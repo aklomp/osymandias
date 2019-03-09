@@ -141,7 +141,7 @@ destroy (void)
 }
 
 // Export public methods:
-const struct layer layer_copyright = {
+LAYER(40) = {
 	.init    = &init,
 	.paint   = &paint,
 	.resize  = &resize,

@@ -1,27 +1,17 @@
 #include <stdbool.h>
 
 #include "layers.h"
-#include "layers/background.h"
-#include "layers/basemap.h"
-#include "layers/copyright.h"
-#include "layers/cursor.h"
-#include "layers/osm.h"
-#include "layers/overview.h"
+
+// Start and end of linker array:
+extern const void layers_list_start;
+extern const void layers_list_end;
+
+// Pointers to start and end of linker array:
+static const struct layer *list_start = (const void *) &layers_list_start;
+static const struct layer *list_end   = (const void *) &layers_list_end;
 
 #define FOREACH_LAYER \
-	for (const struct layer **l = layers, *layer; \
-		l < layers + (sizeof(layers) / sizeof(layers[0])) && (layer = *l); \
-		l++)
-
-// Master list of layers, in Z order from bottom to top:
-static const struct layer *layers[] = {
-	&layer_background,
-	&layer_basemap,
-	&layer_osm,
-	&layer_copyright,
-	&layer_overview,
-	&layer_cursor,
-};
+	for (const struct layer *layer = list_start; layer < list_end; layer++)
 
 void
 layers_paint (void)

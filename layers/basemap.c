@@ -220,7 +220,7 @@ destroy (void)
 }
 
 // Export public methods:
-const struct layer layer_basemap = {
+LAYER(20) = {
 	.init    = &init,
 	.paint   = &paint,
 	.zoom    = &zoom,

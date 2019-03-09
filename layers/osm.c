@@ -244,7 +244,7 @@ zoom (const unsigned int zoom)
 }
 
 // Export public methods:
-const struct layer layer_osm = {
+LAYER(30) = {
 	.init    = &init,
 	.paint   = &paint,
 	.zoom    = &zoom,
