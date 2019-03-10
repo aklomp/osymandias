@@ -18,6 +18,8 @@
 	X (SHADER_BKGD_FRAGMENT,		shaders_bkgd_fragment_glsl)			\
 	X (SHADER_FRUSTUM_VERTEX,		shaders_frustum_vertex_glsl)			\
 	X (SHADER_FRUSTUM_FRAGMENT,		shaders_frustum_fragment_glsl)			\
+	X (SHADER_PLANAR_VERTEX,		shaders_planar_vertex_glsl)			\
+	X (SHADER_PLANAR_FRAGMENT,		shaders_planar_fragment_glsl)			\
 	X (SHADER_SOLID_VERTEX,			shaders_solid_vertex_glsl)			\
 	X (SHADER_SOLID_FRAGMENT,		shaders_solid_fragment_glsl)			\
 	X (SHADER_TILE2D_VERTEX,		shaders_tile2d_vertex_glsl)			\
@@ -33,7 +35,7 @@ X_MAP
 #undef X
 
 void
-inlinebin_get (enum inlinebin member, const char **buf, size_t *len)
+inlinebin_get (enum Inlinebin member, const char **buf, size_t *len)
 {
 	// Define an array of inline data descriptors:
 	struct {

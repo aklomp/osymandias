@@ -40,7 +40,7 @@ extern void glutil_vertex_uv_link (const GLuint loc_xy, const GLuint loc_uv);
 // Glutil texture:
 struct glutil_texture {
 	GLuint		id;
-	enum inlinebin	src;
+	enum Inlinebin	src;
 	GLenum		type;
 	unsigned int	width;
 	unsigned int	height;

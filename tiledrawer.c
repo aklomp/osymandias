@@ -1,6 +1,11 @@
 #include <math.h>
 
+#include "camera.h"
+#include "glutil.h"
 #include "tiledrawer.h"
+#include "programs.h"
+#include "programs/planar.h"
+#include "worlds.h"
 
 struct texture {
 	float wd;
@@ -38,26 +43,59 @@ tiledrawer (const struct tiledrawer *td)
 	float twd = ldexpf(tex.wd, -8);
 	float tht = ldexpf(tex.ht, -8);
 
-	struct {
-		float x;
-		float y;
-	} __attribute__((packed))
-	texcoord[4] = {
-		{ txoffs,       tyoffs       },
-		{ txoffs + twd, tyoffs       },
-		{ txoffs + twd, tyoffs + tht },
-		{ txoffs,       tyoffs + tht },
+	// Texture coordinates:
+	struct glutil_vertex_uv texuv[4] = {
+		{ .u = txoffs,       .v = tyoffs       },
+		{ .u = txoffs + twd, .v = tyoffs       },
+		{ .u = txoffs + twd, .v = tyoffs + tht },
+		{ .u = txoffs,       .v = tyoffs + tht },
 	};
+
+	// Vertex coordinates, translating tile coordinate order to OpenGL
+	// coordinate order:
+	//
+	//  OpenGL   Tile
+	//
+	//   3--2    0,0----wd,0
+	//   |  |     |      |
+	//   0--1    0,ht--wd,ht
+	//
+	texuv[0].x = texuv[3].x = tile->pos.x;
+	texuv[1].x = texuv[2].x = tile->pos.x + tile->size.wd;
+	texuv[0].y = texuv[1].y = tile->pos.y;
+	texuv[3].y = texuv[2].y = tile->pos.y + tile->size.ht;
 
 	// Bind texture:
 	glBindTexture(GL_TEXTURE_2D, td->texture_id);
 
-	// Submit normal, texture and space coords for vertex:
-	glBegin(GL_QUADS);
-	for (int i = 0; i < 4; i++) {
-		glNormal3fv((float *)&tile->normal[i]);
-		glTexCoord2fv((float *)&texcoord[i]);
-		glVertex3fv((float *)&tile->coords[i]);
+	// Copy vertices to buffer:
+	glBufferData(GL_ARRAY_BUFFER, sizeof (texuv), texuv, GL_STATIC_DRAW);
+
+	// Draw all triangles in the buffer:
+	glutil_draw_quad();
+}
+
+void
+tiledrawer_start (void)
+{
+	static GLuint vao;
+	static bool init = false;
+
+	// Lazy init:
+	if (init == false) {
+		glGenVertexArrays(1, &vao);
+		init = true;
 	}
-	glEnd();
+
+	glBindVertexArray(vao);
+
+	glutil_vertex_uv_link(
+		program_planar_loc(LOC_PLANAR_VERTEX),
+		program_planar_loc(LOC_PLANAR_TEXTURE));
+
+	program_planar_use(&((struct program_planar) {
+		.mat_viewproj = camera_mat_viewproj(),
+		.mat_model    = world_get_matrix(),
+		.world_size   = world_get_size(),
+	}));
 }

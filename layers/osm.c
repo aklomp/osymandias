@@ -177,6 +177,9 @@ paint (void)
 	// The texture colors are multiplied with this value:
 	glColor3f(1.0, 1.0, 1.0);
 
+	// Load tiledrawer programs:
+	tiledrawer_start();
+
 	for (bool iter = tilepicker_first(&tile); iter; iter = tilepicker_next(&tile)) {
 
 		// If showing the zoom colors overlay, pick proper mixin color:

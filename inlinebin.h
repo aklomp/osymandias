@@ -2,7 +2,7 @@
 
 #include <stddef.h>
 
-enum inlinebin {
+enum Inlinebin {
 	INLINEBIN_NONE,
 	SHADER_BASEMAP_SPHERICAL_VERTEX,
 	SHADER_BASEMAP_SPHERICAL_FRAGMENT,
@@ -10,6 +10,8 @@ enum inlinebin {
 	SHADER_BKGD_FRAGMENT,
 	SHADER_FRUSTUM_VERTEX,
 	SHADER_FRUSTUM_FRAGMENT,
+	SHADER_PLANAR_VERTEX,
+	SHADER_PLANAR_FRAGMENT,
 	SHADER_SOLID_VERTEX,
 	SHADER_SOLID_FRAGMENT,
 	SHADER_TILE2D_VERTEX,
@@ -20,4 +22,4 @@ enum inlinebin {
 	TEXTURE_CURSOR,
 };
 
-void inlinebin_get (enum inlinebin member, const char **buf, size_t *len);
+extern void inlinebin_get (enum Inlinebin member, const char **buf, size_t *len);

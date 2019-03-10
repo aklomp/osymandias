@@ -13,4 +13,5 @@ struct tiledrawer {
 	GLuint texture_id;
 };
 
-extern void tiledrawer (const struct tiledrawer *);
+extern void tiledrawer       (const struct tiledrawer *);
+extern void tiledrawer_start (void);

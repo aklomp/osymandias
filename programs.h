@@ -7,7 +7,7 @@
 #include "inlinebin.h"
 
 struct shader {
-	enum inlinebin	 src;
+	enum Inlinebin	 src;
 	const char	*buf;
 	size_t		 len;
 	GLuint		 id;
