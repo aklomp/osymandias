@@ -1,5 +1,6 @@
 #include <stdbool.h>
 #include <string.h>
+#include <math.h>
 #include <GL/gl.h>
 
 #include "../matrix.h"
@@ -7,7 +8,7 @@
 #include "../viewport.h"
 #include "../camera.h"
 #include "../layers.h"
-#include "../tilepicker.h"
+#include "../tilepicker2.h"
 #include "../inlinebin.h"
 #include "../glutil.h"
 #include "../programs.h"
@@ -118,41 +119,47 @@ paint_tiles (void)
 		index[t].tri[1].c = t * 4 + 3;
 	}
 
-	double world_size = world_get_size();
-
 	// First draw tiles with solid background:
-	struct tilepicker tptile;
-	bool iter = tilepicker_first(&tptile);
+	const struct tilepicker2 *tptile = tilepicker2_first();
 
-	while (iter)
+	while (tptile)
 	{
 		int t;
 
 		// Fetch 50 tiles at most:
-		for (t = 0; iter && t < 50; t++)
+		for (t = 0; tptile && t < 50; t++)
 		{
+			int wzoom = tptile->zoom - world_get_zoom();
+
 			// Bottom left:
-			tile[t].vertex[0].coords.x = tptile.pos.x;
-			tile[t].vertex[0].coords.y = world_size - tptile.pos.y;
+			tile[t].vertex[0].coords.x = tptile->x;
+			tile[t].vertex[0].coords.y = tptile->y;
 
 			// Bottom right:
-			tile[t].vertex[1].coords.x = tptile.pos.x + tptile.size.wd;
-			tile[t].vertex[1].coords.y = world_size - tptile.pos.y;
+			tile[t].vertex[1].coords.x = tptile->x + 1;
+			tile[t].vertex[1].coords.y = tptile->y;
 
 			// Top right:
-			tile[t].vertex[2].coords.x = tptile.pos.x + tptile.size.wd;
-			tile[t].vertex[2].coords.y = world_size - tptile.pos.y - tptile.size.ht;
+			tile[t].vertex[2].coords.x = tptile->x + 1;
+			tile[t].vertex[2].coords.y = tptile->y + 1;
 
 			// Top left:
-			tile[t].vertex[3].coords.x = tptile.pos.x;
-			tile[t].vertex[3].coords.y = world_size - tptile.pos.y - tptile.size.ht;
+			tile[t].vertex[3].coords.x = tptile->x;
+			tile[t].vertex[3].coords.y = tptile->y + 1;
+
+			// Scale:
+			for (int i = 0; i < 4; i++) {
+				tile[t].vertex[i].coords.y = (1 << tptile->zoom) - tile[t].vertex[i].coords.y;
+				tile[t].vertex[i].coords.x = ldexpf(tile[t].vertex[i].coords.x, -wzoom);
+				tile[t].vertex[i].coords.y = ldexpf(tile[t].vertex[i].coords.y, -wzoom);
+			}
 
 			// Solid fill color:
-			float *color = zoomcolors[tptile.zoom % 3];
+			float *color = zoomcolors[tptile->zoom % 3];
 			for (int i = 0; i < 4; i++)
 				memcpy(&tile[t].vertex[i].color, color, sizeof(tile[t].vertex[i].color));
 
-			iter = tilepicker_next(&tptile);
+			tptile = tilepicker2_next();
 		}
 
 		// Upload vertex data:

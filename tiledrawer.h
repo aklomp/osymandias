@@ -2,14 +2,11 @@
 
 #include <GL/gl.h>
 
-#include "tilepicker.h"
+#include "cache.h"
 
 struct tiledrawer {
-	const struct tilepicker *pick;
-	struct {
-		unsigned int world;
-		unsigned int found;
-	} zoom;
+	const struct cache_node *tile;
+	unsigned int world_zoom;
 	GLuint texture_id;
 };
 

@@ -4,6 +4,7 @@
 #include "worlds.h"
 #include "camera.h"
 #include "tilepicker.h"
+#include "tilepicker2.h"
 #include "layers.h"
 #include "programs.h"
 #include "viewport.h"
@@ -196,6 +197,7 @@ viewport_gl_setup_world (void)
 
 	// FIXME: only do this when moved?
 	tilepicker_recalc();
+	tilepicker2_recalc();
 
 	glDisable(GL_BLEND);
 }
