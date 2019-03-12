@@ -24,7 +24,7 @@ static struct {
 } matrix;
 
 static void
-project (const struct world_state *state, union vec *vertex, union vec *normal, const float lat, const float lon)
+project (const struct world_state *state, union vec *vertex, const float lat, const float lon)
 {
 	(void)state;
 
@@ -34,12 +34,8 @@ project (const struct world_state *state, union vec *vertex, union vec *normal, 
 	vertex->y = sinf(lat);
 	vertex->w = 1.0f;
 
-	// Normal is identical to position, but with zero w:
-	*normal = vec(vertex->x, vertex->y, vertex->z, 0.0f);
-
 	// Apply model matrix:
 	mat_vec_multiply(vertex->elem.f, matrix.model, vertex->elem.f);
-	mat_vec_multiply(normal->elem.f, matrix.model, normal->elem.f);
 }
 
 static void

@@ -23,7 +23,6 @@ struct vertex {
 		float y;
 	} tile;
 	union vec coords;
-	union vec normal;
 };
 
 // A tile is split up into four quadrants:
@@ -206,7 +205,7 @@ drawlist_detach (struct tile *t)
 static inline void
 project (struct vertex *v)
 {
-	world_project_tile(&v->coords, &v->normal, v->tile.x, v->tile.y);
+	world_project_tile(&v->coords, v->tile.x, v->tile.y);
 }
 
 static bool
@@ -610,10 +609,8 @@ tilepicker_next (struct tilepicker *tile)
 	if (drawlist_iter == NULL)
 		return false;
 
-	for (int i = 0; i < 4; i++) {
+	for (int i = 0; i < 4; i++)
 		memcpy(&tile->coords[i], &drawlist_iter->vertex[i].coords, sizeof(union vec));
-		memcpy(&tile->normal[i], &drawlist_iter->vertex[i].normal, sizeof(union vec));
-	}
 
 	tile->pos.x	= drawlist_iter->x;
 	tile->pos.y	= drawlist_iter->y;

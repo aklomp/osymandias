@@ -24,7 +24,7 @@ latlon_to_world (const struct world_state *state, float *x, float *y, const floa
 }
 
 static void
-project (const struct world_state *state, union vec *vertex, union vec *normal, const float lat, const float lon)
+project (const struct world_state *state, union vec *vertex, const float lat, const float lon)
 {
 	// Convert lat/lon to world coordinates:
 	latlon_to_world(state, &vertex->x, &vertex->y, lat, lon);
@@ -32,11 +32,8 @@ project (const struct world_state *state, union vec *vertex, union vec *normal, 
 	vertex->z = 0.0f;
 	vertex->w = 1.0f;
 
-	*normal = vec(0.0f, 0.0f, 1.0f, 0.0f);
-
 	// Apply model matrix:
 	mat_vec_multiply(vertex->elem.f, matrix.model, vertex->elem.f);
-	mat_vec_multiply(normal->elem.f, matrix.model, normal->elem.f);
 }
 
 static void

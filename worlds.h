@@ -42,10 +42,10 @@ void world_moveto_tile (const float x, const float y);
 void world_moveto_latlon (const float lat, const float lon);
 
 // Project this tile coordinate to world coordinates:
-void world_project_tile (union vec *vertex, union vec *normal, const float x, const float y);
+void world_project_tile (union vec *vertex, const float x, const float y);
 
 // Project this lat/lon to world coordinates:
-void world_project_latlon (union vec *vertex, union vec *normal, const float lat, const float lon);
+void world_project_latlon (union vec *vertex, const float lat, const float lon);
 
 // Convert tile coordinates to lat/lon:
 void world_tile_to_latlon (float *lat, float *lon, const float x, const float y);

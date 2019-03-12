@@ -7,7 +7,6 @@
 // This structure contains a tile picked for display by the tilepicker:
 struct tilepicker {
 	union vec coords[4];
-	union vec normal[4];
 	struct {
 		float x;
 		float y;
