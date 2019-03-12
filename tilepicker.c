@@ -609,9 +609,6 @@ tilepicker_next (struct tilepicker *tile)
 	if (drawlist_iter == NULL)
 		return false;
 
-	for (int i = 0; i < 4; i++)
-		memcpy(&tile->coords[i], &drawlist_iter->vertex[i].coords, sizeof(union vec));
-
 	tile->pos.x	= drawlist_iter->x;
 	tile->pos.y	= drawlist_iter->y;
 	tile->size.wd	= drawlist_iter->wd;
