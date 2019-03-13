@@ -12,7 +12,5 @@ struct pngloader
 	struct quadtree_req req;
 };
 
-extern void pngloader_on_init   (void);
 extern void pngloader_main      (void *data);
 extern void pngloader_on_cancel (void);
-extern void pngloader_on_exit   (void);

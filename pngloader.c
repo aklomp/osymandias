@@ -10,7 +10,6 @@
 #include "png.h"
 #include "pngloader.h"
 
-#define HEAP_SIZE	100000
 #define TILESIZE	256	// rgb pixels per side
 
 #ifndef __BIGGEST_ALIGNMENT__	// FIXME: hack to compile with clang
@@ -24,9 +23,6 @@ struct io {
 	const char *cur;
 };
 
-static __thread char *heap = NULL;
-static __thread char *heap_head = NULL;
-static __thread bool initialized = false;
 static __thread volatile bool cancel_flag = false;
 
 static bool
@@ -72,13 +68,6 @@ pngloader_main (void *data)
 	unsigned int height;
 	char *rawbits = NULL;
 
-	if (!initialized) {
-		free(p);
-		return;
-	}
-	// Reset heap pointer:
-	heap_head = heap;
-
 	cancel_flag = false;
 
 	// Get a file descriptor to the file. We just want a file descriptor to
@@ -116,18 +105,4 @@ void
 pngloader_on_cancel (void)
 {
 	cancel_flag = true;
-}
-
-void
-pngloader_on_init (void)
-{
-	// Allocate a block of heap memory:
-	if ((heap = heap_head = malloc(HEAP_SIZE)) != NULL)
-		initialized = true;
-}
-
-void
-pngloader_on_exit (void)
-{
-	free(heap);
 }

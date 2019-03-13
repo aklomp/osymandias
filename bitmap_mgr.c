@@ -130,7 +130,7 @@ bitmap_mgr_init (void)
 	if ((threadlist = quadtree_create(200, &thread_procure, &thread_destroy)) == NULL) {
 		goto err_1;
 	}
-	if ((threadpool = threadpool_create(THREADPOOL_SIZE, pngloader_on_init, pngloader_on_dequeue, pngloader_main, pngloader_on_cancel, pngloader_on_exit)) == NULL) {
+	if ((threadpool = threadpool_create(THREADPOOL_SIZE, NULL, pngloader_on_dequeue, pngloader_main, pngloader_on_cancel, NULL)) == NULL) {
 		goto err_2;
 	}
 	pthread_mutex_init(&bitmaps_mutex, NULL);
