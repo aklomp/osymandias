@@ -115,15 +115,23 @@ thread_destroy (void *data)
 bool
 bitmap_mgr_init (void)
 {
-	if ((bitmaps = quadtree_create(MAX_BITMAPS, &bitmap_procure, &bitmap_destroy)) == NULL) {
+	if ((bitmaps = quadtree_create(MAX_BITMAPS, &bitmap_procure, &bitmap_destroy)) == NULL)
 		goto err_0;
-	}
-	if ((threadlist = quadtree_create(200, &thread_procure, &thread_destroy)) == NULL) {
+
+	if ((threadlist = quadtree_create(200, &thread_procure, &thread_destroy)) == NULL)
 		goto err_1;
-	}
-	if ((threadpool = threadpool_create(THREADPOOL_SIZE, pngloader_main)) == NULL) {
+
+	const struct threadpool_config config = {
+		.process = pngloader_main,
+		.num = {
+			.jobs    = THREADPOOL_SIZE,
+			.threads = THREADPOOL_SIZE,
+		},
+	};
+
+	if ((threadpool = threadpool_create(&config)) == NULL)
 		goto err_2;
-	}
+
 	pthread_mutex_init(&bitmaps_mutex, NULL);
 	pthread_mutex_init(&running_mutex, NULL);
 	pthread_attr_init(&attr_detached);

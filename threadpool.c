@@ -5,6 +5,7 @@
 #include <limits.h>
 #include <pthread.h>
 
+#include "threadpool.h"
 #include "util.h"
 
 enum job_slot_status {
@@ -25,12 +26,9 @@ struct thread {
 };
 
 struct threadpool {
-	struct job    *jobs;
-	struct thread *threads;
-	size_t         nthreads;
-
-	// User-provided routines:
-	void (*routine)(void *data);
+	struct job               *jobs;
+	struct thread            *threads;
+	struct threadpool_config  config;
 
 	int job_counter;
 	size_t free_counter;
@@ -63,7 +61,7 @@ job_first_free (const struct threadpool *const p)
 		return NULL;
 
 	// Find next free slot in jobs table:
-	FOREACH_NELEM (p->jobs, p->nthreads, j)
+	FOREACH_NELEM (p->jobs, p->config.num.threads, j)
 		if (j->status == SLOT_FREE)
 			return j;
 
@@ -74,11 +72,11 @@ static struct job *
 job_first_waiting (const struct threadpool *const p)
 {
 	// Quick check: if all slots are free, there are no waiting jobs:
-	if (p->free_counter == p->nthreads)
+	if (p->free_counter == p->config.num.jobs)
 		return NULL;
 
 	// Find first eligible job in jobs table:
-	FOREACH_NELEM (p->jobs, p->nthreads, j)
+	FOREACH_NELEM (p->jobs, p->config.num.jobs, j)
 		if (j->status == SLOT_WAIT)
 			return j;
 
@@ -127,7 +125,7 @@ thread_main (void *data)
 		check(pthread_mutex_unlock(&p->cond_mutex));
 
 		// Run user-provided routine on data:
-		p->routine(job->data);
+		p->config.process(job->data);
 
 		// When done, mark the job slot as FREE again:
 		check(pthread_mutex_lock(&p->cond_mutex));
@@ -153,43 +151,42 @@ thread_destroy (struct thread *t)
 }
 
 struct threadpool *
-threadpool_create (size_t nthreads,
-	void (*routine)(void *data))
+threadpool_create (const struct threadpool_config *config)
 {
-	struct threadpool *const p = malloc(sizeof(*p));
+	struct threadpool *p;
 
-	if (p == NULL) {
-		goto err_0;
-	}
-	if ((p->jobs = malloc(sizeof(struct job) * nthreads)) == NULL) {
-		goto err_1;
-	}
-	if ((p->threads = malloc(sizeof(struct thread *) * nthreads)) == NULL) {
-		goto err_2;
-	}
-	p->nthreads = nthreads;
-	p->routine = routine;
-	p->shutdown = false;
-	p->free_counter = nthreads;
-	p->job_counter = 1;
+	if (config == NULL || config->num.threads == 0 || config->num.jobs == 0)
+		goto err0;
 
-	if (failed(pthread_mutex_init(&p->cond_mutex, NULL))) {
-		goto err_3;
-	}
+	if ((p = calloc(1, sizeof (*p))) == NULL)
+		goto err0;
 
-	if (failed(pthread_cond_init(&p->cond, NULL))) {
-		goto err_4;
-	}
+	p->config       = *config;
+	p->shutdown     = false;
+	p->free_counter = p->config.num.jobs;
+	p->job_counter  = 1;
+
+	if ((p->jobs = calloc(config->num.jobs, sizeof (struct job))) == NULL)
+		goto err1;
+
+	if ((p->threads = calloc(config->num.threads, sizeof (struct thread))) == NULL)
+		goto err2;
+
+	if (failed(pthread_mutex_init(&p->cond_mutex, NULL)))
+		goto err3;
+
+	if (failed(pthread_cond_init(&p->cond, NULL)))
+		goto err4;
 
 	// Initialize job queue to empty state:
-	FOREACH_NELEM (p->jobs, p->nthreads, j) {
+	FOREACH_NELEM (p->jobs, p->config.num.jobs, j) {
 		j->id = 0;
 		j->data = NULL;
 		j->status = SLOT_FREE;
 	}
 
 	// Create individual threads; they start running immediately:
-	FOREACH_NELEM (p->threads, p->nthreads, t) {
+	FOREACH_NELEM (p->threads, p->config.num.threads, t) {
 		if (thread_create(p, t))
 			continue;
 
@@ -198,16 +195,16 @@ threadpool_create (size_t nthreads,
 		for (struct thread *s = t - 1; s >= p->threads; s--) {
 			thread_destroy(s);
 		}
-		goto err_5;
+		goto err5;
 	}
 	return p;
 
-err_5:	check(pthread_cond_destroy(&p->cond));
-err_4:	check(pthread_mutex_destroy(&p->cond_mutex));
-err_3:	free(p->threads);
-err_2:	free(p->jobs);
-err_1:	free(p);
-err_0:	return NULL;
+err5:	check(pthread_cond_destroy(&p->cond));
+err4:	check(pthread_mutex_destroy(&p->cond_mutex));
+err3:	free(p->threads);
+err2:	free(p->jobs);
+err1:	free(p);
+err0:	return NULL;
 }
 
 void
@@ -225,13 +222,13 @@ threadpool_destroy (struct threadpool **const p)
 	// This should have taken care of the threads that were waiting in
 	// pthread_cond_wait(). While still holding the mutex, dequeue all
 	// pending jobs:
-	FOREACH_NELEM ((*p)->jobs, (*p)->nthreads, j)
+	FOREACH_NELEM ((*p)->jobs, (*p)->config.num.threads, j)
 		if (j->status == SLOT_WAIT)
 			slot_set_free(*p, j);
 
 	// Release the mutex and join with all threads:
 	check(pthread_mutex_unlock(&(*p)->cond_mutex));
-	FOREACH_NELEM ((*p)->threads, (*p)->nthreads, t)
+	FOREACH_NELEM ((*p)->threads, (*p)->config.num.threads, t)
 		check(pthread_join(t->id, NULL));
 
 	check(pthread_mutex_destroy(&(*p)->cond_mutex));
