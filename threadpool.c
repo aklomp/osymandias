@@ -30,11 +30,9 @@ struct threadpool {
 	struct thread **threads;
 
 	// User-provided routines:
-	void (*on_init)(void);
 	void (*on_dequeue)(void *data);
 	void (*routine)(void *data);
 	void (*on_cancel)(void);
-	void (*on_exit)(void);
 
 	int job_counter;
 	size_t free_counter;
@@ -153,10 +151,6 @@ thread_main (void *const data)
 	if (sigaction(SIGUSR1, &action, (struct sigaction *)NULL) != 0) {
 		return NULL;
 	}
-	// Run custom init function:
-	if (t->pool->on_init) {
-		t->pool->on_init();
-	}
 	// The pthread_cond_wait() must run under a locked mutex
 	// (it does its own internal unlocking/relocking):
 	if (pthread_mutex_lock(&t->pool->cond_mutex) != 0) {
@@ -187,11 +181,6 @@ thread_main (void *const data)
 		slot_set_free(t->pool, job);
 	}
 	pthread_mutex_unlock(&t->pool->cond_mutex);
-
-	// Run custom exit function:
-	if (t->pool->on_exit) {
-		t->pool->on_exit();
-	}
 	return NULL;
 }
 
@@ -226,11 +215,9 @@ thread_destroy (struct thread **const t)
 
 struct threadpool *
 threadpool_create (size_t nthreads,
-	void (*on_init)(void),
 	void (*on_dequeue)(void *data),
 	void (*routine)(void *data),
-	void (*on_cancel)(void),
-	void (*on_exit)(void))
+	void (*on_cancel)(void))
 {
 	struct thread *t;
 	struct threadpool *const p = malloc(sizeof(*p));
@@ -245,11 +232,9 @@ threadpool_create (size_t nthreads,
 		goto err_2;
 	}
 	p->nthreads = nthreads;
-	p->on_init = on_init;
 	p->on_dequeue = on_dequeue;
 	p->routine = routine;
 	p->on_cancel = on_cancel;
-	p->on_exit = on_exit;
 	p->shutdown = false;
 	p->free_counter = nthreads;
 	p->job_counter = 1;

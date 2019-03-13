@@ -13,9 +13,6 @@ struct threadpool *threadpool_create
 	// Number of threads to create:
 	size_t nthreads,
 
-	// Run once when thread starts up:
-	void (*on_init)(void),
-
 	// Run when data is dequeued without being processed:
 	void (*on_dequeue)(void *data),
 
@@ -23,10 +20,7 @@ struct threadpool *threadpool_create
 	void (*routine)(void *data),
 
 	// Run in signal handler when thread is canceled:
-	void (*on_cancel)(void),
-
-	// Run once when thread shuts down:
-	void (*on_exit)(void)
+	void (*on_cancel)(void)
 );
 
 // Enqueue the job specified by the opaque data pointer into the threadpool.
