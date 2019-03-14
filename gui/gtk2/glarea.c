@@ -4,6 +4,7 @@
 #include <gtk/gtkgl.h>
 #include <GL/gl.h>
 
+#include "../../util.h"
 #include "../../viewport.h"
 #include "../framerate.h"
 #include "../signal.h"
@@ -126,7 +127,7 @@ canvas_signal_connect (GtkWidget *canvas)
 	};
 
 	// Connect native signals:
-	signal_connect(canvas, map, sizeof(map) / sizeof(map[0]));
+	signal_connect(canvas, map, NELEM(map));
 
 	// Connect generic mouse-handling signals:
 	mouse_signal_connect(canvas);

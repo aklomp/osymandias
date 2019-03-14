@@ -3,6 +3,7 @@
 #include <gtk/gtk.h>
 #include <GL/gl.h>
 
+#include "../../util.h"
 #include "../../viewport.h"
 #include "../framerate.h"
 #include "../signal.h"
@@ -85,7 +86,7 @@ glarea_signal_connect (GtkWidget *glarea)
 	};
 
 	// Connect native signals:
-	signal_connect(glarea, map, sizeof(map) / sizeof(map[0]));
+	signal_connect(glarea, map, NELEM(map));
 
 	// Connect generic mouse-handling signals:
 	mouse_signal_connect(glarea);

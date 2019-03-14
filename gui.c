@@ -2,6 +2,7 @@
 #include <gdk/gdkkeysyms.h>
 
 #include "gui.h"
+#include "util.h"
 #include "worlds.h"
 #include "gui/framerate.h"
 #include "gui/local.h"
@@ -41,7 +42,7 @@ connect_window_signals (GtkWidget *window)
 		{ "key-press-event",	G_CALLBACK(on_key_press),	GDK_KEY_PRESS_MASK	},
 	};
 
-	signal_connect(window, map, sizeof(map) / sizeof(map[0]));
+	signal_connect(window, map, NELEM(map));
 }
 
 // Initialize GUI

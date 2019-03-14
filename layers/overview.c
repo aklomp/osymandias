@@ -13,11 +13,10 @@
 #include "../programs.h"
 #include "../programs/frustum.h"
 #include "../programs/solid.h"
+#include "../util.h"
 
 #define SIZE	256.0f
 #define MARGIN	 10.0f
-
-#define MEMBERS(x)	(sizeof(x) / sizeof((x)[0]))
 
 // Projection matrix:
 static struct {
@@ -310,8 +309,8 @@ static bool
 init (void)
 {
 	// Generate vertex buffer and array objects:
-	glGenBuffers(MEMBERS(vbo), vbo);
-	glGenVertexArrays(MEMBERS(vao), vao);
+	glGenBuffers(NELEM(vbo), vbo);
+	glGenVertexArrays(NELEM(vao), vao);
 
 	init_bkgd();
 	init_frustum();
@@ -326,8 +325,8 @@ static void
 destroy (void)
 {
 	// Delete vertex array and buffer objects:
-	glDeleteVertexArrays(MEMBERS(vao), vao);
-	glDeleteBuffers(MEMBERS(vbo), vbo);
+	glDeleteVertexArrays(NELEM(vao), vao);
+	glDeleteBuffers(NELEM(vbo), vbo);
 }
 
 // Export public methods:

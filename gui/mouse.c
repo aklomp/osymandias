@@ -1,4 +1,5 @@
 #include "../camera.h"
+#include "../util.h"
 #include "../viewport.h"
 #include "../worlds.h"
 #include "framerate.h"
@@ -142,5 +143,5 @@ mouse_signal_connect (GtkWidget *widget)
 		{ "scroll-event",         G_CALLBACK(on_scroll),         GDK_SCROLL_MASK         },
 	};
 
-	signal_connect(widget, map, sizeof(map) / sizeof(map[0]));
+	signal_connect(widget, map, NELEM(map));
 }

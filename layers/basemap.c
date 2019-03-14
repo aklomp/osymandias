@@ -17,8 +17,7 @@
 #include "../programs.h"
 #include "../programs/basemap_spherical.h"
 #include "../quadtree.h"
-
-#define MEMBERS(x)	(sizeof(x) / sizeof((x)[0]))
+#include "../util.h"
 
 static struct {
 	float scale[16];
@@ -197,8 +196,8 @@ init (void)
 		return false;
 
 	// Generate vertex buffer and array objects:
-	glGenBuffers(MEMBERS(vbo), vbo);
-	glGenVertexArrays(MEMBERS(vao), vao);
+	glGenBuffers(NELEM(vbo), vbo);
+	glGenVertexArrays(NELEM(vao), vao);
 
 	init_planar();
 	init_spherical();
@@ -215,8 +214,8 @@ destroy (void)
 	glDeleteTextures(1, &tex.id);
 
 	// Delete vertex array and buffer objects:
-	glDeleteVertexArrays(MEMBERS(vao), vao);
-	glDeleteBuffers(MEMBERS(vbo), vbo);
+	glDeleteVertexArrays(NELEM(vao), vao);
+	glDeleteBuffers(NELEM(vbo), vbo);
 }
 
 // Export public methods:
