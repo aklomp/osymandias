@@ -1,6 +1,8 @@
 #include <stdbool.h>
-#include <limits.h>
 #include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+#include <limits.h>
 #include <pthread.h>
 
 #include "util.h"
@@ -35,6 +37,22 @@ struct threadpool {
 	pthread_cond_t cond;
 	pthread_mutex_t cond_mutex;
 };
+
+// Check a pthread function for errors, print error message.
+static void
+check (const int ret)
+{
+	if (ret != 0)
+		fprintf(stderr, "pthread: %s\n", strerror(ret));
+}
+
+// Check a pthread function for errors, return error status.
+static bool
+failed (const int ret)
+{
+	check(ret);
+	return ret != 0;
+}
 
 static struct job *
 job_first_free (const struct threadpool *const p)
@@ -88,14 +106,15 @@ thread_main (void *data)
 
 	// The pthread_cond_wait() must run under a locked mutex
 	// (it does its own internal unlocking/relocking):
-	if (pthread_mutex_lock(&p->cond_mutex) != 0) {
+	if (failed(pthread_mutex_lock(&p->cond_mutex))) {
 		return NULL;
 	}
+
 	for (;;)
 	{
 		// Wait for predicate to change, allow spurious wakeups:
 		while ((job = job_first_waiting(p)) == NULL && !p->shutdown) {
-			pthread_cond_wait(&p->cond, &p->cond_mutex);
+			check(pthread_cond_wait(&p->cond, &p->cond_mutex));
 		}
 		if (p->shutdown) {
 			break;
@@ -105,16 +124,17 @@ thread_main (void *data)
 		job->status = SLOT_BUSY;
 
 		// From here on we're autonomous:
-		pthread_mutex_unlock(&p->cond_mutex);
+		check(pthread_mutex_unlock(&p->cond_mutex));
 
 		// Run user-provided routine on data:
 		p->routine(job->data);
 
 		// When done, mark the job slot as FREE again:
-		pthread_mutex_lock(&p->cond_mutex);
+		check(pthread_mutex_lock(&p->cond_mutex));
 		slot_set_free(p, job);
 	}
-	pthread_mutex_unlock(&p->cond_mutex);
+
+	check(pthread_mutex_unlock(&p->cond_mutex));
 	return NULL;
 }
 
@@ -126,10 +146,12 @@ thread_create (struct threadpool *const p)
 	if ((t = malloc(sizeof(*t))) == NULL) {
 		return NULL;
 	}
-	if (pthread_create(&t->id, NULL, thread_main, p)) {
+
+	if (failed(pthread_create(&t->id, NULL, thread_main, p))) {
 		free(t);
 		return NULL;
 	}
+
 	return t;
 }
 
@@ -139,8 +161,8 @@ thread_destroy (struct thread **const t)
 	if (t == NULL || *t == NULL) {
 		return;
 	}
-	// Join with thread:
-	pthread_join((*t)->id, NULL);
+
+	check(pthread_join((*t)->id, NULL));
 
 	free(*t);
 	*t = NULL;
@@ -168,10 +190,11 @@ threadpool_create (size_t nthreads,
 	p->free_counter = nthreads;
 	p->job_counter = 1;
 
-	if (pthread_mutex_init(&p->cond_mutex, NULL)) {
+	if (failed(pthread_mutex_init(&p->cond_mutex, NULL))) {
 		goto err_3;
 	}
-	if (pthread_cond_init(&p->cond, NULL)) {
+
+	if (failed(pthread_cond_init(&p->cond, NULL))) {
 		goto err_4;
 	}
 
@@ -196,8 +219,8 @@ threadpool_create (size_t nthreads,
 	}
 	return p;
 
-err_5:	pthread_cond_destroy(&p->cond);
-err_4:	pthread_mutex_destroy(&p->cond_mutex);
+err_5:	check(pthread_cond_destroy(&p->cond));
+err_4:	check(pthread_mutex_destroy(&p->cond_mutex));
 err_3:	free(p->threads);
 err_2:	free(p->jobs);
 err_1:	free(p);
@@ -210,10 +233,11 @@ threadpool_destroy (struct threadpool **const p)
 	if (p == NULL || *p == NULL) {
 		return;
 	}
+
 	// To be nice, broadcast shutdown message to all waiting threads:
-	pthread_mutex_lock(&(*p)->cond_mutex);
+	check(pthread_mutex_lock(&(*p)->cond_mutex));
 	(*p)->shutdown = true;
-	pthread_cond_broadcast(&(*p)->cond);
+	check(pthread_cond_broadcast(&(*p)->cond));
 
 	// This should have taken care of the threads that were waiting in
 	// pthread_cond_wait(). While still holding the mutex, dequeue all
@@ -223,12 +247,13 @@ threadpool_destroy (struct threadpool **const p)
 			slot_set_free(*p, j);
 
 	// Release the mutex and join with all threads:
-	pthread_mutex_unlock(&(*p)->cond_mutex);
+	check(pthread_mutex_unlock(&(*p)->cond_mutex));
 	FOREACH_NELEM ((*p)->threads, (*p)->nthreads, t)
 		thread_destroy(t);
 
-	pthread_mutex_destroy(&(*p)->cond_mutex);
-	pthread_cond_destroy(&(*p)->cond);
+	check(pthread_mutex_destroy(&(*p)->cond_mutex));
+	check(pthread_cond_destroy(&(*p)->cond));
+
 	free((*p)->threads);
 	free((*p)->jobs);
 	free(*p);
@@ -243,14 +268,16 @@ threadpool_job_enqueue (struct threadpool *const p, void *const data)
 	if (p == NULL) {
 		return 0;
 	}
+
 	// Going to read/alter the predicate; must lock:
-	if (pthread_mutex_lock(&p->cond_mutex) != 0) {
+	if (failed(pthread_mutex_lock(&p->cond_mutex)))
 		return 0;
-	}
+
 	if ((j = job_first_free(p)) == NULL) {
-		pthread_mutex_unlock(&p->cond_mutex);
+		check(pthread_mutex_unlock(&p->cond_mutex));
 		return 0;
 	}
+
 	// Fill slot with job:
 	j->data = data;
 	slot_set_wait(p, j);
@@ -262,8 +289,8 @@ threadpool_job_enqueue (struct threadpool *const p, void *const data)
 	// Notify a waiting thread about the new task;
 	// according to the manpage, it's legal and preferred to do this while
 	// holding the mutex:
-	pthread_cond_signal(&p->cond);
+	check(pthread_cond_signal(&p->cond));
 
-	pthread_mutex_unlock(&p->cond_mutex);
+	check(pthread_mutex_unlock(&p->cond_mutex));
 	return job_id;
 }
