@@ -14,6 +14,7 @@ enum job_slot_status {
 };
 
 struct job {
+	const struct thread *thread;
 	int id;
 	enum job_slot_status status;
 	void *data;
@@ -24,9 +25,9 @@ struct thread {
 };
 
 struct threadpool {
-	size_t nthreads;
-	struct job *jobs;
-	struct thread **threads;
+	struct job    *jobs;
+	struct thread *threads;
+	size_t         nthreads;
 
 	// User-provided routines:
 	void (*routine)(void *data);
@@ -137,41 +138,24 @@ thread_main (void *data)
 	return NULL;
 }
 
-static struct thread *
-thread_create (struct threadpool *const p)
+static bool
+thread_create (struct threadpool *p, struct thread *t)
 {
-	struct thread *t;
-
-	if ((t = malloc(sizeof(*t))) == NULL) {
-		return NULL;
-	}
-
-	if (failed(pthread_create(&t->id, NULL, thread_main, p))) {
-		free(t);
-		return NULL;
-	}
-
-	return t;
+	return !failed(pthread_create(&t->id, NULL, thread_main, p));
 }
 
 static void
-thread_destroy (struct thread **const t)
+thread_destroy (struct thread *t)
 {
-	if (t == NULL || *t == NULL) {
-		return;
+	if (t != NULL) {
+		check(pthread_join(t->id, NULL));
 	}
-
-	check(pthread_join((*t)->id, NULL));
-
-	free(*t);
-	*t = NULL;
 }
 
 struct threadpool *
 threadpool_create (size_t nthreads,
 	void (*routine)(void *data))
 {
-	struct thread *t;
 	struct threadpool *const p = malloc(sizeof(*p));
 
 	if (p == NULL) {
@@ -205,13 +189,13 @@ threadpool_create (size_t nthreads,
 	}
 
 	// Create individual threads; they start running immediately:
-	FOREACH_NELEM (p->threads, p->nthreads, q) {
-		if ((t = thread_create(p)) != NULL) {
-			*q = t;
+	FOREACH_NELEM (p->threads, p->nthreads, t) {
+		if (thread_create(p, t))
 			continue;
-		}
+
 		// Error. Backtrack, destroy previously created threads:
-		for (struct thread **s = q - 1; s >= p->threads; s--) {
+		p->shutdown = true;
+		for (struct thread *s = t - 1; s >= p->threads; s--) {
 			thread_destroy(s);
 		}
 		goto err_5;
@@ -248,7 +232,7 @@ threadpool_destroy (struct threadpool **const p)
 	// Release the mutex and join with all threads:
 	check(pthread_mutex_unlock(&(*p)->cond_mutex));
 	FOREACH_NELEM ((*p)->threads, (*p)->nthreads, t)
-		thread_destroy(t);
+		check(pthread_join(t->id, NULL));
 
 	check(pthread_mutex_destroy(&(*p)->cond_mutex));
 	check(pthread_cond_destroy(&(*p)->cond));
