@@ -102,28 +102,27 @@ static void *
 thread_main (void *data)
 {
 	struct threadpool *p = data;
-	struct job *job;
 
-	// The pthread_cond_wait() must run under a locked mutex
-	// (it does its own internal unlocking/relocking):
-	if (failed(pthread_mutex_lock(&p->cond_mutex))) {
-		return NULL;
-	}
+	while (p->shutdown == false) {
+		struct job *job;
 
-	for (;;)
-	{
-		// Wait for predicate to change, allow spurious wakeups:
-		while ((job = job_first_waiting(p)) == NULL && !p->shutdown) {
-			check(pthread_cond_wait(&p->cond, &p->cond_mutex));
-		}
-		if (p->shutdown) {
+		// The pthread_cond_wait() must run under a locked mutex
+		// (it does its own internal unlocking/relocking):
+		if (failed(pthread_mutex_lock(&p->cond_mutex)))
 			break;
+
+		// Wait for predicate to change, allow spurious wakeups:
+		while ((job = job_first_waiting(p)) == NULL) {
+			if (failed(pthread_cond_wait(&p->cond, &p->cond_mutex)) || p->shutdown) {
+				check(pthread_mutex_unlock(&p->cond_mutex));
+				return NULL;
+			}
 		}
-		// We hold the condition mutex now;
-		// take over the task, remove it from the pool:
+
+		// The condition mutex is now locked, claim the job:
 		job->status = SLOT_BUSY;
 
-		// From here on we're autonomous:
+		// Unlock the condition mutex to grant access to the job structure:
 		check(pthread_mutex_unlock(&p->cond_mutex));
 
 		// Run user-provided routine on data:
@@ -132,9 +131,9 @@ thread_main (void *data)
 		// When done, mark the job slot as FREE again:
 		check(pthread_mutex_lock(&p->cond_mutex));
 		slot_set_free(p, job);
+		check(pthread_mutex_unlock(&p->cond_mutex));
 	}
 
-	check(pthread_mutex_unlock(&p->cond_mutex));
 	return NULL;
 }
 
