@@ -117,8 +117,7 @@ thread_procure (struct quadtree_req *req)
 static void
 thread_destroy (void *data)
 {
-	// Free the job ID:
-	threadpool_job_cancel(threadpool, (int)(ptrdiff_t)data);
+	(void) data;
 }
 
 bool
@@ -130,7 +129,7 @@ bitmap_mgr_init (void)
 	if ((threadlist = quadtree_create(200, &thread_procure, &thread_destroy)) == NULL) {
 		goto err_1;
 	}
-	if ((threadpool = threadpool_create(THREADPOOL_SIZE, pngloader_on_dequeue, pngloader_main, pngloader_on_cancel)) == NULL) {
+	if ((threadpool = threadpool_create(THREADPOOL_SIZE, pngloader_on_dequeue, pngloader_main)) == NULL) {
 		goto err_2;
 	}
 	pthread_mutex_init(&bitmaps_mutex, NULL);

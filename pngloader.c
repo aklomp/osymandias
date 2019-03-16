@@ -23,8 +23,6 @@ struct io {
 	const char *cur;
 };
 
-static __thread volatile bool cancel_flag = false;
-
 static bool
 load_png_file (int fd, unsigned int *height, unsigned int *width, char **rawbits)
 {
@@ -45,7 +43,7 @@ load_png_file (int fd, unsigned int *height, unsigned int *width, char **rawbits
 	// Read in entire file, check carefully for cancellation:
 	for (size_t total = 0; total < len; total += nread) {
 		nread = read(fd, data + total, len - total);
-		if (cancel_flag || nread <= 0) {
+		if (nread <= 0) {
 			free(data);
 			return false;
 		}
@@ -68,19 +66,17 @@ pngloader_main (void *data)
 	unsigned int height;
 	char *rawbits = NULL;
 
-	cancel_flag = false;
-
 	// Get a file descriptor to the file. We just want a file descriptor to
 	// associate with this thread so that we know what to clean up, and not
 	// wait for the disk to actually deliver, so we issue a nonblocking call:
-	if ((fd = diskcache_open(p->req.zoom, p->req.x, p->req.y)) < 0 || cancel_flag)
+	if ((fd = diskcache_open(p->req.zoom, p->req.x, p->req.y)) < 0)
 		goto exit;
 
 	// Now that we have the fd, make it properly blocking:
-	if (fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) & ~O_NONBLOCK) < 0 || cancel_flag)
+	if (fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) & ~O_NONBLOCK) < 0)
 		goto exit;
 
-	if (!load_png_file(fd, &height, &width, &rawbits) || cancel_flag)
+	if (!load_png_file(fd, &height, &width, &rawbits))
 		goto exit;
 
 	if (fd >= 0) {
@@ -99,10 +95,4 @@ exit:	if (fd >= 0)
 		close(fd);
 
 	free(p);
-}
-
-void
-pngloader_on_cancel (void)
-{
-	cancel_flag = true;
 }
