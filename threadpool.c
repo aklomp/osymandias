@@ -20,6 +20,7 @@ struct threadpool {
 
 	struct {
 		size_t jobs;
+		size_t threads;
 	} num;
 
 	bool shutdown;
@@ -110,17 +111,27 @@ thread_main (void *data)
 	return NULL;
 }
 
-static bool
-thread_create (struct threadpool *p, struct thread *t)
+static void
+threads_destroy (struct threadpool *p)
 {
-	return !failed(pthread_create(&t->id, NULL, thread_main, p));
+	p->shutdown = true;
+	check(pthread_cond_broadcast(&p->cond));
+	FOREACH_NELEM (p->threads, p->num.threads, t)
+		check(pthread_join(t->id, NULL));
 }
 
-static void
-thread_destroy (struct thread *t)
+static bool
+threads_create (struct threadpool *p)
 {
-	if (t != NULL)
-		check(pthread_join(t->id, NULL));
+	FOREACH_NELEM (p->threads, p->config.num.threads, t) {
+		if (failed(pthread_create(&t->id, NULL, thread_main, p))) {
+			threads_destroy(p);
+			return false;
+		}
+		p->num.threads++;
+	}
+
+	return true;
 }
 
 bool
@@ -168,18 +179,9 @@ threadpool_create (const struct threadpool_config *config)
 	if (failed(pthread_cond_init(&p->cond, NULL)))
 		goto err4;
 
-	// Create individual threads; they start running immediately:
-	FOREACH_NELEM (p->threads, p->config.num.threads, t) {
-		if (thread_create(p, t))
-			continue;
-
-		// Error. Backtrack, destroy previously created threads:
-		p->shutdown = true;
-		for (struct thread *s = t - 1; s >= p->threads; s--) {
-			thread_destroy(s);
-		}
+	if (threads_create(p) == false)
 		goto err5;
-	}
+
 	return p;
 
 err5:	check(pthread_cond_destroy(&p->cond));
@@ -193,19 +195,10 @@ err0:	return NULL;
 void
 threadpool_destroy (struct threadpool **const p)
 {
-	if (p == NULL || *p == NULL) {
+	if (p == NULL || *p == NULL)
 		return;
-	}
 
-	// To be nice, broadcast shutdown message to all waiting threads:
-	check(pthread_mutex_lock(&(*p)->cond_mutex));
-	(*p)->shutdown = true;
-	check(pthread_cond_broadcast(&(*p)->cond));
-
-	// Release the mutex and join with all threads:
-	check(pthread_mutex_unlock(&(*p)->cond_mutex));
-	FOREACH_NELEM ((*p)->threads, (*p)->config.num.threads, t)
-		check(pthread_join(t->id, NULL));
+	threads_destroy(*p);
 
 	check(pthread_mutex_destroy(&(*p)->cond_mutex));
 	check(pthread_cond_destroy(&(*p)->cond));
