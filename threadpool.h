@@ -10,7 +10,10 @@ struct threadpool;
 struct threadpool_config {
 
 	// Main thread routine.
-	void (* process)(void *data);
+	void (* process) (void *job);
+
+	// Size of a job structure in bytes.
+	size_t jobsize;
 
 	struct {
 
@@ -28,8 +31,7 @@ struct threadpool_config {
 extern struct threadpool *threadpool_create (const struct threadpool_config *config);
 
 // Enqueue the job specified by the opaque data pointer into the threadpool.
-// Returns a job id larger than 0 if enqueuement succeeded, or 0 on failure.
-extern int threadpool_job_enqueue (struct threadpool *const p, void *const data);
+extern bool threadpool_job_enqueue (struct threadpool *p, void *job);
 
 // Destroy the threadpool structure and all associated resources:
 extern void threadpool_destroy (struct threadpool **const p);
