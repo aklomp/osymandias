@@ -27,7 +27,6 @@ struct threadpool {
 	struct thread **threads;
 
 	// User-provided routines:
-	void (*on_dequeue)(void *data);
 	void (*routine)(void *data);
 
 	int job_counter;
@@ -149,7 +148,6 @@ thread_destroy (struct thread **const t)
 
 struct threadpool *
 threadpool_create (size_t nthreads,
-	void (*on_dequeue)(void *data),
 	void (*routine)(void *data))
 {
 	struct thread *t;
@@ -165,7 +163,6 @@ threadpool_create (size_t nthreads,
 		goto err_2;
 	}
 	p->nthreads = nthreads;
-	p->on_dequeue = on_dequeue;
 	p->routine = routine;
 	p->shutdown = false;
 	p->free_counter = nthreads;
@@ -222,12 +219,8 @@ threadpool_destroy (struct threadpool **const p)
 	// pthread_cond_wait(). While still holding the mutex, dequeue all
 	// pending jobs:
 	FOREACH_NELEM ((*p)->jobs, (*p)->nthreads, j)
-		if (j->status == SLOT_WAIT) {
-			if ((*p)->on_dequeue) {
-				(*p)->on_dequeue(j->data);
-			}
+		if (j->status == SLOT_WAIT)
 			slot_set_free(*p, j);
-		}
 
 	// Release the mutex and join with all threads:
 	pthread_mutex_unlock(&(*p)->cond_mutex);

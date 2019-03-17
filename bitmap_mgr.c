@@ -18,14 +18,6 @@ static pthread_mutex_t bitmaps_mutex;
 static pthread_mutex_t running_mutex;
 static pthread_attr_t attr_detached;
 
-static void
-pngloader_on_dequeue (void *data)
-{
-	// Called when the job is dequeued before a thread has touched it,
-	// in which case just free the data and call it a day:
-	free(data);
-}
-
 int
 bitmap_request (struct quadtree_req *req)
 {
@@ -129,7 +121,7 @@ bitmap_mgr_init (void)
 	if ((threadlist = quadtree_create(200, &thread_procure, &thread_destroy)) == NULL) {
 		goto err_1;
 	}
-	if ((threadpool = threadpool_create(THREADPOOL_SIZE, pngloader_on_dequeue, pngloader_main)) == NULL) {
+	if ((threadpool = threadpool_create(THREADPOOL_SIZE, pngloader_main)) == NULL) {
 		goto err_2;
 	}
 	pthread_mutex_init(&bitmaps_mutex, NULL);

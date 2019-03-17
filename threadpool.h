@@ -13,9 +13,6 @@ struct threadpool *threadpool_create
 	// Number of threads to create:
 	size_t nthreads,
 
-	// Run when data is dequeued without being processed:
-	void (*on_dequeue)(void *data),
-
 	// Main thread routine:
 	void (*routine)(void *data)
 );
