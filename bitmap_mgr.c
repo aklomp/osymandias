@@ -58,23 +58,22 @@ bitmap_destroy (void *data)
 }
 
 static void
-thread_on_completed (struct pngloader *p, void *rawbits)
+process (void *job)
 {
 	int stored;
-
-	// This function is called by the thread after it has finished
-	// inserting the bitmap; delete the job id from the quadtree:
+	struct quadtree_req *req = job;
+	void *rawbits = pngloader_main(req);
 
 	// Insert bitmap into quadtree:
 	pthread_mutex_lock(&bitmaps_mutex);
-	stored = quadtree_data_insert(bitmaps, &p->req, rawbits);
+	stored = quadtree_data_insert(bitmaps, req, rawbits);
 	pthread_mutex_unlock(&bitmaps_mutex);
 
 	if (!stored) bitmap_destroy(rawbits);
 
-	// Remove therad from list of running procure threads:
+	// Remove thread from list of running procure threads:
 	pthread_mutex_lock(&running_mutex);
-	quadtree_data_insert(threadlist, &p->req, NULL);
+	quadtree_data_insert(threadlist, req, NULL);
 	pthread_mutex_unlock(&running_mutex);
 
 	framerate_repaint();
@@ -83,27 +82,10 @@ thread_on_completed (struct pngloader *p, void *rawbits)
 static void *
 thread_procure (struct quadtree_req *req)
 {
-	int job_id;
-	struct pngloader *p;
+	if (threadpool_job_enqueue(threadpool, req))
+		return (void *) 1;
 
-	// We have been asked to create a thread that loads the given bitmap
-	// from disk and puts it in the bitmaps quadtree.
-
-	if ((p = malloc(sizeof(*p))) == NULL) {
-		return NULL;
-	}
-	// The pngloader structure is owned by the thread.
-	// It is responsible for free()'ing it.
-	memcpy(&p->req, req, sizeof(*req));
-	p->on_completed = thread_on_completed;
-
-	// Enqueue job:
-	if ((job_id = threadpool_job_enqueue(threadpool, p)) == 0) {
-		free(p);
-	}
-	// Store node in quadtree;
-	// job_id is 0 if queueing failed, which is conveniently cast to NULL:
-	return (void *)(ptrdiff_t)job_id;
+	return NULL;
 }
 
 static void
@@ -122,7 +104,8 @@ bitmap_mgr_init (void)
 		goto err_1;
 
 	const struct threadpool_config config = {
-		.process = pngloader_main,
+		.process = process,
+		.jobsize = sizeof (struct quadtree_req),
 		.num = {
 			.jobs    = THREADPOOL_SIZE,
 			.threads = THREADPOOL_SIZE,
