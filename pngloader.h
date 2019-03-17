@@ -1,5 +1,5 @@
 #pragma once
 
-#include "quadtree.h"
+#include "cache.h"
 
-extern void *pngloader_main (const struct quadtree_req *req);
+extern void *pngloader_main (const struct cache_node *req);
