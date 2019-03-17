@@ -66,6 +66,9 @@ tiledrawer (const struct tiledrawer *td)
 	texuv[0].y = texuv[1].y = tile->pos.y;
 	texuv[3].y = texuv[2].y = tile->pos.y + tile->size.ht;
 
+	glActiveTexture(GL_TEXTURE0);
+	glEnable(GL_TEXTURE_2D);
+
 	// Bind texture:
 	glBindTexture(GL_TEXTURE_2D, td->texture_id);
 

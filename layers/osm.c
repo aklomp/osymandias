@@ -8,6 +8,7 @@
 #include "../bitmap_mgr.h"
 #include "../worlds.h"
 #include "../viewport.h"
+#include "../texture_cache.h"
 #include "../tilepicker.h"
 #include "../tiledrawer.h"
 #include "../layers.h"
@@ -24,58 +25,8 @@ enum cache_source {
 static struct {
 	bool overlay_zoom;
 	bool cache_source_show;
-	struct quadtree *textures;
 }
 state;
-
-static bool
-have_anisotropic (void)
-{
-	static bool init = false;
-	static bool have = false;
-
-	if (!init) {
-		const char *ext = (const char *)glGetString(GL_EXTENSIONS);
-
-		if (ext)
-			have = strstr(ext, "GL_EXT_texture_filter_anisotropic");
-
-		init = true;
-	}
-
-	return have;
-}
-
-static GLuint
-texture_from_rawbits (void *rawbits)
-{
-	GLuint id;
-
-	glGenTextures(1, &id);
-	glBindTexture(GL_TEXTURE_2D, id);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 256, 256, 0, GL_RGB, GL_UNSIGNED_BYTE, rawbits);
-
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-
-	// Apply anisotropic filtering if available:
-	if (have_anisotropic()) {
-		GLfloat max;
-		glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &max);
-		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, max);
-	}
-
-	return id;
-}
-
-static void
-texture_destroy (void *data)
-{
-	// HACK: dirty cast from pointer to int:
-	GLuint id = (GLuint)(ptrdiff_t)data;
-
-	glDeleteTextures(1, &id);
-}
 
 static void
 set_zoom_color (int zoom)
@@ -94,23 +45,21 @@ set_zoom_color (int zoom)
 static bool
 init (void)
 {
-	if (!bitmap_mgr_init())
-		return false;
+	if (bitmap_mgr_init())
+		return texture_cache_create();
 
-	// OpenGL texture cache:
-	state.textures = quadtree_create(50, NULL, &texture_destroy);
-	return true;
+	return false;
 }
 
 static void
 destroy (void)
 {
-	quadtree_destroy(&state.textures);
+	texture_cache_destroy();
 	bitmap_mgr_destroy();
 }
 
 static void
-tile_draw (const struct tilepicker *tile, const struct quadtree_req *req, GLuint id, enum cache_source source)
+tile_draw (const struct tilepicker *tile, const struct cache_node *req, uint32_t id, enum cache_source source)
 {
 	// Overlay a color mask to highlight texture's source:
 	if (state.cache_source_show)
@@ -128,8 +77,8 @@ tile_draw (const struct tilepicker *tile, const struct quadtree_req *req, GLuint
 	tiledrawer(&((struct tiledrawer) {
 		.pick = tile,
 		.zoom = {
-			.world = req->world_zoom,
-			.found = req->found_zoom,
+			.world = world_get_zoom(),
+			.found = req->zoom,
 		},
 		.texture_id = id,
 	}));
@@ -142,19 +91,19 @@ tile_draw (const struct tilepicker *tile, const struct quadtree_req *req, GLuint
 // Check if the requested tile is already cached as a texture inside OpenGL.
 // Return true if we drew the tile from the OpenGL cache, false if not.
 static bool
-texture_request (const struct tilepicker *tile, struct quadtree_req *req)
+texture_request (const struct tilepicker *tile, const struct cache_node *in, struct cache_node *out, uint32_t *id)
 {
 	// Return false if no matching texture was found:
-	if (!quadtree_request(state.textures, req))
+	if ((*id = texture_cache_search(in, out)) == 0)
 		return false;
 
 	// Also return if the matching texture does not have native resolution;
 	// we'll try to find a better fitting cached bitmap first:
-	if (req->found_zoom != req->world_zoom)
+	if (out->zoom != in->zoom)
 		return false;
 
 	// The texture has native resolution, draw it and return successfully:
-	tile_draw(tile, req, (GLuint)req->found_data, CACHED_TEXTURE);
+	tile_draw(tile, out, *id, CACHED_TEXTURE);
 	return true;
 }
 
@@ -167,12 +116,6 @@ paint (void)
 
 	// Draw to world coordinates:
 	viewport_gl_setup_world();
-
-	glEnable(GL_TEXTURE_2D);
-
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glDisable(GL_BLEND);
 
 	// The texture colors are multiplied with this value:
 	glColor3f(1.0, 1.0, 1.0);
@@ -198,11 +141,17 @@ paint (void)
 			.found_data = NULL,
 		};
 
-		struct quadtree_req req_tex = req;	// OpenGL texture
 		struct quadtree_req req_bmp = req;	// Cached bitmap
 
+		uint32_t id_tex;
+		struct cache_node out_tex, in_tex = {
+			.x    = req.x,
+			.y    = req.y,
+			.zoom = req.zoom,
+		};
+
 		// See if the exact matching texture is already cached in OpenGL:
-		if (texture_request(&tile, &req_tex))
+		if (texture_request(&tile, &in_tex, &out_tex, &id_tex))
 			continue;
 
 		// Otherwise see if we can find a cached bitmap:
@@ -210,9 +159,9 @@ paint (void)
 
 		// If we found a cached texture and no bitmap, or a bitmap of
 		// lower zoom level, use the cached texture:
-		if (req_tex.found_data)
-			if (!req_bmp.found_data || req_tex.found_zoom >= req_bmp.found_zoom) {
-				tile_draw(&tile, &req_tex, (GLuint)req_tex.found_data, CACHED_TEXTURE);
+		if (id_tex > 0)
+			if (!req_bmp.found_data || out_tex.zoom >= (uint32_t) req_bmp.found_zoom) {
+				tile_draw(&tile, &out_tex, id_tex, CACHED_TEXTURE);
 				continue;
 			}
 
@@ -221,22 +170,18 @@ paint (void)
 			continue;
 
 		// Else turn the bitmap into an OpenGL texture:
-		GLuint id = texture_from_rawbits(req_bmp.found_data);
+		const struct cache_node out_bmp = {
+			.x    = req_bmp.found_x,
+			.y    = req_bmp.found_y,
+			.zoom = req_bmp.found_zoom,
+		};
+
+		uint32_t id = texture_cache_insert(&out_bmp, req_bmp.found_data);
 
 		// Draw it:
-		tile_draw(&tile, &req_bmp, id, CACHED_BITMAP);
-
-		// Insert into the texture cache:
-		req.zoom = req_bmp.found_zoom;
-		req.x = req_bmp.found_x;
-		req.y = req_bmp.found_y;
-
-		if (!quadtree_data_insert(state.textures, &req, (void *)(ptrdiff_t)id))
-			texture_destroy((void *)(ptrdiff_t)id);
+		tile_draw(&tile, &out_bmp, id, CACHED_BITMAP);
 	}
 
-	glDisable(GL_BLEND);
-	glDisable(GL_TEXTURE_2D);
 	program_none();
 }
 
