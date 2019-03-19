@@ -34,4 +34,4 @@ extern struct threadpool *threadpool_create (const struct threadpool_config *con
 extern bool threadpool_job_enqueue (struct threadpool *p, void *job);
 
 // Destroy the threadpool structure and all associated resources:
-extern void threadpool_destroy (struct threadpool **const p);
+extern void threadpool_destroy (struct threadpool *p);

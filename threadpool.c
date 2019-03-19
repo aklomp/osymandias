@@ -193,18 +193,17 @@ err0:	return NULL;
 }
 
 void
-threadpool_destroy (struct threadpool **const p)
+threadpool_destroy (struct threadpool *p)
 {
-	if (p == NULL || *p == NULL)
+	if (p == NULL)
 		return;
 
-	threads_destroy(*p);
+	threads_destroy(p);
 
-	check(pthread_mutex_destroy(&(*p)->cond_mutex));
-	check(pthread_cond_destroy(&(*p)->cond));
+	check(pthread_mutex_destroy(&p->cond_mutex));
+	check(pthread_cond_destroy(&p->cond));
 
-	free((*p)->threads);
-	free((*p)->jobs);
-	free(*p);
-	*p = NULL;
+	free(p->threads);
+	free(p->jobs);
+	free(p);
 }

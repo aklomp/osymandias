@@ -146,7 +146,7 @@ err_0:	return false;
 void
 bitmap_mgr_destroy (void)
 {
-	threadpool_destroy(&threadpool);
+	threadpool_destroy(threadpool);
 
 	quadtree_destroy(&threadlist);
 
