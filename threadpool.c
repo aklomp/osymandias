@@ -6,13 +6,9 @@
 #include "threadpool.h"
 #include "util.h"
 
-struct thread {
-	pthread_t id;
-};
-
 struct threadpool {
 	void                     *jobs;
-	struct thread            *threads;
+	pthread_t                *threads;
 	struct threadpool_config  config;
 
 	pthread_cond_t  cond;
@@ -117,14 +113,14 @@ threads_destroy (struct threadpool *p)
 	p->shutdown = true;
 	check(pthread_cond_broadcast(&p->cond));
 	FOREACH_NELEM (p->threads, p->num.threads, t)
-		check(pthread_join(t->id, NULL));
+		check(pthread_join(*t, NULL));
 }
 
 static bool
 threads_create (struct threadpool *p)
 {
 	FOREACH_NELEM (p->threads, p->config.num.threads, t) {
-		if (failed(pthread_create(&t->id, NULL, thread_main, p))) {
+		if (failed(pthread_create(t, NULL, thread_main, p))) {
 			threads_destroy(p);
 			return false;
 		}
@@ -170,7 +166,7 @@ threadpool_create (const struct threadpool_config *config)
 	if ((p->jobs = calloc(config->num.jobs, config->jobsize)) == NULL)
 		goto err1;
 
-	if ((p->threads = calloc(config->num.threads, sizeof (struct thread))) == NULL)
+	if ((p->threads = calloc(config->num.threads, sizeof (pthread_t))) == NULL)
 		goto err2;
 
 	if (failed(pthread_mutex_init(&p->cond_mutex, NULL)))
