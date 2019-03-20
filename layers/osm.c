@@ -51,19 +51,6 @@ destroy (void)
 	bitmap_cache_destroy();
 }
 
-static void
-tile_draw (const struct tilepicker *tile, const struct cache_node *req, uint32_t id)
-{
-	tiledrawer(&((struct tiledrawer) {
-		.pick = tile,
-		.zoom = {
-			.world = world_get_zoom(),
-			.found = req->zoom,
-		},
-		.texture_id = id,
-	}));
-}
-
 // Check if the requested tile is already cached as a texture inside OpenGL.
 // Return true if we drew the tile from the OpenGL cache, false if not.
 static uint32_t
@@ -128,8 +115,17 @@ paint (void)
 		};
 		uint32_t id;
 
-		if ((id = find_texture(&in, &out)) > 0)
-			tile_draw(&tile, &out, id);
+		if ((id = find_texture(&in, &out)) == 0)
+			continue;
+
+		tiledrawer(&((struct tiledrawer) {
+			.pick = &tile,
+			.zoom = {
+				.world = world_zoom,
+				.found = out.zoom,
+			},
+			.texture_id = id,
+		}));
 	}
 
 	program_none();
