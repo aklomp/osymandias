@@ -14,26 +14,6 @@
 #include "../inlinebin.h"
 #include "../programs.h"
 
-// Local state:
-static struct {
-	bool overlay_zoom;
-}
-state;
-
-static void
-set_zoom_color (int zoom)
-{
-	float zoomcolors[6][3] = {
-		{ 1.0, 0.2, 0.2 },
-		{ 0.2, 1.0, 0.2 },
-		{ 0.2, 0.2, 1.0 },
-		{ 0.7, 0.7, 0.2 },
-		{ 0.2, 0.7, 0.7 },
-		{ 0.7, 0.2, 0.7 }
-	};
-	glColor3f(zoomcolors[zoom % 6][0], zoomcolors[zoom % 6][1], zoomcolors[zoom % 6][2]);
-}
-
 static bool
 init (void)
 {
@@ -93,17 +73,10 @@ paint (void)
 	// Draw to world coordinates:
 	viewport_gl_setup_world();
 
-	// The texture colors are multiplied with this value:
-	glColor3f(1.0, 1.0, 1.0);
-
 	// Load tiledrawer programs:
 	tiledrawer_start();
 
 	for (bool iter = tilepicker_first(&tile); iter; iter = tilepicker_next(&tile)) {
-
-		// If showing the zoom colors overlay, pick proper mixin color:
-		if (state.overlay_zoom)
-			set_zoom_color(tile.zoom);
 
 		// The tilepicker can tell us to draw a tile at a lower zoom
 		// level than the world zoom; scale the tile's coordinates to
