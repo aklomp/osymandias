@@ -130,10 +130,6 @@ paint_spherical (void)
 		.mat_model_inv = world_get_matrix_inverse(),
 	}));
 
-	// Activate map texture:
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, tex.id);
-
 	// Draw all triangles in the buffer:
 	glBindVertexArray(*vao_spherical);
 	glutil_draw_quad();
@@ -218,7 +214,7 @@ destroy (void)
 }
 
 // Export public methods:
-LAYER(20) = {
+LAYER(30) = {
 	.init    = &init,
 	.paint   = &paint,
 	.zoom    = &zoom,

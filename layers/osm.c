@@ -105,7 +105,7 @@ paint (void)
 }
 
 // Export public methods:
-LAYER(30) = {
+LAYER(20) = {
 	.init    = &init,
 	.paint   = &paint,
 	.destroy = &destroy,
