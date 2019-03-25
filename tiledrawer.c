@@ -115,7 +115,7 @@ tiledrawer_start (void)
 		program_spherical_use(&((struct program_spherical) {
 			.mat_viewproj = camera_mat_viewproj(),
 			.mat_model    = world_get_matrix(),
-			.world_size   = world_get_size(),
+			.world_zoom   = world_get_zoom(),
 		}));
 	}
 }
