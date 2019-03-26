@@ -16,7 +16,6 @@
 #include "../png.h"
 #include "../programs.h"
 #include "../programs/basemap_spherical.h"
-#include "../quadtree.h"
 #include "../util.h"
 
 static struct {

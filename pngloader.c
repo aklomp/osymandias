@@ -41,7 +41,7 @@ read_file (const int fd, size_t *len)
 
 // Return raw PNG data for the request.
 static void *
-read_pngdata (const struct quadtree_req *req, size_t *len)
+read_pngdata (const struct cache_node *req, size_t *len)
 {
 	int fd;
 	char *buf = NULL;
@@ -58,7 +58,7 @@ read_pngdata (const struct quadtree_req *req, size_t *len)
 }
 
 void *
-pngloader_main (const struct quadtree_req *req)
+pngloader_main (const struct cache_node *req)
 {
 	unsigned int height, width;
 	char *pngdata, *rawbits;
