@@ -165,8 +165,8 @@ viewport_paint (void)
 {
 	// Clear the depth buffer:
 	glClear(GL_DEPTH_BUFFER_BIT);
-	glDisable(GL_DEPTH_TEST);
-	glDepthMask(GL_FALSE);
+	glEnable(GL_DEPTH_TEST);
+	glDepthMask(GL_TRUE);
 
 	// Paint all layers:
 	layers_paint();
