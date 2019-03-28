@@ -69,6 +69,8 @@ tiledrawer (const struct tiledrawer *td)
 	// Set tile zoom level:
 	if (world_get() == WORLD_PLANAR)
 		program_planar_set_tile_zoom(td->zoom.found);
+	else
+		program_spherical_set_tile_zoom(td->zoom.found);
 
 	glActiveTexture(GL_TEXTURE0);
 	glEnable(GL_TEXTURE_2D);
@@ -120,6 +122,7 @@ tiledrawer_start (void)
 		program_spherical_use(&((struct program_spherical) {
 			.mat_viewproj = camera_mat_viewproj(),
 			.mat_model    = world_get_matrix(),
+			.tile_zoom    = 0,
 			.world_zoom   = world_get_zoom(),
 		}));
 	}
