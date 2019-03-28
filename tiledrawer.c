@@ -101,7 +101,7 @@ tiledrawer_start (void)
 		program_planar_use(&((struct program_planar) {
 			.mat_viewproj = camera_mat_viewproj(),
 			.mat_model    = world_get_matrix(),
-			.world_size   = world_get_size(),
+			.world_zoom   = world_get_zoom(),
 		}));
 	}
 	else {
