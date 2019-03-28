@@ -66,6 +66,10 @@ tiledrawer (const struct tiledrawer *td)
 	texuv[0].y = texuv[1].y = tile->pos.y;
 	texuv[3].y = texuv[2].y = tile->pos.y + tile->size.ht;
 
+	// Set tile zoom level:
+	if (world_get() == WORLD_PLANAR)
+		program_planar_set_tile_zoom(td->zoom.found);
+
 	glActiveTexture(GL_TEXTURE0);
 	glEnable(GL_TEXTURE_2D);
 
@@ -101,6 +105,7 @@ tiledrawer_start (void)
 		program_planar_use(&((struct program_planar) {
 			.mat_viewproj = camera_mat_viewproj(),
 			.mat_model    = world_get_matrix(),
+			.tile_zoom    = 0,
 			.world_zoom   = world_get_zoom(),
 		}));
 	}
