@@ -8,7 +8,7 @@
 #include "../viewport.h"
 #include "../camera.h"
 #include "../layers.h"
-#include "../tilepicker2.h"
+#include "../tilepicker.h"
 #include "../inlinebin.h"
 #include "../glutil.h"
 #include "../programs.h"
@@ -120,7 +120,7 @@ paint_tiles (void)
 	}
 
 	// First draw tiles with solid background:
-	const struct tilepicker2 *tptile = tilepicker2_first();
+	const struct tilepicker *tptile = tilepicker_first();
 
 	while (tptile)
 	{
@@ -159,7 +159,7 @@ paint_tiles (void)
 			for (int i = 0; i < 4; i++)
 				memcpy(&tile[t].vertex[i].color, color, sizeof(tile[t].vertex[i].color));
 
-			tptile = tilepicker2_next();
+			tptile = tilepicker_next();
 		}
 
 		// Upload vertex data:

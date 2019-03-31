@@ -7,14 +7,14 @@
 #include "glutil.h"
 #include "programs.h"
 #include "programs/tilepicker.h"
-#include "tilepicker2.h"
+#include "tilepicker.h"
 #include "util.h"
 #include "worlds.h"
 
 #define	IMGSIZE	64
 
 static struct pixel {
-	struct tilepicker2 tile;
+	struct tilepicker tile;
 	uint32_t valid;
 } __attribute__((packed)) imgbuf[IMGSIZE * IMGSIZE];
 
@@ -113,11 +113,11 @@ render (void)
 // Array with 100 tiles at every zoom level:
 static struct bucket {
 	size_t used;
-	struct tilepicker2 tile[100];
+	struct tilepicker tile[100];
 } bucket[20];
 
 static void
-add_tile_to_bucket (const struct tilepicker2 *tile)
+add_tile_to_bucket (const struct tilepicker *tile)
 {
 	struct bucket *b = &bucket[tile->zoom];
 
@@ -148,7 +148,7 @@ populate_buckets (void)
 }
 
 void
-tilepicker2_recalc (void)
+tilepicker_recalc (void)
 {
 	static bool init_done = false;
 
@@ -168,8 +168,8 @@ tilepicker2_recalc (void)
 static size_t walk_zoom;
 static size_t walk_index;
 
-const struct tilepicker2 *
-tilepicker2_next (void)
+const struct tilepicker *
+tilepicker_next (void)
 {
 	// Move down one zoom level if last element hit:
 	while (walk_index == bucket[walk_zoom].used) {
@@ -185,11 +185,11 @@ tilepicker2_next (void)
 	return &bucket[walk_zoom].tile[walk_index++];
 }
 
-const struct tilepicker2 *
-tilepicker2_first (void)
+const struct tilepicker *
+tilepicker_first (void)
 {
 	// Walk the list from the highest zoom level to the lowest:
 	walk_zoom  = NELEM(bucket) - 1;
 	walk_index = 0;
-	return tilepicker2_next();
+	return tilepicker_next();
 }

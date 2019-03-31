@@ -9,7 +9,7 @@
 #include "../viewport.h"
 #include "../texture_cache.h"
 #include "../tiledrawer.h"
-#include "../tilepicker2.h"
+#include "../tilepicker.h"
 #include "../layers.h"
 #include "../inlinebin.h"
 #include "../programs.h"
@@ -73,7 +73,7 @@ paint (void)
 	// Load tiledrawer programs:
 	tiledrawer_start();
 
-	for (const struct tilepicker2 *tile = tilepicker2_first(); tile; tile = tilepicker2_next()) {
+	for (const struct tilepicker *tile = tilepicker_first(); tile; tile = tilepicker_next()) {
 
 		// The tilepicker can tell us to draw a tile at a lower zoom
 		// level than the world zoom; scale the tile's coordinates to
