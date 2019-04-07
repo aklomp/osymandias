@@ -26,6 +26,8 @@
 	X (SHADER_SPHERICAL_FRAGMENT,		shaders_spherical_fragment_glsl)		\
 	X (SHADER_TILE2D_VERTEX,		shaders_tile2d_vertex_glsl)			\
 	X (SHADER_TILE2D_FRAGMENT,		shaders_tile2d_fragment_glsl)			\
+	X (SHADER_TILEPICKER_VERTEX,		shaders_tilepicker_vertex_glsl)			\
+	X (SHADER_TILEPICKER_FRAGMENT,		shaders_tilepicker_fragment_glsl)		\
 	X (TEXTURE_BACKGROUND,			textures_background_png)			\
 	X (TEXTURE_BASEMAP,			textures_basemap_png)				\
 	X (TEXTURE_CURSOR,			textures_cursor_png)				\

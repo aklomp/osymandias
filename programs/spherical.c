@@ -6,7 +6,6 @@ static struct input inputs[] =
 	{ [LOC_SPHERICAL_MAT_VIEWPROJ] = { .name = "mat_viewproj", .type = TYPE_UNIFORM   }
 	, [LOC_SPHERICAL_MAT_MODEL]    = { .name = "mat_model",    .type = TYPE_UNIFORM   }
 	, [LOC_SPHERICAL_TILE_ZOOM]    = { .name = "tile_zoom",    .type = TYPE_UNIFORM   }
-	, [LOC_SPHERICAL_WORLD_ZOOM]   = { .name = "world_zoom",   .type = TYPE_UNIFORM   }
 	, [LOC_SPHERICAL_VERTEX]       = { .name = "vertex",       .type = TYPE_ATTRIBUTE }
 	, [LOC_SPHERICAL_TEXTURE]      = { .name = "texture",      .type = TYPE_ATTRIBUTE }
 	,                                { .name = NULL }
@@ -20,9 +19,9 @@ struct program program_spherical __attribute__((section(".programs"))) =
 	} ;
 
 void
-program_spherical_set_tile_zoom (const int zoom)
+program_spherical_set_tile (const struct cache_node *tile)
 {
-	glUniform1i(inputs[LOC_SPHERICAL_TILE_ZOOM].loc, zoom);
+	glUniform1i(inputs[LOC_SPHERICAL_TILE_ZOOM].loc, tile->zoom);
 }
 
 GLint
@@ -38,5 +37,4 @@ program_spherical_use (struct program_spherical *values)
 	glUniformMatrix4fv(inputs[LOC_SPHERICAL_MAT_VIEWPROJ].loc, 1, GL_FALSE, values->mat_viewproj);
 	glUniformMatrix4fv(inputs[LOC_SPHERICAL_MAT_MODEL].loc, 1, GL_FALSE, values->mat_model);
 	glUniform1i(inputs[LOC_SPHERICAL_TILE_ZOOM].loc, values->tile_zoom);
-	glUniform1i(inputs[LOC_SPHERICAL_WORLD_ZOOM].loc, values->world_zoom);
 }

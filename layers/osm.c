@@ -8,8 +8,8 @@
 #include "../worlds.h"
 #include "../viewport.h"
 #include "../texture_cache.h"
-#include "../tilepicker.h"
 #include "../tiledrawer.h"
+#include "../tilepicker.h"
 #include "../layers.h"
 #include "../inlinebin.h"
 #include "../programs.h"
@@ -31,8 +31,6 @@ destroy (void)
 	bitmap_cache_destroy();
 }
 
-// Check if the requested tile is already cached as a texture inside OpenGL.
-// Return true if we drew the tile from the OpenGL cache, false if not.
 static uint32_t
 find_texture (const struct cache_node *in, struct cache_node *out)
 {
@@ -67,7 +65,6 @@ find_texture (const struct cache_node *in, struct cache_node *out)
 static void
 paint (void)
 {
-	struct tilepicker tile;
 	int world_zoom = world_get_zoom();
 
 	// Draw to world coordinates:
@@ -76,15 +73,15 @@ paint (void)
 	// Load tiledrawer programs:
 	tiledrawer_start();
 
-	for (bool iter = tilepicker_first(&tile); iter; iter = tilepicker_next(&tile)) {
+	for (const struct tilepicker *tile = tilepicker_first(); tile; tile = tilepicker_next()) {
 
 		// The tilepicker can tell us to draw a tile at a lower zoom
 		// level than the world zoom; scale the tile's coordinates to
 		// its native zoom level:
 		struct cache_node out, in = {
-			.x    = ldexpf(tile.pos.x, tile.zoom - world_zoom),
-			.y    = ldexpf(tile.pos.y, tile.zoom - world_zoom),
-			.zoom = tile.zoom,
+			.x    = tile->x,
+			.y    = tile->y,
+			.zoom = tile->zoom,
 		};
 		uint32_t id;
 
@@ -92,11 +89,8 @@ paint (void)
 			continue;
 
 		tiledrawer(&((struct tiledrawer) {
-			.pick = &tile,
-			.zoom = {
-				.world = world_zoom,
-				.found = out.zoom,
-			},
+			.tile = &out,
+			.world_zoom = world_zoom,
 			.texture_id = id,
 		}));
 	}
@@ -105,7 +99,7 @@ paint (void)
 }
 
 // Export public methods:
-LAYER(30) = {
+LAYER(20) = {
 	.init    = &init,
 	.paint   = &paint,
 	.destroy = &destroy,

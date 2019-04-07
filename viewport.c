@@ -51,7 +51,6 @@ viewport_destroy (void)
 	layers_destroy();
 	programs_destroy();
 	worlds_destroy();
-	tilepicker_destroy();
 }
 
 void

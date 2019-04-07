@@ -3,7 +3,7 @@
 noperspective in vec3 p1;
 noperspective in vec3 p2;
 
-out vec4 fragcolor;
+out uvec4 fragcolor;
 
 const float pi = 3.141592653589793238462643383279502884;
 
@@ -46,18 +46,6 @@ bool sphere_to_tile (in vec3 s, in int zoom, out vec2 tile)
 	return true;
 }
 
-vec4 shade (vec4 color, float det)
-{
-	// Un-gamma (approx):
-	color = sqrt(color);
-
-	// Angle-based shading:
-	color.xyz *= vec3(0.75 + det / 4);
-
-	// Restore gamma:
-	return color * color;
-}
-
 int zoomlevel (float dist, float lat)
 {
 	// At high latitudes, tiles are smaller and closer together. Decrease
@@ -76,7 +64,7 @@ int zoomlevel (float dist, float lat)
 	return clamp(zoom, zoom_min, zoom_max);
 }
 
-bool sphere_intersect (in vec3 start, in vec3 dir, out vec3 hit, out float det)
+bool sphere_intersect (in vec3 start, in vec3 dir, out vec3 hit)
 {
 	// Find the intersection of a ray with the given start point and
 	// direction with a unit sphere centered on the origin. Theory here:
@@ -90,7 +78,7 @@ bool sphere_intersect (in vec3 start, in vec3 dir, out vec3 hit, out float det)
 	float raydot = dot(start, dir);
 
 	// Calculate the value under the square root:
-	det = (raydot * raydot) - (startdist * startdist) + 1.0;
+	float det = (raydot * raydot) - (startdist * startdist) + 1.0;
 
 	// If this value is negative, no intersection exists:
 	if (det < 0.0)
@@ -112,25 +100,20 @@ void main (void)
 {
 	vec3 hit;
 	vec2 tile;
-	float det;
 
 	// Cast a ray from p1 and p2 and intersect it with the unit sphere:
-	if (sphere_intersect(p1, normalize(p1 - p2), hit, det) == false)
-		discard;
+	if (sphere_intersect(p1, normalize(p1 - p2), hit) == false) {
+		fragcolor = uvec4(0);
+		return;
+	}
 
 	// Get zoomlevel based on distance to camera:
 	int zoom = zoomlevel(distance(hit, p1), atanh(hit.y));
 
 	if (sphere_to_tile(hit, zoom, tile) == false) {
-		fragcolor = vec4(vec3(0.4), 1.0);
+		fragcolor = uvec4(0);
 		return;
 	}
 
-	// Checkerboard texture:
-	fragcolor = bool((int(tile.x) ^ int(tile.y)) & 1)
-		? vec4(vec3(0.6), 1.0)
-		: vec4(vec3(0.7), 1.0);
-
-	// Angle-based shading:
-	fragcolor = shade(fragcolor, det);
+	fragcolor = uvec4(int(tile.x), int(tile.y), zoom, 1);
 }

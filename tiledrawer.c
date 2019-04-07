@@ -8,48 +8,17 @@
 #include "programs/spherical.h"
 #include "worlds.h"
 
-struct texture {
-	float wd;
-	float ht;
-	struct {
-		float x;
-		float y;
-	} offset;
-};
-
 void
 tiledrawer (const struct tiledrawer *td)
 {
-	struct texture tex;
-	const struct tilepicker *tile = td->pick;
-
-	unsigned int zoomdiff = td->zoom.world - td->zoom.found;
-
-	// If we couldn't find the texture at the requested resolution and
-	// had to settle for a lower-res one, we need to cut out the proper
-	// sub-block from the texture. Calculate coords of the block we need:
-
-	// This is the nth block out of parent, counting from top left:
-	float xblock = fmodf(tile->pos.x, (1 << zoomdiff));
-	float yblock = fmodf(tile->pos.y, (1 << zoomdiff));
-
-	// Multiplication before division, avoid clipping:
-	tex.offset.x = ldexpf(xblock, 8 - zoomdiff);
-	tex.offset.y = ldexpf(yblock, 8 - zoomdiff);
-	tex.wd = ldexpf(tile->size.wd, 8 - zoomdiff);
-	tex.ht = ldexpf(tile->size.ht, 8 - zoomdiff);
-
-	float txoffs = ldexpf(tex.offset.x, -8);
-	float tyoffs = ldexpf(tex.offset.y, -8);
-	float twd = ldexpf(tex.wd, -8);
-	float tht = ldexpf(tex.ht, -8);
+	const struct cache_node *tile = td->tile;
 
 	// Texture coordinates:
 	struct glutil_vertex_uv texuv[4] = {
-		{ .u = txoffs,       .v = tyoffs       },
-		{ .u = txoffs + twd, .v = tyoffs       },
-		{ .u = txoffs + twd, .v = tyoffs + tht },
-		{ .u = txoffs,       .v = tyoffs + tht },
+		{ .u = 0.0f, 0.0f },
+		{ .u = 1.0f, 0.0f },
+		{ .u = 1.0f, 1.0f },
+		{ .u = 0.0f, 1.0f },
 	};
 
 	// Vertex coordinates, translating tile coordinate order to OpenGL
@@ -61,16 +30,16 @@ tiledrawer (const struct tiledrawer *td)
 	//   |  |     |      |
 	//   0--1    0,ht--wd,ht
 	//
-	texuv[0].x = texuv[3].x = tile->pos.x;
-	texuv[1].x = texuv[2].x = tile->pos.x + tile->size.wd;
-	texuv[0].y = texuv[1].y = tile->pos.y;
-	texuv[3].y = texuv[2].y = tile->pos.y + tile->size.ht;
+	texuv[0].x = texuv[3].x = tile->x;
+	texuv[1].x = texuv[2].x = tile->x + 1;
+	texuv[0].y = texuv[1].y = tile->y;
+	texuv[3].y = texuv[2].y = tile->y + 1;
 
 	// Set tile zoom level:
 	if (world_get() == WORLD_PLANAR)
-		program_planar_set_tile_zoom(td->zoom.found);
+		program_planar_set_tile_zoom(tile->zoom);
 	else
-		program_spherical_set_tile_zoom(td->zoom.found);
+		program_spherical_set_tile(tile);
 
 	glActiveTexture(GL_TEXTURE0);
 	glEnable(GL_TEXTURE_2D);
@@ -123,7 +92,6 @@ tiledrawer_start (void)
 			.mat_viewproj = camera_mat_viewproj(),
 			.mat_model    = world_get_matrix(),
 			.tile_zoom    = 0,
-			.world_zoom   = world_get_zoom(),
 		}));
 	}
 }
