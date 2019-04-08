@@ -1,6 +1,6 @@
 #version 130
 
-uniform mat4 mat_frustum;
+uniform mat4 mat_viewproj;
 uniform mat4 mat_model;
 uniform int world_size;
 uniform vec4 camera;
@@ -44,7 +44,7 @@ bool inside_frustum (void)
 		return false;
 
 	/* Project position through the frustum: */
-	vec4 v = mat_frustum * pos;
+	vec4 v = mat_viewproj * pos;
 
 	/* Projected point is visible if within (-v.w, v.w): */
 	if (any(lessThan(v.xyz, vec3(-v.w))))

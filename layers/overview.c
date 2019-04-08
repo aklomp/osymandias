@@ -213,7 +213,7 @@ paint (const struct camera *cam)
 	// Paint background using frustum program:
 	program_frustum_use(&((struct program_frustum) {
 		.mat_proj	= matrix.proj,
-		.mat_frustum	= cam->matrix.viewproj,
+		.mat_viewproj	= cam->matrix.viewproj,
 		.mat_model	= world_get_matrix(),
 		.world_size	= world_get_size(),
 		.camera		= cam->pos.elem.f,
