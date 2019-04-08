@@ -18,8 +18,6 @@
 	X (SHADER_BKGD_FRAGMENT,	shaders_bkgd_fragment_glsl)			\
 	X (SHADER_FRUSTUM_VERTEX,	shaders_frustum_vertex_glsl)			\
 	X (SHADER_FRUSTUM_FRAGMENT,	shaders_frustum_fragment_glsl)			\
-	X (SHADER_PLANAR_VERTEX,	shaders_planar_vertex_glsl)			\
-	X (SHADER_PLANAR_FRAGMENT,	shaders_planar_fragment_glsl)			\
 	X (SHADER_SOLID_VERTEX,		shaders_solid_vertex_glsl)			\
 	X (SHADER_SOLID_FRAGMENT,	shaders_solid_fragment_glsl)			\
 	X (SHADER_SPHERICAL_VERTEX,	shaders_spherical_vertex_glsl)			\

@@ -1,10 +1,7 @@
-#include <math.h>
-
 #include "camera.h"
 #include "glutil.h"
 #include "tiledrawer.h"
 #include "programs.h"
-#include "programs/planar.h"
 #include "programs/spherical.h"
 #include "worlds.h"
 
@@ -36,10 +33,7 @@ tiledrawer (const struct tiledrawer *td)
 	texuv[3].y = texuv[2].y = tile->y + 1;
 
 	// Set tile zoom level:
-	if (world_get() == WORLD_PLANAR)
-		program_planar_set_tile_zoom(tile->zoom);
-	else
-		program_spherical_set_tile(tile);
+	program_spherical_set_tile(tile);
 
 	glActiveTexture(GL_TEXTURE0);
 	glEnable(GL_TEXTURE_2D);
@@ -68,30 +62,16 @@ tiledrawer_start (void)
 
 	glBindVertexArray(vao);
 
-	if (world_get() == WORLD_PLANAR) {
-		glutil_vertex_uv_link(
-			program_planar_loc(LOC_PLANAR_VERTEX),
-			program_planar_loc(LOC_PLANAR_TEXTURE));
-
-		program_planar_use(&((struct program_planar) {
-			.mat_viewproj = camera_mat_viewproj(),
-			.mat_model    = world_get_matrix(),
-			.tile_zoom    = 0,
-			.world_zoom   = world_get_zoom(),
-		}));
-	}
-	else {
-		glutil_vertex_uv_link(
-			program_spherical_loc(LOC_SPHERICAL_VERTEX),
-			program_spherical_loc(LOC_SPHERICAL_TEXTURE));
-
+	glutil_vertex_uv_link(
 		program_spherical_loc(LOC_SPHERICAL_VERTEX),
-		program_spherical_loc(LOC_SPHERICAL_TEXTURE);
+		program_spherical_loc(LOC_SPHERICAL_TEXTURE));
 
-		program_spherical_use(&((struct program_spherical) {
-			.mat_viewproj = camera_mat_viewproj(),
-			.mat_model    = world_get_matrix(),
-			.tile_zoom    = 0,
-		}));
-	}
+	program_spherical_loc(LOC_SPHERICAL_VERTEX),
+	program_spherical_loc(LOC_SPHERICAL_TEXTURE);
+
+	program_spherical_use(&((struct program_spherical) {
+		.mat_viewproj = camera_mat_viewproj(),
+		.mat_model    = world_get_matrix(),
+		.tile_zoom    = 0,
+	}));
 }
