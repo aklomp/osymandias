@@ -1,9 +1,10 @@
 #version 130
 
 uniform mat4 mat_proj;
-uniform bool spherical;
-in  vec2 vertex;
-out vec4 fpos;
+
+in vec2 vertex;
+
+smooth out vec4 fpos;
 
 void main (void)
 {
