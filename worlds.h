@@ -5,11 +5,6 @@
 
 #include <vec/vec.h>
 
-enum worlds {
-	WORLD_PLANAR,
-	WORLD_SPHERICAL,
-};
-
 struct coords {
 	float lat;
 	float lon;
@@ -18,12 +13,6 @@ struct coords {
 		float y;
 	} tile;
 };
-
-// Change current world:
-void world_set (const enum worlds world);
-
-// Get current world:
-enum worlds world_get (void);
 
 // Get world properties:
 unsigned int world_get_size (void);

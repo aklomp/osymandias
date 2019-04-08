@@ -15,21 +15,9 @@ on_key_press (GtkWidget *widget, GdkEventKey *event)
 
 	switch (event->keyval)
 	{
-	case GDK_KEY_p:
-	case GDK_KEY_P:
-		world_set(WORLD_PLANAR);
-		framerate_repaint();
-		break;
-
 	case GDK_KEY_q:
 	case GDK_KEY_Q:
 		gtk_main_quit();
-		break;
-
-	case GDK_KEY_s:
-	case GDK_KEY_S:
-		world_set(WORLD_SPHERICAL);
-		framerate_repaint();
 		break;
 	}
 }
