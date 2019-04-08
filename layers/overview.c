@@ -180,21 +180,6 @@ paint_tiles (void)
 }
 
 static void
-paint_center (void)
-{
-	unsigned int size = world_get_size();
-	const struct coords *center = world_get_center();
-
-	glColor4f(1.0, 1.0, 1.0, 0.7);
-	glBegin(GL_LINES);
-		glVertex2d(center->tile.x - 0.5, size - center->tile.y);
-		glVertex2d(center->tile.x + 0.5, size - center->tile.y);
-		glVertex2d(center->tile.x, size - center->tile.y + 0.5);
-		glVertex2d(center->tile.x, size - center->tile.y - 0.5);
-	glEnd();
-}
-
-static void
 paint (const struct camera *cam)
 {
 	// Draw 1:1 to screen coordinates, origin bottom left:
@@ -223,8 +208,6 @@ paint (const struct camera *cam)
 
 	// Reset program:
 	program_none();
-
-	paint_center();
 
 	glDisable(GL_BLEND);
 
