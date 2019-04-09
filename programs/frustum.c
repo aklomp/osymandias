@@ -8,19 +8,21 @@
 enum	{ MAT_PROJ
 	, MAT_VIEWPROJ
 	, MAT_MODEL
+	, MAT_VIEW_INV
+	, MAT_MODEL_INV
 	, WORLD_SIZE
-	, CAMERA
 	, VERTEX
 	} ;
 
 static struct input inputs[] =
-	{ [MAT_PROJ]     = { .name = "mat_proj",     .type = TYPE_UNIFORM }
-	, [MAT_VIEWPROJ] = { .name = "mat_viewproj", .type = TYPE_UNIFORM }
-	, [MAT_MODEL]    = { .name = "mat_model",    .type = TYPE_UNIFORM }
-	, [WORLD_SIZE]   = { .name = "world_size",   .type = TYPE_UNIFORM }
-	, [CAMERA]       = { .name = "camera",       .type = TYPE_UNIFORM }
-	, [VERTEX]       = { .name = "vertex",       .type = TYPE_ATTRIBUTE }
-	,                  { .name = NULL }
+	{ [MAT_PROJ]      = { .name = "mat_proj",      .type = TYPE_UNIFORM }
+	, [MAT_VIEWPROJ]  = { .name = "mat_viewproj",  .type = TYPE_UNIFORM }
+	, [MAT_MODEL]     = { .name = "mat_model",     .type = TYPE_UNIFORM }
+	, [MAT_VIEW_INV]  = { .name = "mat_view_inv",  .type = TYPE_UNIFORM }
+	, [MAT_MODEL_INV] = { .name = "mat_model_inv", .type = TYPE_UNIFORM }
+	, [WORLD_SIZE]    = { .name = "world_size",    .type = TYPE_UNIFORM }
+	, [VERTEX]        = { .name = "vertex",        .type = TYPE_ATTRIBUTE }
+	,                   { .name = NULL }
 	} ;
 
 struct program program_frustum __attribute__((section(".programs"))) =
@@ -43,6 +45,7 @@ program_frustum_use (struct program_frustum *values)
 	glUniformMatrix4fv(inputs[MAT_PROJ].loc, 1, GL_FALSE, values->mat_proj);
 	glUniformMatrix4fv(inputs[MAT_VIEWPROJ].loc, 1, GL_FALSE, values->mat_viewproj);
 	glUniformMatrix4fv(inputs[MAT_MODEL].loc, 1, GL_FALSE, values->mat_model);
+	glUniformMatrix4fv(inputs[MAT_VIEW_INV].loc, 1, GL_FALSE, values->mat_view_inv);
+	glUniformMatrix4fv(inputs[MAT_MODEL_INV].loc, 1, GL_FALSE, values->mat_model_inv);
 	glUniform1i(inputs[WORLD_SIZE].loc, values->world_size);
-	glUniform4fv(inputs[CAMERA].loc, 1, values->camera);
 }

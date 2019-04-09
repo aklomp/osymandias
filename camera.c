@@ -27,14 +27,7 @@ matrix_view_update (void)
 	// Compose view matrix from individual matrices:
 	mat_multiply(cam.matrix.view, cam.matrix.tilt, cam.matrix.rotate);
 	mat_multiply(cam.matrix.view, cam.matrix.translate, cam.matrix.view);
-
-	// This was reverse-engineered by observing that the values in the
-	// third row of the matrix matched the normalized camera position.
-	// TODO: derive this properly.
-	cam.pos.x = -cam.matrix.view[2]  * cam.matrix.view[14];
-	cam.pos.y = -cam.matrix.view[6]  * cam.matrix.view[14];
-	cam.pos.z = -cam.matrix.view[10] * cam.matrix.view[14];
-	cam.pos.w = 1.0f;
+	mat_invert(cam.matrix.inverse.view, cam.matrix.view);
 
 	// This changes the view-projection matrix:
 	matrix_viewproj_update();
@@ -130,18 +123,11 @@ camera_rotate (const float radians)
 	matrix_rotate_update();
 }
 
-const float *
-camera_pos (void)
-{
-	return &cam.pos.x;
-}
-
 bool
 camera_init (void)
 {
 	// Initial position in space:
 	cam.zdist = 4.0f;
-	cam.pos = vec(0.0f, 0.0f, cam.zdist, 1.0f);
 
 	// Initial attitude:
 	cam.tilt   = 0.0f;
