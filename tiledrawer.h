@@ -1,13 +1,13 @@
 #pragma once
 
-#include <GL/gl.h>
+#include <stdint.h>
 
 #include "cache.h"
 
 struct tiledrawer {
 	const struct cache_node *tile;
-	unsigned int world_zoom;
-	GLuint texture_id;
+	uint32_t world_zoom;
+	uint32_t texture_id;
 };
 
 extern void tiledrawer       (const struct tiledrawer *);

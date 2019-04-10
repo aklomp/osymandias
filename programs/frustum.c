@@ -9,7 +9,6 @@ enum	{ MAT_PROJ
 	, MAT_FRUSTUM
 	, MAT_MODEL
 	, WORLD_SIZE
-	, SPHERICAL
 	, CAMERA
 	, VERTEX
 	} ;
@@ -19,7 +18,6 @@ static struct input inputs[] =
 	, [MAT_FRUSTUM]	= { .name = "mat_frustum", .type = TYPE_UNIFORM }
 	, [MAT_MODEL]	= { .name = "mat_model",   .type = TYPE_UNIFORM }
 	, [WORLD_SIZE]	= { .name = "world_size",  .type = TYPE_UNIFORM }
-	, [SPHERICAL]	= { .name = "spherical",   .type = TYPE_UNIFORM }
 	, [CAMERA]	= { .name = "camera",      .type = TYPE_UNIFORM }
 	, [VERTEX]	= { .name = "vertex",      .type = TYPE_ATTRIBUTE }
 	,		  { .name = NULL }
@@ -46,6 +44,5 @@ program_frustum_use (struct program_frustum *values)
 	glUniformMatrix4fv(inputs[MAT_FRUSTUM].loc, 1, GL_FALSE, values->mat_frustum);
 	glUniformMatrix4fv(inputs[MAT_MODEL].loc, 1, GL_FALSE, values->mat_model);
 	glUniform1i(inputs[WORLD_SIZE].loc, values->world_size);
-	glUniform1i(inputs[SPHERICAL].loc, values->spherical);
 	glUniform4fv(inputs[CAMERA].loc, 1, values->camera);
 }

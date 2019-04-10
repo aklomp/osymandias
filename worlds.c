@@ -3,7 +3,6 @@
 #include "worlds.h"
 #include "worlds/local.h"
 #include "worlds/autoscroll.h"
-#include "worlds/planar.h"
 #include "worlds/spherical.h"
 
 // At zoom level 0, the world is 1 tile wide.
@@ -13,10 +12,7 @@
 #define ZOOM_MAX	18
 
 // Array of world pointers:
-static const struct world *worlds[2];
-
-// Remember current world:
-static enum worlds current;
+static const struct world *world;
 
 // Current state of world:
 static struct world_state state;
@@ -35,22 +31,6 @@ world_latlon_to_tile (float *x, float *y, const float lat, const float lon)
 	*y = state.size * (0.5f - atanhf(sinf(lat)) / (2.0f * M_PI));
 }
 
-void
-world_set (const enum worlds world)
-{
-	current = world;
-
-	// Update new world's zoom and position:
-	worlds[current]->move(&state);
-	worlds[current]->zoom(&state);
-}
-
-enum worlds
-world_get (void)
-{
-	return current;
-}
-
 unsigned int
 world_get_size (void)
 {
@@ -66,13 +46,13 @@ world_get_zoom (void)
 const float *
 world_get_matrix (void)
 {
-	return worlds[current]->matrix();
+	return world->matrix();
 }
 
 const float *
 world_get_matrix_inverse (void)
 {
-	return worlds[current]->matrix_inverse();
+	return world->matrix_inverse();
 }
 
 static inline void
@@ -107,7 +87,7 @@ world_zoom_in (void)
 	state.autoscroll.speed.lat /= 2.0f;
 	state.autoscroll.speed.lon /= 2.0f;
 
-	worlds[current]->zoom(&state);
+	world->zoom(&state);
 	return true;
 }
 
@@ -129,7 +109,7 @@ world_zoom_out (void)
 	state.autoscroll.speed.lat *= 2.0f;
 	state.autoscroll.speed.lon *= 2.0f;
 
-	worlds[current]->zoom(&state);
+	world->zoom(&state);
 	return true;
 }
 
@@ -141,13 +121,13 @@ world_moveto_tile (const float x, const float y)
 	state.center.tile.y = y;
 
 	// Restrict tile coordinates to world:
-	worlds[current]->center_restrict_tile(&state);
+	world->center_restrict_tile(&state);
 
 	// Update lat/lon representation:
 	world_tile_to_latlon(&state.center.lat, &state.center.lon, state.center.tile.x, state.center.tile.y);
 
 	// Move:
-	worlds[current]->move(&state);
+	world->move(&state);
 }
 
 void
@@ -158,13 +138,13 @@ world_moveto_latlon (const float lat, const float lon)
 	state.center.lon = lon;
 
 	// Restrict lat/lon coordinates to world:
-	worlds[current]->center_restrict_latlon(&state);
+	world->center_restrict_latlon(&state);
 
 	// Update tile representation:
 	world_latlon_to_tile(&state.center.tile.x, &state.center.tile.y, state.center.lat, state.center.lon);
 
 	// Move:
-	worlds[current]->move(&state);
+	world->move(&state);
 }
 
 void
@@ -176,14 +156,14 @@ world_project_tile (union vec *vertex, const float x, const float y)
 	world_tile_to_latlon(&lat, &lon, x, y);
 
 	// Project:
-	worlds[current]->project(&state, vertex, lat, lon);
+	world->project(&state, vertex, lat, lon);
 }
 
 void
 world_project_latlon (union vec *vertex, const float lat, const float lon)
 {
 	// Project:
-	worlds[current]->project(&state, vertex, lat, lon);
+	world->project(&state, vertex, lat, lon);
 }
 
 const struct coords *
@@ -195,7 +175,7 @@ world_get_center (void)
 bool
 world_timer_tick (int64_t usec)
 {
-	return worlds[current]->timer_tick(&state, usec);
+	return world->timer_tick(&state, usec);
 }
 
 // Dispatch autoscroll functions to local handler:
@@ -231,14 +211,16 @@ worlds_destroy (void)
 bool
 worlds_init (const unsigned int zoom, const float lat, const float lon)
 {
-	worlds[WORLD_PLANAR] = world_planar();
-	worlds[WORLD_SPHERICAL] = world_spherical();
+	world = world_spherical();
 
 	state.zoom = zoom;
 	state.size = ZOOM_SIZE(zoom);
 	state.center.lat = lat;
 	state.center.lon = lon;
 	world_latlon_to_tile (&state.center.tile.x, &state.center.tile.y, lat, lon);
+
+	world->move(&state);
+	world->zoom(&state);
 
 	return true;
 }

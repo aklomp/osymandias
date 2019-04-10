@@ -222,7 +222,6 @@ paint (void)
 		.mat_frustum	= camera_mat_viewproj(),
 		.mat_model	= world_get_matrix(),
 		.world_size	= world_get_size(),
-		.spherical	= (world_get() == WORLD_SPHERICAL),
 		.camera		= camera_pos(),
 	}));
 

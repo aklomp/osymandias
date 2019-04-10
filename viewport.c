@@ -30,8 +30,6 @@ viewport_init (void)
 	if (!worlds_init(0, 0.0f, 0.0f))
 		return false;
 
-	world_set(WORLD_SPHERICAL);
-
 	if (!programs_init())
 		return false;
 
@@ -56,33 +54,19 @@ viewport_destroy (void)
 void
 viewport_zoom_in (const struct screen_pos *pos)
 {
-	if (!world_zoom_in())
-		return;
+	(void) pos;
 
-	layers_zoom(world_get_zoom());
-
-	// Keep same point under mouse cursor:
-	if (world_get() == WORLD_PLANAR) {
-		int dx = pos->x - screen.width / 2;
-		int dy = pos->y - screen.height / 2;
-		viewport_scroll(dx, dy);
-	}
+	if (world_zoom_in())
+		layers_zoom(world_get_zoom());
 }
 
 void
 viewport_zoom_out (const struct screen_pos *pos)
 {
-	if (!world_zoom_out())
-		return;
+	(void) pos;
 
-	layers_zoom(world_get_zoom());
-
-	// Keep same point under mouse cursor:
-	if (world_get() == WORLD_PLANAR) {
-		int dx = pos->x - screen.width / 2;
-		int dy = pos->y - screen.height / 2;
-		viewport_scroll(-dx / 2, -dy / 2);
-	}
+	if (world_zoom_out())
+		layers_zoom(world_get_zoom());
 }
 
 static void

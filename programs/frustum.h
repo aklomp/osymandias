@@ -5,7 +5,6 @@ struct program_frustum {
 	const float *mat_frustum;
 	const float *mat_model;
 	int world_size;
-	bool spherical;
 	const float *camera;
 };
 
