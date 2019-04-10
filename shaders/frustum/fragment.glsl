@@ -2,7 +2,6 @@
 
 uniform mat4 mat_viewproj;
 uniform mat4 mat_model;
-uniform int world_size;
 
 smooth in vec4 fpos;
 flat   in vec3 cam;
@@ -13,12 +12,12 @@ const float pi = 3.1415926535897932384626433832795;
 
 float y_to_lat (float y)
 {
-	return atan(sinh((y / world_size - 0.5) * 2.0 * pi));
+	return atan(sinh((y - 0.5) * 2.0 * pi));
 }
 
 float x_to_lon (float x)
 {
-	return (x / world_size - 0.5) * 2.0 * pi;
+	return (x - 0.5) * 2.0 * pi;
 }
 
 bool inside_frustum (void)

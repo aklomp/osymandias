@@ -9,7 +9,6 @@
 #include "../camera.h"
 #include "../layers.h"
 #include "../tilepicker.h"
-#include "../inlinebin.h"
 #include "../glutil.h"
 #include "../programs.h"
 #include "../programs/frustum.h"
@@ -123,8 +122,6 @@ paint_tiles (void)
 		// Fetch 50 tiles at most:
 		for (t = 0; tptile && t < 50; t++)
 		{
-			int wzoom = tptile->zoom - world_get_zoom();
-
 			// Bottom left:
 			tile[t].vertex[0].coords.x = tptile->x;
 			tile[t].vertex[0].coords.y = tptile->y;
@@ -143,9 +140,8 @@ paint_tiles (void)
 
 			// Scale:
 			for (int i = 0; i < 4; i++) {
-				tile[t].vertex[i].coords.y = (1 << tptile->zoom) - tile[t].vertex[i].coords.y;
-				tile[t].vertex[i].coords.x = ldexpf(tile[t].vertex[i].coords.x, -wzoom);
-				tile[t].vertex[i].coords.y = ldexpf(tile[t].vertex[i].coords.y, -wzoom);
+				tile[t].vertex[i].coords.x = ldexpf(tile[t].vertex[i].coords.x, -tptile->zoom);
+				tile[t].vertex[i].coords.y = 1.0f - ldexpf(tile[t].vertex[i].coords.y, -tptile->zoom);
 			}
 
 			// Solid fill color:
@@ -202,7 +198,6 @@ paint (const struct camera *cam)
 		.mat_model     = world_get_matrix(),
 		.mat_view_inv  = cam->matrix.inverse.view,
 		.mat_model_inv = world_get_matrix_inverse(),
-		.world_size    = world_get_size(),
 	}));
 
 	paint_background(*vao_frustum);
@@ -214,36 +209,6 @@ paint (const struct camera *cam)
 
 	// Reset program:
 	program_none();
-}
-
-static void
-zoom (const unsigned int zoom)
-{
-	double size = world_get_size();
-
-	// Make room within the world for one extra pixel at each side,
-	// to keep the outlines on the far tiles within frame:
-	double one_pixel_at_scale = (1 << zoom) / SIZE;
-	size += one_pixel_at_scale;
-
-	mat_ortho(matrix.proj, 0, size, 0, size, 0, 1);
-
-	// Background quad is array of counterclockwise vertices:
-	//
-	//   3--2
-	//   |  |
-	//   0--1
-	//
-	struct vertex bkgd[4] = {
-		{ { 0.0f, 0.0f }, { 0.3f, 0.3f, 0.3f, 0.5f } },
-		{ { size, 0.0f }, { 0.3f, 0.3f, 0.3f, 0.5f } },
-		{ { size, size }, { 0.3f, 0.3f, 0.3f, 0.5f } },
-		{ { 0.0f, size }, { 0.3f, 0.3f, 0.3f, 0.5f } },
-	};
-
-	// Bind vertex buffer object and upload vertices:
-	glBindBuffer(GL_ARRAY_BUFFER, *vbo_bkgd);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(bkgd), bkgd, GL_STREAM_DRAW);
 }
 
 #define OFFSET_COORDS	((void *) offsetof(struct vertex, coords))
@@ -259,13 +224,36 @@ add_pointer (unsigned int loc, int size, const void *ptr)
 static void
 init_bkgd (void)
 {
-	// Bind buffer and vertex array:
+	// Background quad is array of counterclockwise vertices:
+	//
+	//   3--2
+	//   |  |
+	//   0--1
+	//
+	static const struct vertex bkgd[4] = {
+		{ { 0.0f, 0.0f }, { 0.3f, 0.3f, 0.3f, 0.5f } },
+		{ { 1.0f, 0.0f }, { 0.3f, 0.3f, 0.3f, 0.5f } },
+		{ { 1.0f, 1.0f }, { 0.3f, 0.3f, 0.3f, 0.5f } },
+		{ { 0.0f, 1.0f }, { 0.3f, 0.3f, 0.3f, 0.5f } },
+	};
+
+	// Bind buffer and vertex array, upload vertices:
 	glBindBuffer(GL_ARRAY_BUFFER, *vbo_bkgd);
 	glBindVertexArray(*vao_bkgd);
+	glBufferData(GL_ARRAY_BUFFER, sizeof (bkgd), bkgd, GL_STATIC_DRAW);
 
 	// Add pointer to 'vertex' and 'color' attributes:
 	add_pointer(program_solid_loc_vertex(), 2, OFFSET_COORDS);
 	add_pointer(program_solid_loc_color(),  4, OFFSET_COLOR);
+
+	// For the orthogonal projection matrix, define the bounds such that
+	// the projected area is one pixel larger on all sides than the actual
+	// size in pixels. This will allow the tile outlines to be drawn
+	// without being clipped.
+	const float min = -1.0f / SIZE;
+	const float max = (SIZE + 1.0f) / SIZE;
+
+	mat_ortho(matrix.proj, min, max, min, max, 0, 1);
 }
 
 static void
@@ -302,8 +290,6 @@ init (void)
 	init_frustum();
 	init_tiles();
 
-	zoom(0);
-
 	return true;
 }
 
@@ -319,6 +305,5 @@ destroy (void)
 LAYER(50) = {
 	.init    = &init,
 	.paint   = &paint,
-	.zoom    = &zoom,
 	.destroy = &destroy,
 };
