@@ -7,6 +7,7 @@
 #include "gui/framerate.h"
 #include "gui/local.h"
 #include "gui/signal.h"
+#include "layers/overview.h"
 
 static void
 on_key_press (GtkWidget *widget, GdkEventKey *event)
@@ -18,6 +19,12 @@ on_key_press (GtkWidget *widget, GdkEventKey *event)
 	case GDK_KEY_q:
 	case GDK_KEY_Q:
 		gtk_main_quit();
+		break;
+
+	case GDK_KEY_o:
+	case GDK_KEY_O:
+		layer_overview_toggle_visible();
+		framerate_repaint();
 		break;
 	}
 }
