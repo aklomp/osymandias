@@ -15,7 +15,6 @@ static struct {
 		float lon[16];
 	} rotate;
 	float translate[16];
-	float scale[16];
 	float model[16];
 	struct {
 		float model[16];
@@ -43,7 +42,6 @@ update_matrix_model (void)
 {
 	mat_multiply(matrix.model, matrix.rotate.lat, matrix.rotate.lon);
 	mat_multiply(matrix.model, matrix.translate, matrix.model);
-	mat_multiply(matrix.model, matrix.scale, matrix.model);
 
 	// This invalidates the inverse model matrix:
 	matrix.inverse.model_fresh = false;
@@ -73,18 +71,6 @@ move (const struct world_state *state)
 
 	// Rotate latitude into view over x axis:
 	mat_rotate(matrix.rotate.lat, -1.0f, 0.0f, 0.0f, state->center.lat);
-
-	// Update model matrix:
-	update_matrix_model();
-}
-
-static void
-zoom (const struct world_state *state)
-{
-	float radius = state->size / M_PI;
-
-	// Scale matrix: scale the model (a unit sphere) to the world radius:
-	mat_scale(matrix.scale, radius, radius, radius);
 
 	// Update model matrix:
 	update_matrix_model();
@@ -139,7 +125,6 @@ world_spherical (void)
 		.matrix_inverse		= matrix_model_inverse,
 		.move			= move,
 		.project		= project,
-		.zoom			= zoom,
 		.center_restrict_tile	= center_restrict_tile,
 		.center_restrict_latlon	= center_restrict_latlon,
 		.timer_tick		= timer_tick,

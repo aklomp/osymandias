@@ -81,7 +81,6 @@ world_zoom_in (void)
 	state.autoscroll.speed.lat /= 2.0f;
 	state.autoscroll.speed.lon /= 2.0f;
 
-	world->zoom(&state);
 	return true;
 }
 
@@ -103,7 +102,6 @@ world_zoom_out (void)
 	state.autoscroll.speed.lat *= 2.0f;
 	state.autoscroll.speed.lon *= 2.0f;
 
-	world->zoom(&state);
 	return true;
 }
 
@@ -214,7 +212,6 @@ worlds_init (const unsigned int zoom, const float lat, const float lon)
 	world_latlon_to_tile (&state.center.tile.x, &state.center.tile.y, lat, lon);
 
 	world->move(&state);
-	world->zoom(&state);
 
 	return true;
 }

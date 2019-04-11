@@ -27,7 +27,6 @@ struct world {
 	const float *(*matrix_inverse)	(void);
 	void (*move)			(const struct world_state *state);
 	void (*project)			(const struct world_state *state, union vec *vertex, const float lat, const float lon);
-	void (*zoom)			(const struct world_state *state);
 	void (*center_restrict_tile)	(struct world_state *state);
 	void (*center_restrict_latlon)	(struct world_state *state);
 	bool (*timer_tick)		(struct world_state *state, int64_t usec);
