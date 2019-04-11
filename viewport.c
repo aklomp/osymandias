@@ -50,24 +50,6 @@ viewport_destroy (void)
 	worlds_destroy();
 }
 
-void
-viewport_zoom_in (const struct screen_pos *pos)
-{
-	(void) pos;
-
-	if (world_zoom_in())
-		layers_zoom(world_get_zoom());
-}
-
-void
-viewport_zoom_out (const struct screen_pos *pos)
-{
-	(void) pos;
-
-	if (world_zoom_out())
-		layers_zoom(world_get_zoom());
-}
-
 static void
 screen_to_world (const struct screen_pos *pos, float *wx, float *wy)
 {

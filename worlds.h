@@ -16,7 +16,6 @@ struct coords {
 
 // Get world properties:
 unsigned int world_get_size (void);
-unsigned int world_get_zoom (void);
 const float *world_get_matrix (void);
 const float *world_get_matrix_inverse (void);
 

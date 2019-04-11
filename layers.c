@@ -21,14 +21,6 @@ layers_paint (const struct camera *cam)
 }
 
 void
-layers_zoom (const unsigned int zoom)
-{
-	FOREACH_LAYER
-		if (layer->zoom)
-			layer->zoom(zoom);
-}
-
-void
 layers_resize (const unsigned int width, const unsigned int height)
 {
 	FOREACH_LAYER

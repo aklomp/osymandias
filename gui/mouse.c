@@ -110,22 +110,16 @@ on_button_release (GtkWidget *widget, GdkEventButton *event)
 static gboolean
 on_scroll (GtkWidget* widget, GdkEventScroll *event)
 {
-	switch (event->direction)
-	{
-	case GDK_SCROLL_UP: {
-		event_get_pos;
-		viewport_zoom_in(&pos);
+	(void) widget;
+
+	if (event->direction == GDK_SCROLL_UP) {
+		world_zoom_in();
 		framerate_repaint();
-		break;
 	}
-	case GDK_SCROLL_DOWN: {
-		event_get_pos;
-		viewport_zoom_out(&pos);
+
+	if (event->direction == GDK_SCROLL_DOWN) {
+		world_zoom_out();
 		framerate_repaint();
-		break;
-	}
-	default:
-		break;
 	}
 
 	// Don't propagate further:

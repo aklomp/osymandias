@@ -37,12 +37,6 @@ world_get_size (void)
 	return state.size;
 }
 
-unsigned int
-world_get_zoom (void)
-{
-	return state.zoom;
-}
-
 const float *
 world_get_matrix (void)
 {
