@@ -14,11 +14,13 @@ static struct {
 		float lat[16];
 		float lon[16];
 	} rotate;
-	float translate[16];
 	float model[16];
 	struct {
+		struct {
+			float lat[16];
+			float lon[16];
+		} rotate;
 		float model[16];
-		bool model_fresh;
 	} inverse;
 } matrix;
 
@@ -41,10 +43,7 @@ static void
 update_matrix_model (void)
 {
 	mat_multiply(matrix.model, matrix.rotate.lat, matrix.rotate.lon);
-	mat_multiply(matrix.model, matrix.translate, matrix.model);
-
-	// This invalidates the inverse model matrix:
-	matrix.inverse.model_fresh = false;
+	mat_multiply(matrix.inverse.model, matrix.inverse.rotate.lon, matrix.inverse.rotate.lat);
 }
 
 static void
@@ -67,10 +66,12 @@ static void
 move (const struct world_state *state)
 {
 	// Rotate longitude into view over y axis:
-	mat_rotate(matrix.rotate.lon, 0.0f, 1.0f, 0.0f, state->center.lon);
+	mat_rotate(matrix.rotate.lon,         0.0f, 1.0f, 0.0f,  state->center.lon);
+	mat_rotate(matrix.inverse.rotate.lon, 0.0f, 1.0f, 0.0f, -state->center.lon);
 
 	// Rotate latitude into view over x axis:
-	mat_rotate(matrix.rotate.lat, -1.0f, 0.0f, 0.0f, state->center.lat);
+	mat_rotate(matrix.rotate.lat,         -1.0f, 0.0f, 0.0f,  state->center.lat);
+	mat_rotate(matrix.inverse.rotate.lat, -1.0f, 0.0f, 0.0f, -state->center.lat);
 
 	// Update model matrix:
 	update_matrix_model();
@@ -85,11 +86,6 @@ matrix_model (void)
 static const float *
 matrix_model_inverse (void)
 {
-	// Lazy instantiation:
-	if (!matrix.inverse.model_fresh) {
-		mat_invert(matrix.inverse.model, matrix.model);
-		matrix.inverse.model_fresh = true;
-	}
 	return matrix.inverse.model;
 }
 
@@ -129,9 +125,6 @@ world_spherical (void)
 		.center_restrict_latlon	= center_restrict_latlon,
 		.timer_tick		= timer_tick,
 	};
-
-	// Translate matrix: push the model back one unit radius:
-	mat_translate(matrix.translate, 0.0f, 0.0f, -1.0f);
 
 	return &world;
 }
