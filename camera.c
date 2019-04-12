@@ -159,39 +159,10 @@ camera_rotate (const float radians)
 	mat_view_update();
 }
 
-void
-camera_setup (void)
-{
-	// Upload the projection matrix:
-	glMatrixMode(GL_PROJECTION);
-	glLoadMatrixf(matrix.proj);
-
-	// Upload the view matrix:
-	glMatrixMode(GL_MODELVIEW);
-	glLoadMatrixf(matrix.view);
-}
-
-bool
-camera_is_tilted (void)
-{
-	return (cam.tilt != 0.0f);
-}
-
-bool
-camera_is_rotated (void)
-{
-	return (cam.rotate != 0.0f);
-}
-
 const float *
 camera_pos (void)
 {
 	return &cam.pos.x;
-}
-
-void
-camera_destroy (void)
-{
 }
 
 bool

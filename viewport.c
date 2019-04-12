@@ -45,7 +45,6 @@ viewport_init (void)
 void
 viewport_destroy (void)
 {
-	camera_destroy();
 	layers_destroy();
 	programs_destroy();
 	worlds_destroy();
@@ -174,9 +173,6 @@ viewport_resize (const unsigned int width, const unsigned int height)
 void
 viewport_gl_setup_world (void)
 {
-	// Setup camera:
-	camera_setup();
-
 	// FIXME: only do this when moved?
 	tilepicker_recalc();
 
