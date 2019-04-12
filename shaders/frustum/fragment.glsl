@@ -1,11 +1,10 @@
 #version 130
 
-uniform mat4 mat_frustum;
+uniform mat4 mat_viewproj;
 uniform mat4 mat_model;
-uniform int world_size;
-uniform vec4 camera;
 
 smooth in vec4 fpos;
+flat   in vec3 cam;
 
 out vec4 fragcolor;
 
@@ -13,12 +12,12 @@ const float pi = 3.1415926535897932384626433832795;
 
 float y_to_lat (float y)
 {
-	return atan(sinh((y / world_size - 0.5) * 2.0 * pi));
+	return atan(sinh((y - 0.5) * 2.0 * pi));
 }
 
 float x_to_lon (float x)
 {
-	return (x / world_size - 0.5) * 2.0 * pi;
+	return (x - 0.5) * 2.0 * pi;
 }
 
 bool inside_frustum (void)
@@ -26,31 +25,27 @@ bool inside_frustum (void)
 	float lat = y_to_lat(fpos.y);
 	float lon = x_to_lon(fpos.x);
 
-	/* Point on unit sphere: */
+	// Point on unit sphere:
 	vec4 pos;
 	pos.x = cos(lat) * sin(lon);
 	pos.z = cos(lat) * cos(lon);
 	pos.y = sin(lat);
 	pos.w = 1.0;
 
-	/* Normal is equal to position, but with zero w: */
-	vec4 normal = vec4(pos.xyz, 0.0);
-
-	/* Rotate/translate/scale: */
-	pos    = mat_model * pos;
-	normal = mat_model * normal;
-
-	if (dot(camera.xyz - pos.xyz, normal.xyz) < 0)
+	// Compare direction of point to camera with the local normal (which,
+	// for a unit sphere, are the point coordinates). If the angle is over
+	// 90 degrees, the point is not visible to the camera:
+	if (dot(cam - pos.xyz, pos.xyz) < 0)
 		return false;
 
-	/* Project position through the frustum: */
-	vec4 v = mat_frustum * pos;
+	// Project position to eye space:
+	pos = mat_viewproj * mat_model * pos;
 
-	/* Projected point is visible if within (-v.w, v.w): */
-	if (any(lessThan(v.xyz, vec3(-v.w))))
+	// Projected point is visible if within (-w, w):
+	if (any(lessThan(pos.xyz, vec3(-pos.w))))
 		return false;
 
-	return all(lessThan(v.xyz, vec3(v.w)));
+	return all(lessThanEqual(pos.xyz, vec3(pos.w)));
 }
 
 void main (void)

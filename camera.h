@@ -6,9 +6,6 @@
 
 struct camera {
 
-	// Position in world space:
-	union vec pos;
-
 	// Tilt from vertical, in radians:
 	float tilt;
 
@@ -38,6 +35,7 @@ struct camera {
 		float viewproj[16];
 		struct {
 			float viewproj[16];
+			float view[16];
 		} inverse;
 	} matrix;
 };

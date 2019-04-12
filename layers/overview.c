@@ -9,15 +9,13 @@
 #include "../camera.h"
 #include "../layers.h"
 #include "../tilepicker.h"
-#include "../inlinebin.h"
 #include "../glutil.h"
 #include "../programs.h"
 #include "../programs/frustum.h"
 #include "../programs/solid.h"
 #include "../util.h"
 
-#define SIZE	256.0f
-#define MARGIN	 10.0f
+#define MARGIN 40.0f
 
 // Projection matrix:
 static struct {
@@ -25,12 +23,43 @@ static struct {
 } matrix;
 
 // Vertex array and buffer objects:
-static GLuint vao[3], vbo[2];
-static GLuint *vao_bkgd    = &vao[0];
-static GLuint *vbo_bkgd    = &vbo[0];
-static GLuint *vao_tiles   = &vao[1];
-static GLuint *vbo_tiles   = &vbo[1];
-static GLuint *vao_frustum = &vao[2];
+static struct {
+	uint32_t vao[3];
+	uint32_t vbo[2];
+
+	// Grey background patch:
+	struct {
+		uint32_t *vao;
+		uint32_t *vbo;
+	} bkgd;
+
+	// Overdrawn tiles:
+	struct {
+		uint32_t *vao;
+		uint32_t *vbo;
+	} tiles;
+
+	// Overdrawn frustum extent:
+	struct {
+		uint32_t *vao;
+	} frustum;
+
+	// Screen position in pixels:
+	struct {
+		uint32_t x;
+		uint32_t y;
+	} pos;
+
+	uint32_t size;
+	bool visible;
+}
+state = {
+	.bkgd.vao    = &state.vao[0],
+	.bkgd.vbo    = &state.vbo[0],
+	.tiles.vao   = &state.vao[1],
+	.tiles.vbo   = &state.vbo[1],
+	.frustum.vao = &state.vao[2],
+};
 
 // Each point has 2D space coordinates and RGBA color:
 struct vertex {
@@ -46,19 +75,22 @@ struct vertex {
 	} color;
 } __attribute__((packed));
 
-static inline void
-setup_viewport (void)
+static void
+resize (const unsigned int width, const unsigned int height)
 {
-	int xpos = viewport_get_wd() - MARGIN - SIZE;
-	int ypos = viewport_get_ht() - MARGIN - SIZE;
+	// Fit square to smallest screen dimension:
+	state.size = (width < height ? width : height) - 2 * MARGIN;
+	state.pos.x = (width - state.size) / 2;
+	state.pos.y = (height - state.size) / 2;
 
-	glLineWidth(1.0);
-	glViewport(xpos, ypos, SIZE, SIZE);
+	// For the orthogonal projection matrix, define the bounds such that
+	// the projected area is one pixel larger than the actual size in
+	// pixels. This will allow the tile outlines to be drawn without being
+	// clipped.
+	const float min = -0.5f / state.size;
+	const float max = (state.size + 0.5f) / state.size;
 
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-	glDisable(GL_DEPTH_TEST);
+	mat_ortho(matrix.proj, min, max, min, max, 0, 1);
 }
 
 static void
@@ -66,7 +98,7 @@ paint_background (GLuint vao)
 {
 	// Draw solid background:
 	glBindVertexArray(vao);
-	glBindBuffer(GL_ARRAY_BUFFER, *vbo_bkgd);
+	glBindBuffer(GL_ARRAY_BUFFER, *state.bkgd.vbo);
 	glutil_draw_quad();
 }
 
@@ -123,8 +155,6 @@ paint_tiles (void)
 		// Fetch 50 tiles at most:
 		for (t = 0; tptile && t < 50; t++)
 		{
-			int wzoom = tptile->zoom - world_get_zoom();
-
 			// Bottom left:
 			tile[t].vertex[0].coords.x = tptile->x;
 			tile[t].vertex[0].coords.y = tptile->y;
@@ -143,9 +173,8 @@ paint_tiles (void)
 
 			// Scale:
 			for (int i = 0; i < 4; i++) {
-				tile[t].vertex[i].coords.y = (1 << tptile->zoom) - tile[t].vertex[i].coords.y;
-				tile[t].vertex[i].coords.x = ldexpf(tile[t].vertex[i].coords.x, -wzoom);
-				tile[t].vertex[i].coords.y = ldexpf(tile[t].vertex[i].coords.y, -wzoom);
+				tile[t].vertex[i].coords.x = ldexpf(tile[t].vertex[i].coords.x, -tptile->zoom);
+				tile[t].vertex[i].coords.y = 1.0f - ldexpf(tile[t].vertex[i].coords.y, -tptile->zoom);
 			}
 
 			// Solid fill color:
@@ -157,11 +186,11 @@ paint_tiles (void)
 		}
 
 		// Upload vertex data:
-		glBindBuffer(GL_ARRAY_BUFFER, *vbo_tiles);
+		glBindBuffer(GL_ARRAY_BUFFER, *state.tiles.vbo);
 		glBufferData(GL_ARRAY_BUFFER, sizeof(struct tile) * t, tile, GL_STREAM_DRAW);
 
 		// Draw indices:
-		glBindVertexArray(*vao_tiles);
+		glBindVertexArray(*state.tiles.vao);
 		glDrawElements(GL_TRIANGLES, t * 6, GL_UNSIGNED_BYTE, index);
 
 		// Change colors to white:
@@ -180,86 +209,47 @@ paint_tiles (void)
 }
 
 static void
-paint_center (void)
-{
-	unsigned int size = world_get_size();
-	const struct coords *center = world_get_center();
-
-	glColor4f(1.0, 1.0, 1.0, 0.7);
-	glBegin(GL_LINES);
-		glVertex2d(center->tile.x - 0.5, size - center->tile.y);
-		glVertex2d(center->tile.x + 0.5, size - center->tile.y);
-		glVertex2d(center->tile.x, size - center->tile.y + 0.5);
-		glVertex2d(center->tile.x, size - center->tile.y - 0.5);
-	glEnd();
-}
-
-static void
 paint (const struct camera *cam)
 {
+	if (state.visible == false)
+		return;
+
 	// Draw 1:1 to screen coordinates, origin bottom left:
-	setup_viewport();
+	glLineWidth(1.0);
+	glViewport(state.pos.x, state.pos.y, state.size, state.size);
+
+	glDisable(GL_DEPTH_TEST);
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	// Paint background using solid program:
 	program_solid_use(&((struct program_solid) {
 		.matrix = matrix.proj,
 	}));
 
-	paint_background(*vao_bkgd);
+	paint_background(*state.bkgd.vao);
 
 	// Paint tiles using solid program:
 	paint_tiles();
 
 	// Paint background using frustum program:
 	program_frustum_use(&((struct program_frustum) {
-		.mat_proj	= matrix.proj,
-		.mat_frustum	= cam->matrix.viewproj,
-		.mat_model	= world_get_matrix(),
-		.world_size	= world_get_size(),
-		.camera		= cam->pos.elem.f,
+		.mat_proj      = matrix.proj,
+		.mat_viewproj  = cam->matrix.viewproj,
+		.mat_model     = world_get_matrix(),
+		.mat_view_inv  = cam->matrix.inverse.view,
+		.mat_model_inv = world_get_matrix_inverse(),
 	}));
 
-	paint_background(*vao_frustum);
+	paint_background(*state.frustum.vao);
 
 	// Reset program:
 	program_none();
-
-	paint_center();
 
 	glDisable(GL_BLEND);
 
 	// Reset program:
 	program_none();
-}
-
-static void
-zoom (const unsigned int zoom)
-{
-	double size = world_get_size();
-
-	// Make room within the world for one extra pixel at each side,
-	// to keep the outlines on the far tiles within frame:
-	double one_pixel_at_scale = (1 << zoom) / SIZE;
-	size += one_pixel_at_scale;
-
-	mat_ortho(matrix.proj, 0, size, 0, size, 0, 1);
-
-	// Background quad is array of counterclockwise vertices:
-	//
-	//   3--2
-	//   |  |
-	//   0--1
-	//
-	struct vertex bkgd[4] = {
-		{ { 0.0f, 0.0f }, { 0.3f, 0.3f, 0.3f, 0.5f } },
-		{ { size, 0.0f }, { 0.3f, 0.3f, 0.3f, 0.5f } },
-		{ { size, size }, { 0.3f, 0.3f, 0.3f, 0.5f } },
-		{ { 0.0f, size }, { 0.3f, 0.3f, 0.3f, 0.5f } },
-	};
-
-	// Bind vertex buffer object and upload vertices:
-	glBindBuffer(GL_ARRAY_BUFFER, *vbo_bkgd);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(bkgd), bkgd, GL_STREAM_DRAW);
 }
 
 #define OFFSET_COORDS	((void *) offsetof(struct vertex, coords))
@@ -275,9 +265,23 @@ add_pointer (unsigned int loc, int size, const void *ptr)
 static void
 init_bkgd (void)
 {
-	// Bind buffer and vertex array:
-	glBindBuffer(GL_ARRAY_BUFFER, *vbo_bkgd);
-	glBindVertexArray(*vao_bkgd);
+	// Background quad is array of counterclockwise vertices:
+	//
+	//   3--2
+	//   |  |
+	//   0--1
+	//
+	static const struct vertex bkgd[4] = {
+		{ { 0.0f, 0.0f }, { 0.3f, 0.3f, 0.3f, 0.3f } },
+		{ { 1.0f, 0.0f }, { 0.3f, 0.3f, 0.3f, 0.3f } },
+		{ { 1.0f, 1.0f }, { 0.3f, 0.3f, 0.3f, 0.3f } },
+		{ { 0.0f, 1.0f }, { 0.3f, 0.3f, 0.3f, 0.3f } },
+	};
+
+	// Bind buffer and vertex array, upload vertices:
+	glBindBuffer(GL_ARRAY_BUFFER, *state.bkgd.vbo);
+	glBindVertexArray(*state.bkgd.vao);
+	glBufferData(GL_ARRAY_BUFFER, sizeof (bkgd), bkgd, GL_STATIC_DRAW);
 
 	// Add pointer to 'vertex' and 'color' attributes:
 	add_pointer(program_solid_loc_vertex(), 2, OFFSET_COORDS);
@@ -288,8 +292,8 @@ static void
 init_frustum (void)
 {
 	// Bind buffer and vertex array (reuse the background quad):
-	glBindBuffer(GL_ARRAY_BUFFER, *vbo_bkgd);
-	glBindVertexArray(*vao_frustum);
+	glBindBuffer(GL_ARRAY_BUFFER, *state.bkgd.vbo);
+	glBindVertexArray(*state.frustum.vao);
 
 	// Add pointer to 'vertex' attribute:
 	add_pointer(program_frustum_loc_vertex(), 2, OFFSET_COORDS);
@@ -299,8 +303,8 @@ static void
 init_tiles (void)
 {
 	// Bind buffer and vertex array:
-	glBindBuffer(GL_ARRAY_BUFFER, *vbo_tiles);
-	glBindVertexArray(*vao_tiles);
+	glBindBuffer(GL_ARRAY_BUFFER, *state.tiles.vbo);
+	glBindVertexArray(*state.tiles.vao);
 
 	// Add pointer to 'vertex' and 'color' attributes:
 	add_pointer(program_solid_loc_vertex(), 2, OFFSET_COORDS);
@@ -310,15 +314,15 @@ init_tiles (void)
 static bool
 init (void)
 {
+	state.visible = false;
+
 	// Generate vertex buffer and array objects:
-	glGenBuffers(NELEM(vbo), vbo);
-	glGenVertexArrays(NELEM(vao), vao);
+	glGenBuffers(NELEM(state.vbo), state.vbo);
+	glGenVertexArrays(NELEM(state.vao), state.vao);
 
 	init_bkgd();
 	init_frustum();
 	init_tiles();
-
-	zoom(0);
 
 	return true;
 }
@@ -327,14 +331,19 @@ static void
 destroy (void)
 {
 	// Delete vertex array and buffer objects:
-	glDeleteVertexArrays(NELEM(vao), vao);
-	glDeleteBuffers(NELEM(vbo), vbo);
+	glDeleteVertexArrays(NELEM(state.vao), state.vao);
+	glDeleteBuffers(NELEM(state.vbo), state.vbo);
+}
+
+void layer_overview_toggle_visible (void)
+{
+	state.visible ^= 1;
 }
 
 // Export public methods:
 LAYER(50) = {
 	.init    = &init,
 	.paint   = &paint,
-	.zoom    = &zoom,
+	.resize  = &resize,
 	.destroy = &destroy,
 };
