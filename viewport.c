@@ -151,7 +151,7 @@ viewport_paint (void)
 	glDepthMask(GL_TRUE);
 
 	// Paint all layers:
-	layers_paint();
+	layers_paint(camera_get());
 }
 
 void

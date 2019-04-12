@@ -55,12 +55,6 @@ setup_viewport (void)
 	glLineWidth(1.0);
 	glViewport(xpos, ypos, SIZE, SIZE);
 
-	glMatrixMode(GL_PROJECTION);
-	glLoadMatrixf(matrix.proj);
-
-	glMatrixMode(GL_MODELVIEW);
-	glLoadIdentity();
-
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
@@ -201,7 +195,7 @@ paint_center (void)
 }
 
 static void
-paint (void)
+paint (const struct camera *cam)
 {
 	// Draw 1:1 to screen coordinates, origin bottom left:
 	setup_viewport();
@@ -219,10 +213,10 @@ paint (void)
 	// Paint background using frustum program:
 	program_frustum_use(&((struct program_frustum) {
 		.mat_proj	= matrix.proj,
-		.mat_frustum	= camera_mat_viewproj(),
+		.mat_frustum	= cam->matrix.viewproj,
 		.mat_model	= world_get_matrix(),
 		.world_size	= world_get_size(),
-		.camera		= camera_pos(),
+		.camera		= cam->pos.elem.f,
 	}));
 
 	paint_background(*vao_frustum);
