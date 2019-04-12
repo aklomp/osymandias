@@ -6,11 +6,13 @@
 #include "vec.h"
 
 static struct {
-	union vec pos;	// position in world space
+	union vec pos;		// position in world space
 
-	float tilt;	// tilt from vertical, in radians
-	float rotate;	// rotation along z axis, in radians
-	float zdist;	// distance from camera to origin (camera height)
+	float tilt;		// tilt from vertical, in radians
+	float rotate;		// rotation along z axis, in radians
+	float zdist;		// distance from camera to origin (camera height)
+	float aspect_ratio;
+	float view_angle;
 } cam;
 
 static struct {
@@ -27,24 +29,25 @@ static struct {
 	float viewproj[16];		// View-projection matrix
 	struct {
 		float viewproj[16];	// Inverse of view-projection matrix
-		bool viewproj_fresh;	// Whether the inverse is up to date
 	} inverse;
 } matrix;
 
-// Update view-projection matrix after view or projection changed:
 static void
-mat_viewproj_update (void)
+matrix_viewproj_update (void)
 {
-	// Generate the view-projection matrix:
 	mat_multiply(matrix.viewproj, matrix.proj, matrix.view);
-
-	// This invalidates the inverse view-projection matrix:
-	matrix.inverse.viewproj_fresh = false;
+	mat_invert(matrix.inverse.viewproj, matrix.viewproj);
 }
 
-// Update view matrix after tilt/rot/trans changed:
 static void
-mat_view_update (void)
+matrix_proj_update (void)
+{
+	mat_frustum(matrix.proj, cam.view_angle, cam.aspect_ratio, clip.near, clip.far);
+	matrix_viewproj_update();
+}
+
+static void
+matrix_view_update (void)
 {
 	// Compose view matrix from individual matrices:
 	mat_multiply(matrix.view, matrix.tilt, matrix.rotate);
@@ -59,7 +62,28 @@ mat_view_update (void)
 	cam.pos.w = 1.0f;
 
 	// This changes the view-projection matrix:
-	mat_viewproj_update();
+	matrix_viewproj_update();
+}
+
+static void
+matrix_translate_update (void)
+{
+	mat_translate(matrix.translate, 0.0f, 0.0f, -cam.zdist);
+	matrix_view_update();
+}
+
+static void
+matrix_rotate_update (void)
+{
+	mat_rotate(matrix.rotate, 0.0f, 0.0f, 1.0f, cam.rotate);
+	matrix_view_update();
+}
+
+static void
+matrix_tilt_update (void)
+{
+	mat_rotate(matrix.tilt, 1.0f, 0.0f, 0.0f, cam.tilt);
+	matrix_view_update();
 }
 
 const float *
@@ -71,12 +95,6 @@ camera_mat_viewproj (void)
 const float *
 camera_mat_viewproj_inv (void)
 {
-	// Lazy instantiation:
-	if (!matrix.inverse.viewproj_fresh) {
-		mat_invert(matrix.inverse.viewproj, matrix.viewproj);
-		matrix.inverse.viewproj_fresh = true;
-	}
-
 	return matrix.inverse.viewproj;
 }
 
@@ -88,19 +106,15 @@ camera_projection (const int screen_wd, const int screen_ht)
 	// correspond with 1 texture pixel at 0 degrees tilt angle.
 
 	// Screen aspect ratio:
-	float aspect = (float)screen_wd / (float)screen_ht;
+	cam.aspect_ratio = (float)screen_wd / (float)screen_ht;
 
 	// Half the screen width in units of 256-pixel tiles:
 	float halfwd = (float)screen_wd / 2.0f / 256.0f;
 
 	// Horizontal viewing angle:
-	float angle = atanf(halfwd / cam.zdist);
+	cam.view_angle = atanf(halfwd / cam.zdist);
 
-	// Generate projection matrix:
-	mat_frustum(matrix.proj, angle, aspect, clip.near, clip.far);
-
-	// This changes the view-projection matrix:
-	mat_viewproj_update();
+	matrix_proj_update();
 }
 
 // Unproject a screen coordinate to get points p1 and p2 in world space:
@@ -140,23 +154,14 @@ camera_tilt (const float radians)
 	if (cam.tilt < 0.005f)
 		cam.tilt = 0.0f;
 
-	// Tilt occurs around the x axis:
-	mat_rotate(matrix.tilt, 1.0f, 0.0f, 0.0f, cam.tilt);
-
-	// Update view matrix:
-	mat_view_update();
+	matrix_tilt_update();
 }
 
 void
 camera_rotate (const float radians)
 {
 	cam.rotate += radians;
-
-	// Rotate occurs around the z axis:
-	mat_rotate(matrix.rotate, 0.0f, 0.0f, 1.0f, cam.rotate);
-
-	// Update view matrix:
-	mat_view_update();
+	matrix_rotate_update();
 }
 
 const float *
@@ -180,13 +185,9 @@ camera_init (void)
 	clip.near =   0.5f;
 	clip.far  = 100.0f;
 
-	// Initialize tilt, rotate and translate matrices:
-	mat_identity(matrix.rotate);
-	mat_identity(matrix.tilt);
-	mat_translate(matrix.translate, 0.0f, 0.0f, -cam.zdist);
-
-	// Initialize view matrix:
-	mat_view_update();
+	matrix_rotate_update();
+	matrix_tilt_update();
+	matrix_translate_update();
 
 	return true;
 }
