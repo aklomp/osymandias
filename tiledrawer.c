@@ -49,7 +49,7 @@ tiledrawer (const struct tiledrawer *td)
 }
 
 void
-tiledrawer_start (void)
+tiledrawer_start (const struct camera *cam)
 {
 	static GLuint vao;
 	static bool init = false;
@@ -70,7 +70,7 @@ tiledrawer_start (void)
 	program_spherical_loc(LOC_SPHERICAL_TEXTURE);
 
 	program_spherical_use(&((struct program_spherical) {
-		.mat_viewproj = camera_mat_viewproj(),
+		.mat_viewproj = cam->matrix.viewproj,
 		.mat_model    = world_get_matrix(),
 		.tile_zoom    = 0,
 	}));

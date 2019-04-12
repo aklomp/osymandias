@@ -88,7 +88,7 @@ render (void)
 {
 	// Use the tilepicker program:
 	program_tilepicker_use(&((struct program_tilepicker) {
-		.mat_viewproj_inv = camera_mat_viewproj_inv(),
+		.mat_viewproj_inv = camera_get()->matrix.inverse.viewproj,
 		.mat_model_inv    = world_get_matrix_inverse(),
 	}));
 

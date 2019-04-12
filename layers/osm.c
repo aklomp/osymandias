@@ -5,7 +5,6 @@
 #include <GL/gl.h>
 
 #include "../bitmap_cache.h"
-#include "../worlds.h"
 #include "../viewport.h"
 #include "../texture_cache.h"
 #include "../tiledrawer.h"
@@ -63,15 +62,13 @@ find_texture (const struct cache_node *in, struct cache_node *out)
 }
 
 static void
-paint (void)
+paint (const struct camera *cam)
 {
-	int world_zoom = world_get_zoom();
-
 	// Draw to world coordinates:
 	viewport_gl_setup_world();
 
 	// Load tiledrawer programs:
-	tiledrawer_start();
+	tiledrawer_start(cam);
 
 	for (const struct tilepicker *tile = tilepicker_first(); tile; tile = tilepicker_next()) {
 
@@ -90,7 +87,6 @@ paint (void)
 
 		tiledrawer(&((struct tiledrawer) {
 			.tile = &out,
-			.world_zoom = world_zoom,
 			.texture_id = id,
 		}));
 	}

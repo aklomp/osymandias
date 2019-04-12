@@ -56,8 +56,10 @@ texcoords (float screen_wd, float screen_ht)
 }
 
 static void
-paint (void)
+paint (const struct camera *cam)
 {
+	(void) cam;
+
 	// Use the background program:
 	program_bkgd_use();
 

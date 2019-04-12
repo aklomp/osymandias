@@ -19,11 +19,11 @@ static const struct glutil_vertex vertex[4] = {
 };
 
 static void
-paint (void)
+paint (const struct camera *cam)
 {
 	program_basemap_use(&((struct program_basemap) {
 		.mat_model_inv    = world_get_matrix_inverse(),
-		.mat_viewproj_inv = camera_mat_viewproj_inv(),
+		.mat_viewproj_inv = cam->matrix.inverse.viewproj,
 	}));
 
 	glBindVertexArray(vao);
