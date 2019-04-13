@@ -1,4 +1,3 @@
-#include "camera.h"
 #include "glutil.h"
 #include "tiledrawer.h"
 #include "programs.h"

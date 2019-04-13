@@ -17,7 +17,7 @@ matrix_viewproj_update (void)
 static void
 matrix_proj_update (void)
 {
-	mat_frustum(cam.matrix.proj, cam.view_angle, cam.aspect_ratio, cam.clip.near, cam.clip.far);
+	mat_frustum(cam.matrix.proj, cam.view_angle / 2.0f, cam.aspect_ratio, cam.clip.near, cam.clip.far);
 	matrix_viewproj_update();
 }
 
@@ -60,32 +60,27 @@ camera_get (void)
 	return &cam;
 }
 
-// Recaculate the projection matrix when screen size changes:
 void
-camera_projection (const struct viewport *vp)
+camera_set_view_angle (const float radians)
 {
-	// This is built around the idea that 1 screen pixel should
-	// correspond with 1 texture pixel at 0 degrees tilt angle.
+	cam.view_angle = radians;
+	matrix_proj_update();
+}
 
-	// Screen aspect ratio:
+void
+camera_set_aspect_ratio (const struct viewport *vp)
+{
 	cam.aspect_ratio = (float) vp->width / (float) vp->height;
-
-	// Half the screen width in units of 256-pixel tiles:
-	float halfwd = (float) vp->width / 2.0f / 256.0f;
-
-	// Horizontal viewing angle:
-	cam.view_angle = atanf(halfwd / cam.zdist);
-
 	matrix_proj_update();
 }
 
 // Unproject a screen coordinate to get points p1 and p2 in world space:
 void
-camera_unproject (union vec *p1, union vec *p2, const unsigned int x, const unsigned int y, const unsigned int screen_wd, const unsigned int screen_ht)
+camera_unproject (union vec *p1, union vec *p2, const unsigned int x, const unsigned int y, const struct viewport *vp)
 {
 	// Scale x and y to clip space (-1..1):
-	const float sx = (float)x / (screen_wd / 2.0f) - 1.0f;
-	const float sy = (float)y / (screen_ht / 2.0f) - 1.0f;
+	const float sx = (float) x / (vp->width / 2.0f) - 1.0f;
+	const float sy = (float) y / (vp->height / 2.0f) - 1.0f;
 
 	// Define two points at extremes of z clip space (0..1):
 	const union vec a = vec(sx, sy, 0.0f, 1.0f);
@@ -127,7 +122,7 @@ bool
 camera_init (const struct viewport *vp)
 {
 	// Initial position in space:
-	cam.zdist = 4.0f;
+	cam.zdist = 0.5f;
 
 	// Initial attitude:
 	cam.tilt   = 0.0f;
@@ -141,8 +136,9 @@ camera_init (const struct viewport *vp)
 	matrix_tilt_update();
 	matrix_translate_update();
 
-	// Configure camera projection:
-	camera_projection(vp);
+	// Set aspect ratio and viewing angle:
+	camera_set_aspect_ratio(vp);
+	camera_set_view_angle(1.2f);
 
 	return true;
 }

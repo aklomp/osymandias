@@ -40,7 +40,7 @@ screen_to_world (const struct screen_pos *pos, float *wx, float *wy)
 
 	// Unproject two points at different z index through the
 	// view-projection matrix to get two points in world coordinates:
-	camera_unproject(&p1, &p2, pos->x, pos->y, vp.width, vp.height);
+	camera_unproject(&p1, &p2, pos->x, pos->y, &vp);
 
 	// Direction vector is difference between points:
 	union vec dir = vec_sub(p2, p1);
@@ -125,7 +125,7 @@ viewport_resize (const unsigned int width, const unsigned int height)
 	glViewport(0, 0, vp.width, vp.height);
 
 	// Update camera's projection matrix:
-	camera_projection(&vp);
+	camera_set_aspect_ratio(&vp);
 
 	// Alert layers:
 	layers_resize(&vp);

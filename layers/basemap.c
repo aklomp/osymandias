@@ -2,9 +2,7 @@
 
 #include <GL/gl.h>
 
-#include "../camera.h"
 #include "../glutil.h"
-#include "../camera.h"
 #include "../layers.h"
 #include "../programs.h"
 #include "../programs/basemap.h"

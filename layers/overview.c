@@ -6,7 +6,6 @@
 #include "../matrix.h"
 #include "../worlds.h"
 #include "../viewport.h"
-#include "../camera.h"
 #include "../layers.h"
 #include "../tilepicker.h"
 #include "../glutil.h"
