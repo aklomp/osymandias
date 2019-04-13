@@ -33,10 +33,10 @@ static struct glutil_texture tex = {
 static GLuint vao, vbo;
 
 static void
-texcoords (float screen_wd, float screen_ht)
+texcoords (const struct viewport *vp)
 {
-	float wd = screen_wd / tex.width;
-	float ht = screen_ht / tex.height;
+	float wd = (float) vp->width  / tex.width;
+	float ht = (float) vp->height / tex.height;
 
 	// Bottom left:
 	vertex[0].u = 0;
@@ -78,14 +78,14 @@ paint (const struct camera *cam)
 }
 
 static void
-resize (const unsigned int width, const unsigned int height)
+resize (const struct viewport *vp)
 {
 	// Update texture coordinates:
-	texcoords(width, height);
+	texcoords(vp);
 }
 
 static bool
-init (void)
+init (const struct viewport *vp)
 {
 	// Load texture:
 	if (glutil_texture_load(&tex) == false)
@@ -110,6 +110,7 @@ init (void)
 		program_bkgd_loc(LOC_BKGD_VERTEX),
 		program_bkgd_loc(LOC_BKGD_TEXTURE));
 
+	resize(vp);
 	return true;
 }
 

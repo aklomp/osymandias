@@ -67,10 +67,10 @@ paint (const struct camera *cam)
 }
 
 static void
-resize (const unsigned int width, const unsigned int height)
+resize (const struct viewport *vp)
 {
-	screen.width  = width;
-	screen.height = height;
+	screen.width  = vp->width;
+	screen.height = vp->height;
 
 	// Projection matrix maps 1:1 to screen:
 	mat_scale(matrix.proj, 2.0f / screen.width, 2.0f / screen.height, 0.0f);
@@ -96,7 +96,7 @@ init_texture (void)
 }
 
 static bool
-init (void)
+init (const struct viewport *vp)
 {
 	// Init texture:
 	if (init_texture() == false)
@@ -120,6 +120,7 @@ init (void)
 	// Copy vertices to buffer:
 	glBufferData(GL_ARRAY_BUFFER, sizeof(vertex), vertex, GL_STATIC_DRAW);
 
+	resize(vp);
 	return true;
 }
 

@@ -62,16 +62,16 @@ camera_get (void)
 
 // Recaculate the projection matrix when screen size changes:
 void
-camera_projection (const int screen_wd, const int screen_ht)
+camera_projection (const struct viewport *vp)
 {
 	// This is built around the idea that 1 screen pixel should
 	// correspond with 1 texture pixel at 0 degrees tilt angle.
 
 	// Screen aspect ratio:
-	cam.aspect_ratio = (float)screen_wd / (float)screen_ht;
+	cam.aspect_ratio = (float) vp->width / (float) vp->height;
 
 	// Half the screen width in units of 256-pixel tiles:
-	float halfwd = (float)screen_wd / 2.0f / 256.0f;
+	float halfwd = (float) vp->width / 2.0f / 256.0f;
 
 	// Horizontal viewing angle:
 	cam.view_angle = atanf(halfwd / cam.zdist);
@@ -124,7 +124,7 @@ camera_rotate (const float radians)
 }
 
 bool
-camera_init (void)
+camera_init (const struct viewport *vp)
 {
 	// Initial position in space:
 	cam.zdist = 4.0f;
@@ -140,6 +140,9 @@ camera_init (void)
 	matrix_rotate_update();
 	matrix_tilt_update();
 	matrix_translate_update();
+
+	// Configure camera projection:
+	camera_projection(vp);
 
 	return true;
 }

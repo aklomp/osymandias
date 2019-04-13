@@ -76,12 +76,12 @@ struct vertex {
 } __attribute__((packed));
 
 static void
-resize (const unsigned int width, const unsigned int height)
+resize (const struct viewport *vp)
 {
 	// Fit square to smallest screen dimension:
-	state.size = (width < height ? width : height) - 2 * MARGIN;
-	state.pos.x = (width - state.size) / 2;
-	state.pos.y = (height - state.size) / 2;
+	state.size = (vp->width < vp->height ? vp->width : vp->height) - 2 * MARGIN;
+	state.pos.x = (vp->width - state.size) / 2;
+	state.pos.y = (vp->height - state.size) / 2;
 
 	// For the orthogonal projection matrix, define the bounds such that
 	// the projected area is one pixel larger than the actual size in
@@ -312,8 +312,10 @@ init_tiles (void)
 }
 
 static bool
-init (void)
+init (const struct viewport *vp)
 {
+	(void) vp;
+
 	state.visible = false;
 
 	// Generate vertex buffer and array objects:

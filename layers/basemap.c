@@ -40,8 +40,10 @@ destroy (void)
 }
 
 static bool
-init (void)
+init (const struct viewport *vp)
 {
+	(void) vp;
+
 	// Generate vertex buffer and array objects:
 	glGenBuffers(1, &vbo);
 	glGenVertexArrays(1, &vao);

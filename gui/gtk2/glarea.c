@@ -48,16 +48,12 @@ on_realize (GtkWidget *widget)
 {
 	GdkGLContext  *glcontext  = gtk_widget_get_gl_context(widget);
 	GdkGLDrawable *gldrawable = gtk_widget_get_gl_drawable(widget);
+	GtkAllocation  allocation;
 
-	// Initialize viewport after realizing GL area, inside GL context:
+	// Initialize viewport inside GL context after realizing GL area:
 	gdk_gl_drawable_gl_begin(gldrawable, glcontext);
-	viewport_init();
-
-	// Resize to initial dimensions:
-	GtkAllocation allocation;
 	gtk_widget_get_allocation(widget, &allocation);
-	viewport_resize(allocation.width, allocation.height);
-
+	viewport_init(allocation.width, allocation.height);
 	gdk_gl_drawable_gl_end(gldrawable);
 
 	is_realized = true;

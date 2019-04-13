@@ -21,11 +21,11 @@ layers_paint (const struct camera *cam)
 }
 
 void
-layers_resize (const unsigned int width, const unsigned int height)
+layers_resize (const struct viewport *vp)
 {
 	FOREACH_LAYER
 		if (layer->resize)
-			layer->resize(width, height);
+			layer->resize(vp);
 }
 
 void
@@ -37,10 +37,10 @@ layers_destroy (void)
 }
 
 bool
-layers_init (void)
+layers_init (const struct viewport *vp)
 {
 	FOREACH_LAYER
-		if (layer->init && layer->init() == false) {
+		if (layer->init && layer->init(vp) == false) {
 			layers_destroy();
 			return false;
 		}

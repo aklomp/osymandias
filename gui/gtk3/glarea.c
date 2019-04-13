@@ -56,13 +56,10 @@ on_realize (GtkGLArea *glarea)
 	// Enable depth buffer:
 	gtk_gl_area_set_has_depth_buffer(glarea, TRUE);
 
-	// Initialize the renderer:
-	viewport_init();
-
-	// Resize to initial dimensions:
+	// Initialize viewport inside GL context after realizing GL area:
 	GtkAllocation allocation;
 	gtk_widget_get_allocation(GTK_WIDGET(glarea), &allocation);
-	viewport_resize(allocation.width, allocation.height);
+	viewport_init(allocation.width, allocation.height);
 
 	// Start frame clock:
 	framerate_start(glarea);

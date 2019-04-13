@@ -68,10 +68,10 @@ paint (const struct camera *cam)
 }
 
 static void
-resize (const unsigned int width, const unsigned int height)
+resize (const struct viewport *vp)
 {
-	screen.width  = width;
-	screen.height = height;
+	screen.width  = vp->width;
+	screen.height = vp->height;
 
 	// Create an orthographic projection:
 	mat_ortho(matrix.ortho, 0.0f, screen.width, screen.height, 0.0f, 0.0f, 1.0f);
@@ -102,7 +102,7 @@ init_texture (void)
 }
 
 static bool
-init (void)
+init (const struct viewport *vp)
 {
 	// Init texture:
 	if (init_texture() == false)
@@ -126,6 +126,7 @@ init (void)
 	// Copy vertices to buffer:
 	glBufferData(GL_ARRAY_BUFFER, sizeof(vertex), vertex, GL_STATIC_DRAW);
 
+	resize(vp);
 	return true;
 }
 

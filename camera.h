@@ -4,6 +4,8 @@
 
 #include <vec/vec.h>
 
+#include "viewport.h"
+
 struct camera {
 
 	// Tilt from vertical, in radians:
@@ -41,8 +43,8 @@ struct camera {
 };
 
 extern const struct camera *camera_get (void);
-extern void camera_projection (const int screen_wd, const int screen_ht);
+extern void camera_projection (const struct viewport *vp);
 extern void camera_unproject (union vec *, union vec *, const unsigned int x, const unsigned int y, const unsigned int screen_wd, const unsigned int screen_ht);
 extern void camera_rotate (const float radians);
 extern void camera_tilt (const float radians);
-extern bool camera_init (void);
+extern bool camera_init (const struct viewport *vp);

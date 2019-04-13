@@ -5,7 +5,6 @@
 #include <GL/gl.h>
 
 #include "../bitmap_cache.h"
-#include "../viewport.h"
 #include "../texture_cache.h"
 #include "../tiledrawer.h"
 #include "../tilepicker.h"
@@ -14,8 +13,10 @@
 #include "../programs.h"
 
 static bool
-init (void)
+init (const struct viewport *vp)
 {
+	(void) vp;
+
 	if (bitmap_cache_create())
 		return texture_cache_create();
 

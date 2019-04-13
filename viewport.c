@@ -12,34 +12,13 @@ static float hold_x;		// Mouse hold/drag at this world coordinate
 static float hold_y;
 
 // Screen dimensions:
-static struct {
-	unsigned int width;
-	unsigned int height;
-} screen;
+static struct viewport vp;
 
 static void
 center_set (const double world_x, const double world_y)
 {
 	// FIXME: world_x and world_y should be in tile coordinates:
 	world_moveto_tile(world_x, world_get_size() - world_y);
-}
-
-bool
-viewport_init (void)
-{
-	if (!worlds_init(0, 0.0f, 0.0f))
-		return false;
-
-	if (!programs_init())
-		return false;
-
-	if (!layers_init())
-		return false;
-
-	if (!camera_init())
-		return false;
-
-	return true;
 }
 
 void
@@ -61,7 +40,7 @@ screen_to_world (const struct screen_pos *pos, float *wx, float *wy)
 
 	// Unproject two points at different z index through the
 	// view-projection matrix to get two points in world coordinates:
-	camera_unproject(&p1, &p2, pos->x, pos->y, screen.width, screen.height);
+	camera_unproject(&p1, &p2, pos->x, pos->y, vp.width, vp.height);
 
 	// Direction vector is difference between points:
 	union vec dir = vec_sub(p2, p1);
@@ -104,8 +83,8 @@ viewport_scroll (const int dx, const int dy)
 {
 	float world_x, world_y;
 	struct screen_pos pos = {
-		.x = screen.width  / 2 + dx,
-		.y = screen.height / 2 + dy,
+		.x = vp.width  / 2 + dx,
+		.y = vp.height / 2 + dy,
 	};
 
 	// Find out which world coordinate will be in the center of the screen
@@ -139,17 +118,17 @@ viewport_paint (void)
 void
 viewport_resize (const unsigned int width, const unsigned int height)
 {
-	screen.width = width;
-	screen.height = height;
+	vp.width  = width;
+	vp.height = height;
 
 	// Setup viewport:
-	glViewport(0, 0, screen.width, screen.height);
+	glViewport(0, 0, vp.width, vp.height);
 
 	// Update camera's projection matrix:
-	camera_projection(width, height);
+	camera_projection(&vp);
 
 	// Alert layers:
-	layers_resize(width, height);
+	layers_resize(&vp);
 }
 
 void
@@ -161,14 +140,29 @@ viewport_gl_setup_world (void)
 	glDisable(GL_BLEND);
 }
 
-unsigned int
-viewport_get_wd (void)
+const struct viewport *
+viewport_get (void)
 {
-	return screen.width;
+	return &vp;
 }
 
-unsigned int
-viewport_get_ht (void)
+bool
+viewport_init (const uint32_t width, const uint32_t height)
 {
-	return screen.height;
+	vp.width  = width;
+	vp.height = height;
+
+	if (!worlds_init(0, 0.0f, 0.0f))
+		return false;
+
+	if (!programs_init())
+		return false;
+
+	if (!layers_init(&vp))
+		return false;
+
+	if (!camera_init(&vp))
+		return false;
+
+	return true;
 }
