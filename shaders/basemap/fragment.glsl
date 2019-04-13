@@ -1,7 +1,7 @@
 #version 130
 
-noperspective in vec3 p1;
-noperspective in vec3 p2;
+flat          in vec3 cam;
+noperspective in vec3 p;
 
 out vec4 fragcolor;
 
@@ -71,7 +71,7 @@ int zoomlevel (float dist, float lat)
 	// the distance, the greater the zoom level. Take the exponent of the
 	// distance and flip the sign. Subtract from a constant to tune for the
 	// camera view angle and distance at zoom level zero:
-	int zoom = int((5 - log2(dist)) * latdilute);
+	int zoom = int((6 - log2(dist)) * latdilute);
 
 	return clamp(zoom, zoom_min, zoom_max);
 }
@@ -114,12 +114,12 @@ void main (void)
 	vec2 tile;
 	float det;
 
-	// Cast a ray from p1 and p2 and intersect it with the unit sphere:
-	if (sphere_intersect(p1, normalize(p1 - p2), hit, det) == false)
+	// Cast a ray from the camera to p and intersect with the unit sphere:
+	if (sphere_intersect(cam, normalize(cam - p), hit, det) == false)
 		discard;
 
 	// Get zoomlevel based on distance to camera:
-	int zoom = zoomlevel(distance(hit, p1), atanh(hit.y));
+	int zoom = zoomlevel(distance(hit, cam), atanh(hit.y));
 
 	if (sphere_to_tile(hit, zoom, tile) == false) {
 		fragcolor = vec4(vec3(0.4), 1.0);
