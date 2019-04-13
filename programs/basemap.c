@@ -7,12 +7,14 @@
 
 enum	{ MAT_VIEWPROJ_INV
 	, MAT_MODEL_INV
+	, MAT_VIEW_INV
 	, VERTEX
 	} ;
 
 static struct input inputs[] =
 	{ [MAT_VIEWPROJ_INV] = { .name = "mat_viewproj_inv", .type = TYPE_UNIFORM }
 	, [MAT_MODEL_INV]    = { .name = "mat_model_inv",    .type = TYPE_UNIFORM }
+	, [MAT_VIEW_INV]     = { .name = "mat_view_inv",     .type = TYPE_UNIFORM }
 	, [VERTEX]           = { .name = "vertex",           .type = TYPE_ATTRIBUTE }
 	,                      { .name = NULL }
 	} ;
@@ -36,4 +38,5 @@ program_basemap_use (const struct program_basemap *values)
 	glUseProgram(program_basemap.id);
 	glUniformMatrix4fv(inputs[MAT_VIEWPROJ_INV].loc, 1, GL_FALSE, values->mat_viewproj_inv);
 	glUniformMatrix4fv(inputs[MAT_MODEL_INV].loc, 1, GL_FALSE, values->mat_model_inv);
+	glUniformMatrix4fv(inputs[MAT_VIEW_INV].loc, 1, GL_FALSE, values->mat_view_inv);
 }

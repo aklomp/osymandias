@@ -24,6 +24,7 @@ paint (const struct camera *cam)
 	program_basemap_use(&((struct program_basemap) {
 		.mat_model_inv    = world_get_matrix_inverse(),
 		.mat_viewproj_inv = cam->matrix.inverse.viewproj,
+		.mat_view_inv     = cam->matrix.inverse.view,
 	}));
 
 	glBindVertexArray(vao);
