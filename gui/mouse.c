@@ -67,10 +67,10 @@ on_button_motion (GtkWidget *widget, GdkEventButton *event)
 	if (button_num == 3) {
 
 		if (dx != 0)
-			camera_rotate(dx * -0.005f);
+			camera_set_rotate(dx * -0.005f);
 
 		if (dy != 0)
-			camera_tilt(dy * 0.005f);
+			camera_set_tilt(dy * 0.005f);
 	}
 	framerate_repaint();
 	button_pressed_pos = pos;
@@ -114,11 +114,13 @@ on_scroll (GtkWidget* widget, GdkEventScroll *event)
 
 	if (event->direction == GDK_SCROLL_UP) {
 		world_zoom_in();
+		camera_zoom_in();
 		framerate_repaint();
 	}
 
 	if (event->direction == GDK_SCROLL_DOWN) {
 		world_zoom_out();
+		camera_zoom_out();
 		framerate_repaint();
 	}
 

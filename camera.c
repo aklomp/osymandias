@@ -27,6 +27,7 @@ matrix_view_update (void)
 	// Compose view matrix from individual matrices:
 	mat_multiply(cam.matrix.view, cam.matrix.tilt, cam.matrix.rotate);
 	mat_multiply(cam.matrix.view, cam.matrix.translate, cam.matrix.view);
+	mat_multiply(cam.matrix.view, cam.matrix.view, cam.matrix.radius);
 	mat_invert(cam.matrix.inverse.view, cam.matrix.view);
 
 	// This changes the view-projection matrix:
@@ -36,7 +37,7 @@ matrix_view_update (void)
 static void
 matrix_translate_update (void)
 {
-	mat_translate(cam.matrix.translate, 0.0f, 0.0f, -cam.zdist);
+	mat_translate(cam.matrix.translate, 0.0f, 0.0f, -cam.distance);
 	matrix_view_update();
 }
 
@@ -96,7 +97,7 @@ camera_unproject (union vec *p1, union vec *p2, const unsigned int x, const unsi
 }
 
 void
-camera_tilt (const float radians)
+camera_set_tilt (const float radians)
 {
 	cam.tilt += radians;
 
@@ -112,26 +113,53 @@ camera_tilt (const float radians)
 }
 
 void
-camera_rotate (const float radians)
+camera_set_rotate (const float radians)
 {
 	cam.rotate += radians;
 	matrix_rotate_update();
+}
+
+void
+camera_set_distance (const float distance)
+{
+	cam.distance  = distance;
+	cam.clip.near = distance / 2.0f;
+	matrix_translate_update();
+}
+
+void
+camera_zoom_in (void)
+{
+	camera_set_distance(exp2(-(++cam.zoom)));
+}
+
+void
+camera_zoom_out (void)
+{
+	camera_set_distance(exp2(-(--cam.zoom)));
 }
 
 bool
 camera_init (const struct viewport *vp)
 {
 	// Initial position in space:
-	cam.zdist = 0.5f;
+	cam.zoom = 0;
+	camera_set_distance(exp2(-cam.zoom));
 
 	// Initial attitude:
 	cam.tilt   = 0.0f;
 	cam.rotate = 0.0f;
 
 	// Clip planes:
-	cam.clip.near =   0.5f;
-	cam.clip.far  = 100.0f;
+	cam.clip.near = 0.5f;
+	cam.clip.far  = 1.5f;
 
+	// Initialize the static matrix that pushes the camera back from the
+	// world origin by one unit radius. The rest of the camera position is
+	// calculated from the resulting point:
+	mat_translate(cam.matrix.radius, 0.0f, 0.0f, -1.0f);
+
+	// Initialize other attitude matrices:
 	matrix_rotate_update();
 	matrix_tilt_update();
 	matrix_translate_update();

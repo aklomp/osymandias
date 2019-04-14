@@ -14,14 +14,17 @@ struct camera {
 	// Rotation along z axis, in radians:
 	float rotate;
 
-	// Fistance from camera to origin (camera height):
-	float zdist;
+	// Distance from camera to origin (camera height):
+	float distance;
 
 	// Horizontal view angle in radians:
 	float view_angle;
 
 	// Viewport aspect ratio:
 	float aspect_ratio;
+
+	// Zoom level:
+	int zoom;
 
 	struct {
 		float near;
@@ -32,6 +35,7 @@ struct camera {
 		float tilt[16];
 		float rotate[16];
 		float translate[16];
+		float radius[16];
 		float view[16];
 		float proj[16];
 		float viewproj[16];
@@ -46,6 +50,9 @@ extern const struct camera *camera_get (void);
 extern void camera_unproject (union vec *, union vec *, const unsigned int x, const unsigned int y, const struct viewport *vp);
 extern void camera_set_aspect_ratio (const struct viewport *vp);
 extern void camera_set_view_angle (const float radians);
-extern void camera_rotate (const float radians);
-extern void camera_tilt (const float radians);
+extern void camera_set_rotate (const float radians);
+extern void camera_set_tilt (const float radians);
+extern void camera_set_distance (const float distance);
+extern void camera_zoom_in (void);
+extern void camera_zoom_out (void);
 extern bool camera_init (const struct viewport *vp);
