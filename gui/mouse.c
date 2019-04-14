@@ -93,15 +93,11 @@ on_scroll (GtkWidget* widget, GdkEventScroll *event)
 {
 	(void) widget;
 
-	if (event->direction == GDK_SCROLL_UP) {
-		zoom_in();
-		framerate_repaint();
-	}
+	if (event->direction == GDK_SCROLL_UP)
+		zoom_in(evtime);
 
-	if (event->direction == GDK_SCROLL_DOWN) {
-		zoom_out();
-		framerate_repaint();
-	}
+	if (event->direction == GDK_SCROLL_DOWN)
+		zoom_out(evtime);
 
 	// Don't propagate further:
 	return TRUE;

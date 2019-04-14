@@ -1,4 +1,5 @@
 #include "../pan.h"
+#include "../zoom.h"
 #include "framerate.h"
 
 static bool repaint = true;
@@ -12,6 +13,7 @@ framerate_on_tick (GtkWidget *glarea)
 
 	// Feed timer tick to worlds, query repaint:
 	repaint |= pan_on_tick(now);
+	repaint |= zoom_on_tick(now);
 
 	// Quit timer loop if canvas no longer exists:
 	if (!glarea || !GTK_IS_WIDGET(glarea))

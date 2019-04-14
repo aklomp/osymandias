@@ -1,4 +1,8 @@
 #pragma once
 
-extern void zoom_out (void);
-extern void zoom_in  (void);
+#include <stdbool.h>
+#include <stdint.h>
+
+extern bool zoom_on_tick (const int64_t now);
+extern void zoom_out     (const int64_t now);
+extern void zoom_in      (const int64_t now);
