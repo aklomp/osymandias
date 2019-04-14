@@ -2,6 +2,7 @@
 #include "../pan.h"
 #include "../util.h"
 #include "../viewport.h"
+#include "../zoom.h"
 #include "framerate.h"
 #include "signal.h"
 
@@ -93,12 +94,12 @@ on_scroll (GtkWidget* widget, GdkEventScroll *event)
 	(void) widget;
 
 	if (event->direction == GDK_SCROLL_UP) {
-		camera_zoom_in();
+		zoom_in();
 		framerate_repaint();
 	}
 
 	if (event->direction == GDK_SCROLL_DOWN) {
-		camera_zoom_out();
+		zoom_out();
 		framerate_repaint();
 	}
 

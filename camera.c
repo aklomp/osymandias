@@ -127,28 +127,13 @@ camera_set_distance (const float distance)
 	matrix_translate_update();
 }
 
-void
-camera_zoom_in (void)
-{
-	camera_set_distance(exp2(-(++cam.zoom)));
-}
-
-void
-camera_zoom_out (void)
-{
-	camera_set_distance(exp2(-(--cam.zoom)));
-}
-
 bool
 camera_init (const struct viewport *vp)
 {
-	// Initial position in space:
-	cam.zoom = 0;
-	camera_set_distance(exp2(-cam.zoom));
-
 	// Initial attitude:
-	cam.tilt   = 0.0f;
-	cam.rotate = 0.0f;
+	cam.tilt     = 0.0f;
+	cam.rotate   = 0.0f;
+	cam.distance = 1.0f;
 
 	// Clip planes:
 	cam.clip.near = 0.5f;
