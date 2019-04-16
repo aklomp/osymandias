@@ -2,8 +2,49 @@
 
 #include "globe.h"
 #include "matrix.h"
+#include "vec.h"
 
 static struct globe globe;
+
+// Perform a line-sphere intersection between a unit sphere on the origin, and
+// a ray starting at `start', with direction `dir'. Theory here:
+//
+//   https://en.wikipedia.org/wiki/Line%E2%80%93sphere_intersection
+//
+static inline bool
+intersect (const union vec start, const union vec dir, float *lat, float *lon)
+{
+	// Distance of ray start to origin:
+	const float startdist = vec_length(start);
+
+	// Dot product of ray start with ray direction:
+	const float raydot = vec_dot(start, dir);
+
+	// The determinant under the square root:
+	const float det = (raydot * raydot) - (startdist * startdist) + 1.0f;
+
+	// If the determinant is negative, no intersection exists:
+	if (det < 0.0f)
+		return false;
+
+	// Get the time value to the nearest intersection point:
+	const float t = sqrtf(det) - raydot;
+
+	// Calculate the intersection point:
+	const union vec hit = vec_add(start, vec_mul(vec_1(t), dir));
+
+	// Convert intersection point into lat/lon:
+	*lat = asinf(hit.y);
+	*lon = atan2f(hit.x, hit.z);
+
+	return true;
+}
+
+bool
+globe_intersect (const union vec *start, const union vec *dir, float *lat, float *lon)
+{
+	return intersect(*start, vec_normalize(*dir), lat, lon);
+}
 
 const struct globe *
 globe_get (void)

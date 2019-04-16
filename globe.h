@@ -1,5 +1,9 @@
 #pragma once
 
+#include <stdbool.h>
+
+#include <vec/vec.h>
+
 struct globe {
 
 	// Cursor position in radians:
@@ -26,5 +30,6 @@ struct globe {
 };
 
 extern const struct globe *globe_get (void);
+extern bool globe_intersect (const union vec *start, const union vec *dir, float *lat, float *lon);
 extern void globe_moveto (const float lat, const float lon);
 extern void globe_init (void);
