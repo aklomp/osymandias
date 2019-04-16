@@ -8,18 +8,17 @@ struct viewport {
 	uint32_t width;
 };
 
-struct screen_pos {
-	uint32_t x;
-	uint32_t y;
+// The viewport position can be negative if an event happened outside of the
+// window, such as a held mousedown drag.
+struct viewport_pos {
+	int32_t x;
+	int32_t y;
 };
 
 extern void viewport_destroy (void);
-extern void viewport_zoom_in (const struct screen_pos *);
-extern void viewport_zoom_out (const struct screen_pos *);
-extern void viewport_scroll (const int dx, const int dy);
-extern void viewport_hold_start (const struct screen_pos *);
-extern void viewport_hold_move (const struct screen_pos *);
-extern void viewport_center_at (const struct screen_pos *);
+extern void viewport_hold_start (const struct viewport_pos *);
+extern void viewport_hold_move (const struct viewport_pos *);
+extern void viewport_center_at (const struct viewport_pos *);
 extern void viewport_resize (const uint32_t wd, const uint32_t ht);
 extern void viewport_gl_setup_world (void);
 extern void viewport_paint (void);

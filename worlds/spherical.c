@@ -3,6 +3,7 @@
 #include <math.h>
 #include <vec/vec.h>
 
+#include "../globe.h"
 #include "../matrix.h"
 #include "../worlds.h"
 #include "local.h"
@@ -75,6 +76,8 @@ move (const struct world_state *state)
 
 	// Update model matrix:
 	update_matrix_model();
+
+	globe_moveto(state->center.lat, state->center.lon);
 }
 
 static const float *
