@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include <math.h>
+
 #include <vec/vec.h>
 
 // Return square of input vector (a * a):
@@ -66,4 +68,20 @@ static inline union vec
 vec_shuffle (const union vec a, const int p0, const int p1, const int p2, const int p3)
 {
 	return vec(a.elem.f[p0], a.elem.f[p1], a.elem.f[p2], a.elem.f[p3]);
+}
+
+// Return length of a 3D vector:
+static inline float
+vec_length (const union vec a)
+{
+	const union vec squared = vec_square(a);
+
+	return sqrtf(squared.x + squared.y + squared.z);
+}
+
+// Return normalized 3D vector:
+static inline union vec
+vec_normalize (const union vec a)
+{
+	return vec_div(a, vec_1(vec_length(a)));
 }
