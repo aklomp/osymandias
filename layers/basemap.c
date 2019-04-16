@@ -6,7 +6,6 @@
 #include "../layers.h"
 #include "../programs.h"
 #include "../programs/basemap.h"
-#include "../worlds.h"
 
 static uint32_t vao, vbo;
 static const struct glutil_vertex vertex[4] = {
@@ -17,10 +16,10 @@ static const struct glutil_vertex vertex[4] = {
 };
 
 static void
-paint (const struct camera *cam)
+paint (const struct camera *cam, const struct globe *globe)
 {
 	program_basemap_use(&((struct program_basemap) {
-		.mat_model_inv    = world_get_matrix_inverse(),
+		.mat_model_inv    = globe->invert.model,
 		.mat_viewproj_inv = cam->matrix.inverse.viewproj,
 		.mat_view_inv     = cam->matrix.inverse.view,
 	}));

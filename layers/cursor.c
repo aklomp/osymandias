@@ -39,9 +39,10 @@ static struct glutil_texture tex = {
 static GLuint vao, vbo;
 
 static void
-paint (const struct camera *cam)
+paint (const struct camera *cam, const struct globe *globe)
 {
 	(void) cam;
+	(void) globe;
 
 	// Viewport is screen:
 	glViewport(0, 0, screen.width, screen.height);

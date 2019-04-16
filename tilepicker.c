@@ -4,12 +4,12 @@
 #include <GL/gl.h>
 
 #include "camera.h"
+#include "globe.h"
 #include "glutil.h"
 #include "programs.h"
 #include "programs/tilepicker.h"
 #include "tilepicker.h"
 #include "util.h"
-#include "worlds.h"
 
 #define	IMGSIZE	64
 
@@ -89,7 +89,7 @@ render (void)
 	// Use the tilepicker program:
 	program_tilepicker_use(&((struct program_tilepicker) {
 		.mat_viewproj_inv = camera_get()->matrix.inverse.viewproj,
-		.mat_model_inv    = world_get_matrix_inverse(),
+		.mat_model_inv    = globe_get()->invert.model,
 		.mat_view_inv     = camera_get()->matrix.inverse.view,
 	}));
 

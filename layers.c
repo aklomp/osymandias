@@ -13,11 +13,11 @@ static const struct layer *list_end   = (const void *) &layers_list_end;
 	for (const struct layer *layer = list_start; layer < list_end; layer++)
 
 void
-layers_paint (const struct camera *cam)
+layers_paint (const struct camera *cam, const struct globe *globe)
 {
 	FOREACH_LAYER
 		if (layer->paint)
-			layer->paint(cam);
+			layer->paint(cam, globe);
 }
 
 void

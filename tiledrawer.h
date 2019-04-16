@@ -4,6 +4,7 @@
 
 #include "cache.h"
 #include "camera.h"
+#include "globe.h"
 
 struct tiledrawer {
 	const struct cache_node *tile;
@@ -11,4 +12,4 @@ struct tiledrawer {
 };
 
 extern void tiledrawer       (const struct tiledrawer *);
-extern void tiledrawer_start (const struct camera *);
+extern void tiledrawer_start (const struct camera *, const struct globe *);
