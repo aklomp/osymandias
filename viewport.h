@@ -16,6 +16,7 @@ struct viewport_pos {
 };
 
 extern void viewport_destroy (void);
+extern bool viewport_unproject (const struct viewport_pos *p, float *lat, float *lon);
 extern void viewport_hold_start (const struct viewport_pos *);
 extern void viewport_hold_move (const struct viewport_pos *);
 extern void viewport_center_at (const struct viewport_pos *);

@@ -24,8 +24,8 @@ viewport_destroy (void)
 	worlds_destroy();
 }
 
-static bool
-screen_to_world (const struct viewport_pos *pos, float *lat, float *lon)
+bool
+viewport_unproject (const struct viewport_pos *pos, float *lat, float *lon)
 {
 	const struct globe *globe = globe_get();
 	union vec p1, p2;
@@ -56,7 +56,7 @@ screen_to_world (const struct viewport_pos *pos, float *lat, float *lon)
 void
 viewport_hold_start (const struct viewport_pos *pos)
 {
-	screen_to_world(pos, &hold_lat, &hold_lon);
+	viewport_unproject(pos, &hold_lat, &hold_lon);
 }
 
 void
@@ -65,7 +65,7 @@ viewport_hold_move (const struct viewport_pos *pos)
 	float lat, lon;
 	const struct globe *globe = globe_get();
 
-	if (screen_to_world(pos, &lat, &lon))
+	if (viewport_unproject(pos, &lat, &lon))
 		world_moveto_latlon(globe->lat + (hold_lat - lat), globe->lon + (hold_lon - lon));
 }
 
@@ -74,7 +74,7 @@ viewport_center_at (const struct viewport_pos *pos)
 {
 	float lat, lon;
 
-	if (screen_to_world(pos, &lat, &lon))
+	if (viewport_unproject(pos, &lat, &lon))
 		world_moveto_latlon(lat, lon);
 }
 
