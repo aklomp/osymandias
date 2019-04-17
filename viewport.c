@@ -10,9 +10,6 @@
 #include "programs.h"
 #include "viewport.h"
 
-// Mouse hold/drag at this world coordinate:
-static float hold_lat, hold_lon;
-
 // Screen dimensions:
 static struct viewport vp;
 
@@ -54,28 +51,12 @@ viewport_unproject (const struct viewport_pos *pos, float *lat, float *lon)
 }
 
 void
-viewport_hold_start (const struct viewport_pos *pos)
-{
-	viewport_unproject(pos, &hold_lat, &hold_lon);
-}
-
-void
-viewport_hold_move (const struct viewport_pos *pos)
-{
-	float lat, lon;
-	const struct globe *globe = globe_get();
-
-	if (viewport_unproject(pos, &lat, &lon))
-		world_moveto_latlon(globe->lat + (hold_lat - lat), globe->lon + (hold_lon - lon));
-}
-
-void
 viewport_center_at (const struct viewport_pos *pos)
 {
 	float lat, lon;
 
 	if (viewport_unproject(pos, &lat, &lon))
-		world_moveto_latlon(lat, lon);
+		globe_moveto(lat, lon);
 }
 
 void

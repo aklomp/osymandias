@@ -1,4 +1,5 @@
 #include "../camera.h"
+#include "../pan.h"
 #include "../util.h"
 #include "../viewport.h"
 #include "../worlds.h"
@@ -38,7 +39,7 @@ on_button_press (GtkWidget *widget, GdkEventButton *event)
 	button_num = event->button;
 
 	if (button_num == 1)
-		viewport_hold_start(&pos);
+		pan_on_button_down(&pos);
 
 	// Does the press of this button cause the autoscroll to halt?
 	click_halted_autoscroll = world_autoscroll_stop();
@@ -61,8 +62,9 @@ on_button_motion (GtkWidget *widget, GdkEventButton *event)
 	// Left mouse button:
 	if (button_num == 1) {
 		world_autoscroll_measure_hold(evtime);
-		viewport_hold_move(&pos);
+		pan_on_button_move(&pos);
 	}
+
 	// Right mouse button:
 	if (button_num == 3) {
 

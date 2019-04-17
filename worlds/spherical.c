@@ -1,7 +1,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "../globe.h"
 #include "../worlds.h"
 #include "local.h"
 #include "autoscroll.h"
@@ -25,7 +24,7 @@ center_restrict_latlon (struct world_state *state)
 static void
 move (const struct world_state *state)
 {
-	globe_moveto(state->center.lat, state->center.lon);
+	(void) state;
 }
 
 static bool
