@@ -51,15 +51,6 @@ viewport_unproject (const struct viewport_pos *pos, float *lat, float *lon)
 }
 
 void
-viewport_center_at (const struct viewport_pos *pos)
-{
-	float lat, lon;
-
-	if (viewport_unproject(pos, &lat, &lon))
-		globe_moveto(lat, lon);
-}
-
-void
 viewport_paint (void)
 {
 	// Clear the depth buffer:

@@ -1,4 +1,4 @@
-#include "../worlds.h"
+#include "../pan.h"
 #include "framerate.h"
 
 static bool repaint = true;
@@ -11,7 +11,7 @@ framerate_on_tick (GtkWidget *glarea)
 	gint64 now = g_get_monotonic_time();
 
 	// Feed timer tick to worlds, query repaint:
-	repaint |= world_timer_tick(now);
+	repaint |= pan_on_tick(now);
 
 	// Quit timer loop if canvas no longer exists:
 	if (!glarea || !GTK_IS_WIDGET(glarea))
