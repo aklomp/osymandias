@@ -2,7 +2,6 @@
 #include <GL/glu.h>
 
 #include "globe.h"
-#include "worlds.h"
 #include "camera.h"
 #include "tilepicker.h"
 #include "layers.h"
@@ -18,7 +17,6 @@ viewport_destroy (void)
 {
 	layers_destroy();
 	programs_destroy();
-	worlds_destroy();
 }
 
 bool
@@ -98,9 +96,6 @@ viewport_init (const uint32_t width, const uint32_t height)
 {
 	vp.width  = width;
 	vp.height = height;
-
-	if (!worlds_init(0, 0.0f, 0.0f))
-		return false;
 
 	if (!programs_init())
 		return false;

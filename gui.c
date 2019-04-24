@@ -3,7 +3,6 @@
 
 #include "gui.h"
 #include "util.h"
-#include "worlds.h"
 #include "gui/framerate.h"
 #include "gui/local.h"
 #include "gui/signal.h"

@@ -2,7 +2,6 @@
 #include "tiledrawer.h"
 #include "programs.h"
 #include "programs/spherical.h"
-#include "worlds.h"
 
 void
 tiledrawer (const struct tiledrawer *td)
