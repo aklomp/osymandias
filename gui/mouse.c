@@ -5,6 +5,9 @@
 #include "framerate.h"
 #include "signal.h"
 
+#define BUTTON_LEFT	1
+#define BUTTON_RIGHT	3
+
 static int button_pressed = false;
 static struct viewport_pos button_pressed_pos;
 static int button_num;
@@ -34,7 +37,7 @@ on_button_press (GtkWidget *widget, GdkEventButton *event)
 	button_pressed_pos = pos;
 	button_num = event->button;
 
-	if (button_num == 1)
+	if (button_num == BUTTON_LEFT)
 		pan_on_button_down(&pos, evtime);
 
 	// Don't propagate further:
@@ -46,23 +49,22 @@ on_button_motion (GtkWidget *widget, GdkEventButton *event)
 {
 	event_get_pos;
 
-	int dx = pos.x - button_pressed_pos.x;
-	int dy = pos.y - button_pressed_pos.y;
+	if (button_num == BUTTON_LEFT)
+		if (pan_on_button_move(&pos, evtime))
+			framerate_repaint();
 
-	// Left mouse button:
-	if (button_num == 1)
-		pan_on_button_move(&pos, evtime);
-
-	// Right mouse button:
-	if (button_num == 3) {
+	if (button_num == BUTTON_RIGHT) {
+		const int dx = pos.x - button_pressed_pos.x;
+		const int dy = pos.y - button_pressed_pos.y;
 
 		if (dx != 0)
 			camera_set_rotate(dx * -0.005f);
 
 		if (dy != 0)
 			camera_set_tilt(dy * 0.005f);
+
+		framerate_repaint();
 	}
-	framerate_repaint();
 	button_pressed_pos = pos;
 
 	// Don't propagate further:
@@ -78,8 +80,9 @@ on_button_release (GtkWidget *widget, GdkEventButton *event)
 	button_pressed = false;
 	event_get_pos;
 
-	pan_on_button_up(&pos, evtime);
-	framerate_repaint();
+	if (event->button == BUTTON_LEFT)
+		if (pan_on_button_up(&pos, evtime))
+			framerate_repaint();
 
 	// Don't propagate further:
 	return TRUE;

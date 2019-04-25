@@ -134,7 +134,7 @@ move_cursor (const struct globe *globe, const struct viewport_pos *pos)
 	return true;
 }
 
-void
+bool
 pan_on_button_move (const struct viewport_pos *pos, const int64_t now)
 {
 	for (;;) {
@@ -151,34 +151,38 @@ pan_on_button_move (const struct viewport_pos *pos, const int64_t now)
 
 			if (move_cursor(globe, pos) == false) {
 				state.state = STATE_IDLE;
-				return;
+				return false;
 			}
 
 			push_cursor(globe, now);
 			sum_relative_speeds();
-			return;
+			return true;
 		}
 
 		default:
 
 			// Other states shouldn't be reachable, they should go
 			// through the down state first:
-			return;
+			return false;
 		}
 	}
 }
 
-void
+bool
 pan_on_button_up (const struct viewport_pos *pos, const int64_t now)
 {
+	bool repaint = false;
+
 	(void) pos;
 
 	switch (state.state) {
 	case STATE_DOWN:
 
 		// Mouse went down, then up: it's a click:
-		if ((now - state.down.now) < CLICK_MAX_DURATION_USEC)
+		if ((now - state.down.now) < CLICK_MAX_DURATION_USEC) {
 			globe_moveto(state.down.lat, state.down.lon);
+			repaint = true;
+		}
 
 		state.state = STATE_IDLE;
 		break;
@@ -203,6 +207,8 @@ pan_on_button_up (const struct viewport_pos *pos, const int64_t now)
 	default:
 		break;
 	}
+
+	return repaint;
 }
 
 bool
