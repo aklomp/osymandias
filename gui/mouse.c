@@ -7,7 +7,7 @@
 
 static int button_dragged = false;
 static int button_pressed = false;
-static struct screen_pos button_pressed_pos;
+static struct viewport_pos button_pressed_pos;
 static int button_num;
 static int click_halted_autoscroll = 0;
 
@@ -15,7 +15,7 @@ static int click_halted_autoscroll = 0;
 // Use a macro and not an inline function because the basic GdkEvent
 // does not have x and y members:
 #define event_get_pos							\
-	struct screen_pos pos;						\
+	struct viewport_pos pos;					\
 	do {								\
 		GtkAllocation allocation;				\
 									\

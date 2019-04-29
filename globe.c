@@ -1,0 +1,90 @@
+#include <math.h>
+
+#include "globe.h"
+#include "matrix.h"
+#include "vec.h"
+
+static struct globe globe;
+
+// Perform a line-sphere intersection between a unit sphere on the origin, and
+// a ray starting at `start', with direction `dir'. Theory here:
+//
+//   https://en.wikipedia.org/wiki/Line%E2%80%93sphere_intersection
+//
+static inline bool
+intersect (const union vec start, const union vec dir, float *lat, float *lon)
+{
+	// Distance of ray start to origin:
+	const float startdist = vec_length(start);
+
+	// Dot product of ray start with ray direction:
+	const float raydot = vec_dot(start, dir);
+
+	// The determinant under the square root:
+	const float det = (raydot * raydot) - (startdist * startdist) + 1.0f;
+
+	// If the determinant is negative, no intersection exists:
+	if (det < 0.0f)
+		return false;
+
+	// Get the time value to the nearest intersection point:
+	const float t = sqrtf(det) - raydot;
+
+	// Calculate the intersection point:
+	const union vec hit = vec_add(start, vec_mul(vec_1(t), dir));
+
+	// Convert intersection point into lat/lon:
+	*lat = asinf(hit.y);
+	*lon = atan2f(hit.x, hit.z);
+
+	return true;
+}
+
+bool
+globe_intersect (const union vec *start, const union vec *dir, float *lat, float *lon)
+{
+	return intersect(*start, vec_normalize(*dir), lat, lon);
+}
+
+const struct globe *
+globe_get (void)
+{
+	return &globe;
+}
+
+void
+globe_moveto (const float lat, const float lon)
+{
+	globe.lat = lat;
+	globe.lon = lon;
+
+	if (lat < -M_PI_2)
+		globe.lat = -M_PI_2;
+
+	if (lat > M_PI_2)
+		globe.lat = M_PI_2;
+
+	if (lon < -M_PI)
+		globe.lon += 2.0 * M_PI;
+
+	if (lon > M_PI)
+		globe.lon -= 2.0 * M_PI;
+
+	// Longitudinal rotation matrix:
+	mat_rotate(globe.matrix.rotate.lon, 0.0f, 1.0f, 0.0f,  globe.lon);
+	mat_rotate(globe.invert.rotate.lon, 0.0f, 1.0f, 0.0f, -globe.lon);
+
+	// Latitudinal rotation matrix:
+	mat_rotate(globe.matrix.rotate.lat, -1.0f, 0.0f, 0.0f,  globe.lat);
+	mat_rotate(globe.invert.rotate.lat, -1.0f, 0.0f, 0.0f, -globe.lat);
+
+	// Combined model matrix and its inverse:
+	mat_multiply(globe.matrix.model, globe.matrix.rotate.lat, globe.matrix.rotate.lon);
+	mat_multiply(globe.invert.model, globe.invert.rotate.lon, globe.invert.rotate.lat);
+}
+
+void
+globe_init (void)
+{
+	globe_moveto(0.0f, 0.0f);
+}

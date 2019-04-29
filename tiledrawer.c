@@ -48,7 +48,7 @@ tiledrawer (const struct tiledrawer *td)
 }
 
 void
-tiledrawer_start (const struct camera *cam)
+tiledrawer_start (const struct camera *cam, const struct globe *globe)
 {
 	static GLuint vao;
 	static bool init = false;
@@ -65,12 +65,8 @@ tiledrawer_start (const struct camera *cam)
 		program_spherical_loc(LOC_SPHERICAL_VERTEX),
 		program_spherical_loc(LOC_SPHERICAL_TEXTURE));
 
-	program_spherical_loc(LOC_SPHERICAL_VERTEX),
-	program_spherical_loc(LOC_SPHERICAL_TEXTURE);
-
 	program_spherical_use(&((struct program_spherical) {
 		.mat_viewproj = cam->matrix.viewproj,
-		.mat_model    = world_get_matrix(),
-		.tile_zoom    = 0,
+		.mat_model    = globe->matrix.model,
 	}));
 }

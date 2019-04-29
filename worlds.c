@@ -37,18 +37,6 @@ world_get_size (void)
 	return state.size;
 }
 
-const float *
-world_get_matrix (void)
-{
-	return world->matrix();
-}
-
-const float *
-world_get_matrix_inverse (void)
-{
-	return world->matrix_inverse();
-}
-
 static inline void
 coords_zoom_in (struct coords *coords)
 {
@@ -137,25 +125,6 @@ world_moveto_latlon (const float lat, const float lon)
 
 	// Move:
 	world->move(&state);
-}
-
-void
-world_project_tile (union vec *vertex, const float x, const float y)
-{
-	float lat, lon;
-
-	// Convert to lat/lon:
-	world_tile_to_latlon(&lat, &lon, x, y);
-
-	// Project:
-	world->project(&state, vertex, lat, lon);
-}
-
-void
-world_project_latlon (union vec *vertex, const float lat, const float lon)
-{
-	// Project:
-	world->project(&state, vertex, lat, lon);
 }
 
 const struct coords *

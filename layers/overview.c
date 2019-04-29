@@ -4,7 +4,6 @@
 #include <GL/gl.h>
 
 #include "../matrix.h"
-#include "../worlds.h"
 #include "../viewport.h"
 #include "../layers.h"
 #include "../tilepicker.h"
@@ -208,7 +207,7 @@ paint_tiles (void)
 }
 
 static void
-paint (const struct camera *cam)
+paint (const struct camera *cam, const struct globe *globe)
 {
 	if (state.visible == false)
 		return;
@@ -235,9 +234,9 @@ paint (const struct camera *cam)
 	program_frustum_use(&((struct program_frustum) {
 		.mat_proj      = matrix.proj,
 		.mat_viewproj  = cam->matrix.viewproj,
-		.mat_model     = world_get_matrix(),
 		.mat_view_inv  = cam->matrix.inverse.view,
-		.mat_model_inv = world_get_matrix_inverse(),
+		.mat_model     = globe->matrix.model,
+		.mat_model_inv = globe->invert.model,
 	}));
 
 	paint_background(*state.frustum.vao);

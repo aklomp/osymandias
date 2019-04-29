@@ -56,9 +56,10 @@ texcoords (const struct viewport *vp)
 }
 
 static void
-paint (const struct camera *cam)
+paint (const struct camera *cam, const struct globe *globe)
 {
 	(void) cam;
+	(void) globe;
 
 	// Use the background program:
 	program_bkgd_use();

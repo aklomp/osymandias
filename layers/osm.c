@@ -63,13 +63,13 @@ find_texture (const struct cache_node *in, struct cache_node *out)
 }
 
 static void
-paint (const struct camera *cam)
+paint (const struct camera *cam, const struct globe *globe)
 {
 	// Draw to world coordinates:
 	viewport_gl_setup_world();
 
 	// Load tiledrawer programs:
-	tiledrawer_start(cam);
+	tiledrawer_start(cam, globe);
 
 	for (const struct tilepicker *tile = tilepicker_first(); tile; tile = tilepicker_next()) {
 
