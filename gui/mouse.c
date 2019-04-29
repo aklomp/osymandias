@@ -81,8 +81,7 @@ on_button_release (GtkWidget *widget, GdkEventButton *event)
 	event_get_pos;
 
 	if (event->button == BUTTON_LEFT)
-		if (pan_on_button_up(&pos, evtime))
-			framerate_repaint();
+		pan_on_button_up(&pos, evtime);
 
 	// Don't propagate further:
 	return TRUE;

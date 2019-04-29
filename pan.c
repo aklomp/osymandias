@@ -13,6 +13,7 @@ enum state {
 	STATE_DOWN_NOCLICK,
 	STATE_DRAG,
 	STATE_PAN,
+	STATE_MOVETO,
 };
 
 struct mark {
@@ -37,6 +38,11 @@ static struct {
 		int64_t start;
 		int64_t last;
 	} pan;
+	struct {
+		int64_t start;
+		float lat;
+		float lon;
+	} moveto;
 	enum state state;
 } state;
 
@@ -83,6 +89,7 @@ pan_on_button_down (const struct viewport_pos *pos, const int64_t now)
 			state.speed.lat = 0.0f;
 			return;
 
+		case STATE_MOVETO:
 		case STATE_PAN:
 
 			// The mousedown stopped the pan, and should not be
@@ -168,23 +175,24 @@ pan_on_button_move (const struct viewport_pos *pos, const int64_t now)
 	}
 }
 
-bool
+void
 pan_on_button_up (const struct viewport_pos *pos, const int64_t now)
 {
-	bool repaint = false;
-
 	(void) pos;
 
 	switch (state.state) {
 	case STATE_DOWN:
 
 		// Mouse went down, then up: it's a click:
-		if ((now - state.down.now) < CLICK_MAX_DURATION_USEC) {
-			globe_moveto(state.down.lat, state.down.lon);
-			repaint = true;
+		if ((now - state.down.now) > CLICK_MAX_DURATION_USEC) {
+			state.state = STATE_IDLE;
+			break;
 		}
 
-		state.state = STATE_IDLE;
+		state.state        = STATE_MOVETO;
+		state.moveto.lat   = state.down.lat;
+		state.moveto.lon   = state.down.lon;
+		state.moveto.start = now;
 		break;
 
 	case STATE_DOWN_NOCLICK:
@@ -207,28 +215,63 @@ pan_on_button_up (const struct viewport_pos *pos, const int64_t now)
 	default:
 		break;
 	}
-
-	return repaint;
 }
 
 bool
 pan_on_tick (const int64_t now)
 {
-	if (state.state != STATE_PAN)
+	switch (state.state) {
+	case STATE_PAN: {
+		const struct camera *cam = camera_get();
+		const struct globe *globe = globe_get();
+
+		// Easing factor: start fast, end slow:
+		const float ease = sqrtf((now - state.pan.start) / 1e5f);
+
+		const float dt  = now - state.pan.last;
+		const float lat = globe->lat + state.speed.lat * dt * cam->distance / ease;
+		const float lon = globe->lon + state.speed.lon * dt * cam->distance / ease;
+
+		globe_moveto(lat, lon);
+
+		state.pan.last = now;
+		return true;
+	}
+
+	case STATE_MOVETO: {
+
+		// Time since start in seconds:
+		const float dt = (now - state.moveto.start) / 1e6f;
+
+		// Leave this state after a set time:
+		if (dt >= 0.5f) {
+			globe_moveto(state.moveto.lat, state.moveto.lon);
+			state.state = STATE_IDLE;
+			return true;
+		}
+
+		const struct globe *globe = globe_get();
+
+		// Distance left to cover:
+		float dlat = state.moveto.lat - globe->lat;
+		float dlon = state.moveto.lon - globe->lon;
+
+		// Ensure longitude takes the short way round:
+		if (dlon > M_PI)
+			dlon -= 2.0 * M_PI;
+
+		if (dlon < -M_PI)
+			dlon += 2.0 * M_PI;
+
+		// The speed is 1:1 proportional to remaining distance:
+		const float lat = globe->lat + dlat * dt;
+		const float lon = globe->lon + dlon * dt;
+
+		globe_moveto(lat, lon);
+		return true;
+	}
+
+	default:
 		return false;
-
-	const struct camera *cam = camera_get();
-	const struct globe *globe = globe_get();
-
-	// Easing factor: start fast, end slow:
-	const float ease = sqrtf((now - state.pan.start) / 1e5f);
-
-	const float dt  = now - state.pan.last;
-	const float lat = globe->lat + state.speed.lat * dt * cam->distance / ease;
-	const float lon = globe->lon + state.speed.lon * dt * cam->distance / ease;
-
-	globe_moveto(lat, lon);
-
-	state.pan.last = now;
-	return true;
+	}
 }
