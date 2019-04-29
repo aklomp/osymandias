@@ -2,16 +2,12 @@
 #include <GL/glu.h>
 
 #include "globe.h"
-#include "worlds.h"
 #include "camera.h"
 #include "tilepicker.h"
 #include "layers.h"
 #include "matrix.h"
 #include "programs.h"
 #include "viewport.h"
-
-// Mouse hold/drag at this world coordinate:
-static float hold_lat, hold_lon;
 
 // Screen dimensions:
 static struct viewport vp;
@@ -21,11 +17,10 @@ viewport_destroy (void)
 {
 	layers_destroy();
 	programs_destroy();
-	worlds_destroy();
 }
 
-static bool
-screen_to_world (const struct viewport_pos *pos, float *lat, float *lon)
+bool
+viewport_unproject (const struct viewport_pos *pos, float *lat, float *lon)
 {
 	const struct globe *globe = globe_get();
 	union vec p1, p2;
@@ -51,31 +46,6 @@ screen_to_world (const struct viewport_pos *pos, float *lat, float *lon)
 
 	// Intersect these two points with the globe:
 	return globe_intersect(&p1, &dir, lat, lon);
-}
-
-void
-viewport_hold_start (const struct viewport_pos *pos)
-{
-	screen_to_world(pos, &hold_lat, &hold_lon);
-}
-
-void
-viewport_hold_move (const struct viewport_pos *pos)
-{
-	float lat, lon;
-	const struct globe *globe = globe_get();
-
-	if (screen_to_world(pos, &lat, &lon))
-		world_moveto_latlon(globe->lat + (hold_lat - lat), globe->lon + (hold_lon - lon));
-}
-
-void
-viewport_center_at (const struct viewport_pos *pos)
-{
-	float lat, lon;
-
-	if (screen_to_world(pos, &lat, &lon))
-		world_moveto_latlon(lat, lon);
 }
 
 void
@@ -126,9 +96,6 @@ viewport_init (const uint32_t width, const uint32_t height)
 {
 	vp.width  = width;
 	vp.height = height;
-
-	if (!worlds_init(0, 0.0f, 0.0f))
-		return false;
 
 	if (!programs_init())
 		return false;
