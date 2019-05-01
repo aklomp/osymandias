@@ -24,7 +24,7 @@ const float half_pi = 1.570796326794896619231321691639751442;
 vec4 sphere_coord (vec2 tile)
 {
 	// x to longitude is straightforward:
-	float lon = tile.x * half_pi * exp2(2 - tile_zoom) - pi;
+	float lon = tile.x * half_pi * exp2(2 - tile_zoom);
 
 	// Precalculate the y in gd(y):
 	float gy = pi - tile.y * half_pi * exp2(2 - tile_zoom);
@@ -33,9 +33,9 @@ vec4 sphere_coord (vec2 tile)
 	// division of x, y and z by cosh(gy) by setting w to cosh(gy) and
 	// making OpenGL do the work in the perspective division:
 	return vec4(
-		sin(lon),
+		sin(-lon),
 		sinh(gy),
-		cos(lon),
+		-cos(lon),
 		cosh(gy)
 	);
 }
