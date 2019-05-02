@@ -53,6 +53,4 @@ extern void camera_set_view_angle (const float radians);
 extern void camera_set_rotate (const float radians);
 extern void camera_set_tilt (const float radians);
 extern void camera_set_distance (const float distance);
-extern void camera_zoom_in (void);
-extern void camera_zoom_out (void);
 extern bool camera_init (const struct viewport *vp);
