@@ -80,7 +80,7 @@ void
 viewport_gl_setup_world (void)
 {
 	// FIXME: only do this when moved?
-	tilepicker_recalc();
+	tilepicker_recalc(&vp, camera_get());
 
 	glDisable(GL_BLEND);
 }

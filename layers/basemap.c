@@ -22,6 +22,8 @@ paint (const struct camera *cam, const struct globe *globe)
 		.mat_model_inv    = globe->invert.model,
 		.mat_viewproj_inv = cam->matrix.inverse.viewproj,
 		.mat_view_inv     = cam->matrix.inverse.view,
+		.vp_angle         = cam->view_angle,
+		.vp_width         = viewport_get()->width,
 	}));
 
 	glBindVertexArray(vao);

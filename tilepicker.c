@@ -84,13 +84,15 @@ init (void)
 }
 
 static void
-render (void)
+render (const struct viewport *vp, const struct camera *cam)
 {
 	// Use the tilepicker program:
 	program_tilepicker_use(&((struct program_tilepicker) {
-		.mat_viewproj_inv = camera_get()->matrix.inverse.viewproj,
+		.mat_viewproj_inv = cam->matrix.inverse.viewproj,
 		.mat_model_inv    = globe_get()->invert.model,
-		.mat_view_inv     = camera_get()->matrix.inverse.view,
+		.mat_view_inv     = cam->matrix.inverse.view,
+		.vp_angle         = cam->view_angle,
+		.vp_width         = vp->width,
 	}));
 
 	// Use framebuffer object:
@@ -149,7 +151,7 @@ populate_buckets (void)
 }
 
 void
-tilepicker_recalc (void)
+tilepicker_recalc (const struct viewport *vp, const struct camera *cam)
 {
 	static bool init_done = false;
 
@@ -160,7 +162,7 @@ tilepicker_recalc (void)
 	}
 
 	// Render tile zoom info to buffer:
-	render();
+	render(vp, cam);
 
 	// Populate buckets:
 	populate_buckets();

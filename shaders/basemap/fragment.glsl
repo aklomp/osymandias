@@ -2,6 +2,8 @@
 
 flat          in vec3 cam;
 noperspective in vec3 p;
+smooth        in float frag_look_angle;
+flat          in float frag_arc_angle;
 
 out vec4 fragcolor;
 
@@ -66,12 +68,19 @@ int zoomlevel (float dist, float lat)
 	// strength of the attenuation as latitude increases:
 	float latdilute = 1.0 - abs(lat) / 12.0;
 
-	// Get zoomlevel based on the distance to the camera. The zoom level is
-	// inversely proportional to the square of the distance. The smaller
-	// the distance, the greater the zoom level. Take the exponent of the
-	// distance and flip the sign. Subtract from a constant to tune for the
-	// camera view angle and distance at zoom level zero:
-	int zoom = int((6 - log2(dist)) * latdilute);
+	// Calculate the parallel (facing the camera) "ground length" swept by
+	// one window pixel at the given distance. This is a measure of the
+	// level of world detail that the pixel should display. This metric
+	// takes into account the camera's distance (for basic zoom level), the
+	// viewport width, and the viewing angle (for level of detail):
+	float dx = dist * tan(frag_arc_angle) / cos(frag_look_angle);
+
+	// Get zoomlevel based on the distance to the camera and the size of a
+	// tile pixel under the current viewing angle. The zoom level is
+	// inversely proportional to the square of the distance, and has a
+	// logarithmic relationship to tile zoom levels. A fudge constant is
+	// added to balance the level of detail against tile dimensions:
+	int zoom = int((-log2(dx) - 4.5) * latdilute);
 
 	return clamp(zoom, zoom_min, zoom_max);
 }
