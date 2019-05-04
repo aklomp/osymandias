@@ -7,9 +7,11 @@
 struct cache;
 
 // Union of data types that can be stored in the cache.
-union cache_data {
-	void    *ptr;
-	uint32_t u32;
+struct cache_data {
+	union {
+		void    *ptr;
+		uint32_t u32;
+	};
 };
 
 struct cache_config {
@@ -18,7 +20,7 @@ struct cache_config {
 	size_t capacity;
 
 	// Callback function to call when an element is purged.
-	void (* destroy) (union cache_data *);
+	void (* destroy) (struct cache_data *);
 };
 
 struct cache_node {
@@ -42,11 +44,11 @@ static inline bool cache_node_up (struct cache_node *n)
 // Insert opaque data into the cache at a given level. If a node exists for the
 // location, it is reused. If the insertion would exceed the cache capacity,
 // the least active cache node is purged first to make space for the insertion.
-extern void cache_insert (struct cache *cache, const struct cache_node *loc, union cache_data *data);
+extern void cache_insert (struct cache *cache, const struct cache_node *loc, struct cache_data *data);
 
 // Retrieve data from the cache at a given level. The function returns data at
 // this zoom level or lower. The #out member describes the returned node.
-extern union cache_data *cache_search (struct cache *cache, const struct cache_node *in, struct cache_node *out);
+extern struct cache_data *cache_search (struct cache *cache, const struct cache_node *in, struct cache_node *out);
 
 // Cache creation/destruction.
 extern void cache_destroy (struct cache *cache);

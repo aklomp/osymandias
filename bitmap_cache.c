@@ -25,14 +25,14 @@ process (void *data)
 		return;
 
 	pthread_mutex_lock(&mutex);
-	cache_insert(cache, req, &((union cache_data) { .ptr = rawbits }));
+	cache_insert(cache, req, &(struct cache_data) { .ptr = rawbits });
 	pthread_mutex_unlock(&mutex);
 
 	framerate_repaint();
 }
 
 static void
-destroy (union cache_data *data)
+destroy (struct cache_data *data)
 {
 	free(data->ptr);
 }
@@ -48,13 +48,13 @@ procure (const struct cache_node *loc)
 	// there is already a lookup in progress for this node. The node will
 	// be overwritten by the thread when it is done. Until then, it acts as
 	// a "tombstone", preventing multiple requeues of the same job:
-	cache_insert(cache, loc, &((union cache_data) { .ptr = NULL }));
+	cache_insert(cache, loc, &(struct cache_data) { .ptr = NULL });
 }
 
 void *
 bitmap_cache_search (const struct cache_node *in, struct cache_node *out)
 {
-	union cache_data *data = cache_search(cache, in, out);
+	struct cache_data *data = cache_search(cache, in, out);
 
 	// Return successfully if valid data was found at the requested level:
 	if (data != NULL && data->ptr != NULL && in->zoom == out->zoom)

@@ -9,7 +9,7 @@
 
 // One node in a given zoom level.
 struct node {
-	union cache_data data;
+	struct cache_data data;
 	uint32_t x;
 	uint32_t y;
 	uint32_t atime;
@@ -23,7 +23,7 @@ struct level {
 
 // Cache descriptor.
 struct cache {
-	void (* destroy) (union cache_data *);
+	void (* destroy) (struct cache_data *);
 	uint32_t used;
 	uint32_t capacity;
 	uint32_t counter;
@@ -128,7 +128,7 @@ purge_stalest (struct cache *c)
 }
 
 // Search for a matching node at given zoom level or lower.
-union cache_data *
+struct cache_data *
 cache_search (struct cache *c, const struct cache_node *in, struct cache_node *out)
 {
 	struct node *node;
@@ -142,7 +142,7 @@ cache_search (struct cache *c, const struct cache_node *in, struct cache_node *o
 
 // Replace the data in an existing node.
 static bool
-replace (struct cache *c, const struct cache_node *loc, union cache_data *data)
+replace (struct cache *c, const struct cache_node *loc, struct cache_data *data)
 {
 	struct node *n;
 
@@ -156,7 +156,7 @@ replace (struct cache *c, const struct cache_node *loc, union cache_data *data)
 }
 
 void
-cache_insert (struct cache *c, const struct cache_node *loc, union cache_data *data)
+cache_insert (struct cache *c, const struct cache_node *loc, struct cache_data *data)
 {
 	// Run basic sanity checks on the given location:
 	if (valid(loc) == false) {

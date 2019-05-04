@@ -7,7 +7,7 @@
 static struct cache *cache = NULL;
 
 static void
-destroy (union cache_data *data)
+destroy (struct cache_data *data)
 {
 	glDeleteTextures(1, &data->u32);
 }
@@ -15,7 +15,7 @@ destroy (union cache_data *data)
 uint32_t
 texture_cache_search (const struct cache_node *in, struct cache_node *out)
 {
-	union cache_data *data;
+	struct cache_data *data;
 
 	if ((data = cache_search(cache, in, out)) == NULL)
 		return 0;
@@ -35,7 +35,7 @@ texture_cache_insert (const struct cache_node *loc, const void *rawbits)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-	cache_insert(cache, loc, &((union cache_data) { .u32 = id }));
+	cache_insert(cache, loc, &(struct cache_data) { .u32 = id });
 	return id;
 }
 
