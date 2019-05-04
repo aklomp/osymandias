@@ -54,7 +54,7 @@ procure (const struct cache_node *loc)
 void *
 bitmap_cache_search (const struct cache_node *in, struct cache_node *out)
 {
-	struct cache_data *data = cache_search(cache, in, out);
+	const struct cache_data *data = cache_search(cache, in, out);
 
 	// Return successfully if valid data was found at the requested level:
 	if (data != NULL && data->ptr != NULL && in->zoom == out->zoom)

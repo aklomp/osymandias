@@ -15,7 +15,7 @@ destroy (struct cache_data *data)
 uint32_t
 texture_cache_search (const struct cache_node *in, struct cache_node *out)
 {
-	struct cache_data *data;
+	const struct cache_data *data;
 
 	if ((data = cache_search(cache, in, out)) == NULL)
 		return 0;

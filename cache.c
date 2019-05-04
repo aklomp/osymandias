@@ -128,7 +128,7 @@ purge_stalest (struct cache *c)
 }
 
 // Search for a matching node at given zoom level or lower.
-struct cache_data *
+const struct cache_data *
 cache_search (struct cache *c, const struct cache_node *in, struct cache_node *out)
 {
 	struct node *node;
@@ -141,32 +141,33 @@ cache_search (struct cache *c, const struct cache_node *in, struct cache_node *o
 }
 
 // Replace the data in an existing node.
-static bool
+static const struct node *
 replace (struct cache *c, const struct cache_node *loc, struct cache_data *data)
 {
 	struct node *n;
 
 	if ((n = search_level(c, loc)) == NULL)
-		return false;
+		return NULL;
 
 	c->destroy(&n->data);
 	n->data  = *data;
 	n->atime = ++c->counter;
-	return true;
+	return n;
 }
 
-void
+const struct cache_data *
 cache_insert (struct cache *c, const struct cache_node *loc, struct cache_data *data)
 {
 	// Run basic sanity checks on the given location:
 	if (valid(loc) == false) {
 		c->destroy(data);
-		return;
+		return NULL;
 	}
 
 	// If a node already exists at the location, reuse it:
-	if (replace(c, loc, data))
-		return;
+	const struct node *reused;
+	if ((reused = replace(c, loc, data)) != NULL)
+		return &reused->data;
 
 	// If the list is at capacity, evict the oldest accessed node:
 	if (c->used == c->capacity)
@@ -181,6 +182,7 @@ cache_insert (struct cache *c, const struct cache_node *loc, struct cache_data *
 	n->y = loc->y;
 	n->data = *data;
 	n->atime = ++c->counter;
+	return &n->data;
 }
 
 void
