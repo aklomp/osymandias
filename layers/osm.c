@@ -35,7 +35,7 @@ static uint32_t
 find_texture (const struct cache_node *in, struct cache_node *out)
 {
 	uint32_t id;
-	void *rawbits;
+	const struct cache_data *cdata;
 	struct cache_node out_tex, out_bmp;
 
 	// Return true if the exact requested texture was found:
@@ -47,9 +47,9 @@ find_texture (const struct cache_node *in, struct cache_node *out)
 
 	// Otherwise try to find a bitmap of higher zoom:
 	bitmap_cache_lock();
-	if ((rawbits = bitmap_cache_search(in, &out_bmp)) != NULL) {
+	if ((cdata = bitmap_cache_search(in, &out_bmp)) != NULL) {
 		if (id == 0 || out_bmp.zoom > out_tex.zoom) {
-			id = texture_cache_insert(&out_bmp, rawbits);
+			id = texture_cache_insert(&out_bmp, cdata->ptr);
 			bitmap_cache_unlock();
 			*out = out_bmp;
 			return id;

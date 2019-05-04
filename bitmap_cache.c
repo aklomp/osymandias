@@ -51,14 +51,14 @@ procure (const struct cache_node *loc)
 	cache_insert(cache, loc, &(struct cache_data) { .ptr = NULL });
 }
 
-void *
+const struct cache_data *
 bitmap_cache_search (const struct cache_node *in, struct cache_node *out)
 {
 	const struct cache_data *data = cache_search(cache, in, out);
 
 	// Return successfully if valid data was found at the requested level:
 	if (data != NULL && data->ptr != NULL && in->zoom == out->zoom)
-		return data->ptr;
+		return data;
 
 	// If no node was found or it is at a different zoom level than
 	// requested, then start a threadpool job to procure the target:
@@ -72,7 +72,7 @@ bitmap_cache_search (const struct cache_node *in, struct cache_node *out)
 	// If we got back some non-NULL data, it is a valid bitmap at some
 	// lower zoom level. Better than nothing:
 	if (data->ptr != NULL)
-		return data->ptr;
+		return data;
 
 	// We got back a valid data pointer but with a NULL member. This
 	// indicates that we landed on a tile that is currently being procured.
