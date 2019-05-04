@@ -2,7 +2,7 @@
 
 #include "texture_cache.h"
 
-#define CACHE_CAPACITY	100
+#define CACHE_CAPACITY	200
 
 static struct cache *cache = NULL;
 
