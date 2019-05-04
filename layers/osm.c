@@ -31,35 +31,34 @@ destroy (void)
 	bitmap_cache_destroy();
 }
 
-static uint32_t
+static const struct cache_data *
 find_texture (const struct cache_node *in, struct cache_node *out)
 {
-	uint32_t id;
-	const struct cache_data *cdata;
+	const struct cache_data *cdata_tex, *cdata_bmp;
 	struct cache_node out_tex, out_bmp;
 
 	// Return true if the exact requested texture was found:
-	if ((id = texture_cache_search(in, &out_tex)) > 0)
+	if ((cdata_tex = texture_cache_search(in, &out_tex)) != NULL)
 		if (in->zoom == out_tex.zoom) {
 			*out = out_tex;
-			return id;
+			return cdata_tex;
 		}
 
 	// Otherwise try to find a bitmap of higher zoom:
 	bitmap_cache_lock();
-	if ((cdata = bitmap_cache_search(in, &out_bmp)) != NULL) {
-		if (id == 0 || out_bmp.zoom > out_tex.zoom) {
-			id = texture_cache_insert(&out_bmp, cdata->ptr);
+	if ((cdata_bmp = bitmap_cache_search(in, &out_bmp)) != NULL) {
+		if (cdata_tex == NULL || out_bmp.zoom > out_tex.zoom) {
+			cdata_tex = texture_cache_insert(&out_bmp, cdata_bmp);
 			bitmap_cache_unlock();
 			*out = out_bmp;
-			return id;
+			return cdata_tex;
 		}
 	}
 	bitmap_cache_unlock();
 
 	// Else use whatever texture we have:
 	*out = out_tex;
-	return id;
+	return cdata_tex;
 }
 
 static void
@@ -81,15 +80,11 @@ paint (const struct camera *cam, const struct globe *globe)
 			.y    = tile->y,
 			.zoom = tile->zoom,
 		};
-		uint32_t id;
 
-		if ((id = find_texture(&in, &out)) == 0)
-			continue;
-
-		tiledrawer(&((struct tiledrawer) {
+		tiledrawer(&(struct tiledrawer) {
 			.tile = &out,
-			.texture_id = id,
-		}));
+			.data = find_texture(&in, &out),
+		});
 	}
 
 	program_none();

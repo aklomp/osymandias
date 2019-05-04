@@ -6,7 +6,8 @@
 void
 tiledrawer (const struct tiledrawer *td)
 {
-	const struct cache_node *tile = td->tile;
+	if (td->data == NULL)
+		return;
 
 	// Texture coordinates:
 	struct glutil_vertex_uv texuv[4] = {
@@ -25,19 +26,19 @@ tiledrawer (const struct tiledrawer *td)
 	//   |  |     |      |
 	//   0--1    0,ht--wd,ht
 	//
-	texuv[0].x = texuv[3].x = tile->x;
-	texuv[1].x = texuv[2].x = tile->x + 1;
-	texuv[0].y = texuv[1].y = tile->y;
-	texuv[3].y = texuv[2].y = tile->y + 1;
+	texuv[0].x = texuv[3].x = td->tile->x;
+	texuv[1].x = texuv[2].x = td->tile->x + 1;
+	texuv[0].y = texuv[1].y = td->tile->y;
+	texuv[3].y = texuv[2].y = td->tile->y + 1;
 
 	// Set tile zoom level:
-	program_spherical_set_tile(tile);
+	program_spherical_set_tile(td->tile);
 
 	glActiveTexture(GL_TEXTURE0);
 	glEnable(GL_TEXTURE_2D);
 
 	// Bind texture:
-	glBindTexture(GL_TEXTURE_2D, td->texture_id);
+	glBindTexture(GL_TEXTURE_2D, td->data->u32);
 
 	// Copy vertices to buffer:
 	glBufferData(GL_ARRAY_BUFFER, sizeof (texuv), texuv, GL_STATIC_DRAW);

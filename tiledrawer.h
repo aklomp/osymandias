@@ -8,7 +8,7 @@
 
 struct tiledrawer {
 	const struct cache_node *tile;
-	uint32_t texture_id;
+	const struct cache_data *data;
 };
 
 extern void tiledrawer       (const struct tiledrawer *);
