@@ -7,6 +7,7 @@
 #include "signal.h"
 
 #define BUTTON_LEFT	1
+#define BUTTON_CENTER	2
 #define BUTTON_RIGHT	3
 
 static int button_pressed = false;
@@ -66,6 +67,16 @@ on_button_motion (GtkWidget *widget, GdkEventButton *event)
 
 		framerate_repaint();
 	}
+
+	if (button_num == BUTTON_CENTER) {
+		const int dy = pos.y - button_pressed_pos.y;
+
+		if (dy != 0) {
+			camera_set_view_angle(camera_get()->view_angle + dy * -0.005f);
+			framerate_repaint();
+		}
+	}
+
 	button_pressed_pos = pos;
 
 	// Don't propagate further:

@@ -5,6 +5,9 @@
 #include "matrix.h"
 #include "vec.h"
 
+#define VIEW_ANGLE_MIN	0.15f
+#define VIEW_ANGLE_MAX	2.40f
+
 static struct camera cam;
 
 static void
@@ -64,6 +67,9 @@ camera_get (void)
 void
 camera_set_view_angle (const float radians)
 {
+	if (radians < VIEW_ANGLE_MIN || radians > VIEW_ANGLE_MAX)
+		return;
+
 	cam.view_angle = radians;
 	matrix_proj_update();
 }
