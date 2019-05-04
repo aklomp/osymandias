@@ -6,12 +6,33 @@
 
 struct cache;
 
+// Structure to hold coordinates in 3D space for the tile.
+struct cache_data_coords {
+	float x;
+	float y;
+	float z;
+} __attribute__((packed));
+
 // Union of data types that can be stored in the cache.
 struct cache_data {
 	union {
 		void    *ptr;
 		uint32_t u32;
 	};
+
+	// 3D spherical coordinates of the tile. These are cached because they
+	// are calculated by the host in double precision (which is relatively
+	// expensive), and because they remain constant for the lifetime of the
+	// tile. It would be possible to calculate these coordinates in a
+	// shader, but some video cards do not have sufficient floating point
+	// accuracy to get acceptable results. For ease of rendering, the
+	// storage order is counterclockwise starting from bottom left.
+	struct {
+		struct cache_data_coords sw;	// Southwest
+		struct cache_data_coords se;	// Southeast
+		struct cache_data_coords ne;	// Northeast
+		struct cache_data_coords nw;	// Northwest
+	} __attribute__((packed)) coords;
 };
 
 struct cache_config {

@@ -6,6 +6,49 @@
 
 static struct globe globe;
 
+static void
+map (const struct cache_node *n, struct cache_data_coords *c)
+{
+	// Convert tile coordinates at a given zoom level to 3D xyz coordinates
+	// on a unit sphere. For lat/lon conversions, see:
+	//   https://wiki.openstreetmap.org/wiki/Slippy_map_tilenames
+	//
+	// Gudermannian function, inverse mercator:
+	//   gd(y) = atan(sinh(y))
+	//
+	// Identities which are used for sphere projection:
+	//   sin(gd(y)) = tanh(y) = sinh(y) / cosh(y)
+	//   cos(gd(y)) = sech(y) = 1 / cosh(y)
+
+	// x to longitude is straightforward:
+	const double lon = M_PI * (ldexp(n->x, 1 - n->zoom) - 1.0);
+
+	// Precalculate the y in gd(y):
+	const double gy = M_PI * (1.0 - ldexp(n->y, 1 - n->zoom));
+
+	// Precalculate cosh(gy):
+	const double cosh_gy = cosh(gy);
+
+	// Precalculate sin(lon) and cos(lon):
+	double sin_lon, cos_lon;
+	sincos(lon, &sin_lon, &cos_lon);
+
+	// Calculate 3D coordinates on a unit sphere:
+	c->x = sin_lon / cosh_gy;
+	c->y = tanh(gy);
+	c->z = cos_lon / cosh_gy;
+}
+
+// Convert tile coordinates to xyz coordinates on a unit sphere.
+void
+globe_tile_to_sphere (const struct cache_node *n, struct cache_data *d)
+{
+	map(&(struct cache_node) { n->x + 0, n->y + 1, n->zoom }, &d->coords.sw);
+	map(&(struct cache_node) { n->x + 1, n->y + 1, n->zoom }, &d->coords.se);
+	map(&(struct cache_node) { n->x + 1, n->y + 0, n->zoom }, &d->coords.ne);
+	map(&(struct cache_node) { n->x + 0, n->y + 0, n->zoom }, &d->coords.nw);
+}
+
 // Perform a line-sphere intersection between a unit sphere on the origin, and
 // a ray starting at `start', with direction `dir'. Theory here:
 //

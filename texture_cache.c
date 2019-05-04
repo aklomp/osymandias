@@ -30,7 +30,7 @@ texture_cache_insert (const struct cache_node *loc, const struct cache_data *cda
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-	return cache_insert(cache, loc, &(struct cache_data) { .u32 = id });
+	return cache_insert(cache, loc, &(struct cache_data) { .u32 = id, .coords = cdata->coords });
 }
 
 void

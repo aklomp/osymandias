@@ -4,6 +4,7 @@
 
 #include "gui/framerate.h"
 #include "bitmap_cache.h"
+#include "globe.h"
 #include "threadpool.h"
 #include "pngloader.h"
 
@@ -18,14 +19,19 @@ static pthread_mutex_t    mutex = PTHREAD_MUTEX_INITIALIZER;
 static void
 process (void *data)
 {
-	void *rawbits;
 	struct cache_node *req = data;
+	struct cache_data cdata;
 
-	if ((rawbits = pngloader_main(req)) == NULL)
+	// Store rawbits data pointer into cache data structure:
+	if ((cdata.ptr = pngloader_main(req)) == NULL)
 		return;
 
+	// Calculate 3D sphere xyz coordinates for this tile:
+	globe_tile_to_sphere(req, &cdata);
+
+	// Insert the cache data structure into the bitmap cache:
 	pthread_mutex_lock(&mutex);
-	cache_insert(cache, req, &(struct cache_data) { .ptr = rawbits });
+	cache_insert(cache, req, &cdata);
 	pthread_mutex_unlock(&mutex);
 
 	framerate_repaint();
