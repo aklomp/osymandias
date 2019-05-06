@@ -4,6 +4,7 @@
 
 #include "gui/framerate.h"
 #include "bitmap_cache.h"
+#include "globe.h"
 #include "threadpool.h"
 #include "pngloader.h"
 
@@ -18,21 +19,26 @@ static pthread_mutex_t    mutex = PTHREAD_MUTEX_INITIALIZER;
 static void
 process (void *data)
 {
-	void *rawbits;
 	struct cache_node *req = data;
+	struct cache_data cdata;
 
-	if ((rawbits = pngloader_main(req)) == NULL)
+	// Store rawbits data pointer into cache data structure:
+	if ((cdata.ptr = pngloader_main(req)) == NULL)
 		return;
 
+	// Calculate 3D sphere xyz coordinates for this tile:
+	globe_tile_to_sphere(req, &cdata);
+
+	// Insert the cache data structure into the bitmap cache:
 	pthread_mutex_lock(&mutex);
-	cache_insert(cache, req, &((union cache_data) { .ptr = rawbits }));
+	cache_insert(cache, req, &cdata);
 	pthread_mutex_unlock(&mutex);
 
 	framerate_repaint();
 }
 
 static void
-destroy (union cache_data *data)
+destroy (struct cache_data *data)
 {
 	free(data->ptr);
 }
@@ -48,17 +54,17 @@ procure (const struct cache_node *loc)
 	// there is already a lookup in progress for this node. The node will
 	// be overwritten by the thread when it is done. Until then, it acts as
 	// a "tombstone", preventing multiple requeues of the same job:
-	cache_insert(cache, loc, &((union cache_data) { .ptr = NULL }));
+	cache_insert(cache, loc, &(struct cache_data) { .ptr = NULL });
 }
 
-void *
+const struct cache_data *
 bitmap_cache_search (const struct cache_node *in, struct cache_node *out)
 {
-	union cache_data *data = cache_search(cache, in, out);
+	const struct cache_data *data = cache_search(cache, in, out);
 
 	// Return successfully if valid data was found at the requested level:
 	if (data != NULL && data->ptr != NULL && in->zoom == out->zoom)
-		return data->ptr;
+		return data;
 
 	// If no node was found or it is at a different zoom level than
 	// requested, then start a threadpool job to procure the target:
@@ -72,7 +78,7 @@ bitmap_cache_search (const struct cache_node *in, struct cache_node *out)
 	// If we got back some non-NULL data, it is a valid bitmap at some
 	// lower zoom level. Better than nothing:
 	if (data->ptr != NULL)
-		return data->ptr;
+		return data;
 
 	// We got back a valid data pointer but with a NULL member. This
 	// indicates that we landed on a tile that is currently being procured.
