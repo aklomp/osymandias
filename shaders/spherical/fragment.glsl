@@ -1,6 +1,7 @@
 #version 130
 
 uniform sampler2D tex;
+uniform int       tile_y;
 uniform int       tile_zoom;
 
 flat in vec3  tile_origin;
@@ -52,8 +53,43 @@ uvec4 sphere_to_texture (in mat4x3 s, out vec4 tx, out vec4 ty)
 	// Range checks, using multiplication as a poor man's `and':
 	valid  = uvec4(greaterThanEqual(tx, vec4(0.0)));
 	valid *= uvec4(lessThan        (tx, vec4(1.0)));
-	valid *= uvec4(greaterThanEqual(ty, vec4(0.0)));
-	valid *= uvec4(lessThan        (ty, vec4(1.0)));
+
+	// At high zoom levels, the distortion in the y direction due to the
+	// Mercator projection becomes virtually unnoticeable within a single
+	// tile. The y gradient over the tile becomes essentially linear. Take
+	// a shortcut and treat those tiles as actually linear. This avoids a
+	// costly logarithm, and sidesteps floating-point accuracy problems:
+	if (tile_zoom > 12) {
+		valid *= uvec4(greaterThanEqual(ty, vec4(0.0)));
+		valid *= uvec4(lessThan        (ty, vec4(1.0)));
+		return valid;
+	}
+
+	// For lower zoom levels, reach for trigonometry to transform the y
+	// coordinate accurately. The naive formula is:
+	//
+	//   2^zoom * (0.5 - atanh(y) / (2 * pi))
+	//
+	// which can be reduced by combining terms and baking factors of two
+	// into the constant. Observing that:
+	//
+	//   -2 * atanh(y) = log((1 - y) / (1 + y))
+	//                 = log2((1 - y) / (1 + y)) / log2(e)
+	//
+	// and that the integer offset can be ignored because we're only
+	// interested in the fractional part of the equation, the naive formula
+	// can ultimately be rewritten as something less daunting.
+	const float yconst = 0.882542400610606373585825728472;	// 4 / pi / log2(e)
+	vec4 sy = transpose(s)[1];
+
+	ty = yconst * log2((1.0 - sy) / (1.0 + sy)) * exp2(tile_zoom - 4);
+
+	// Re-add the integer offset to get the full y coordinate:
+	vec4 tyfull = ty + exp2(tile_zoom - 1);
+
+	// Test the full y coordinate against tile extents:
+	valid *= uvec4(greaterThanEqual(tyfull, vec4(tile_y + 0)));
+	valid *= uvec4(lessThan        (tyfull, vec4(tile_y + 1)));
 
 	return valid;
 }
