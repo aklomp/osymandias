@@ -1,9 +1,9 @@
 #version 130
 
-uniform mat4  mat_viewproj_inv;
 uniform mat4  mat_model_inv;
 uniform mat4  mat_view_inv;
 uniform float vp_angle;		// Horizontal viewing angle in radians
+uniform float vp_height;	// Viewport height in pixels
 uniform float vp_width;		// Viewport width in pixels
 
 in vec2 vertex;
@@ -22,18 +22,20 @@ void main (void)
 	// through the view and model matrices:
 	cam = (mat_model_inv * mat_view_inv * vec4(vec3(0.0), 1.0)).xyz;
 
-	// Unproject a vertex point in NDC space:
-	vec4 xp = mat_viewproj_inv * vec4(vertex, 1.0, 1.0);
+	// Half of the total horizontal view angle, the deviation from center:
+	float alpha = vp_angle / 2.0;
 
-	// Transform to model space. The camera and p are two points at the
-	// start and end of the frustum, translated into model space. After
-	// per-fragment interpolation, they can be thought of as the start and
-	// end of the ray through the fragment into model space.
-	p = (mat_model_inv * (xp / xp.w)).xyz;
+	// Use trigonometry to place the vertex point in world space. The
+	// camera and p are two points at the start and end of the frustum,
+	// translated into model space. After per-fragment interpolation, they
+	// can be thought of as the start and end of the ray through the
+	// fragment into model space.
+	vec3 vpoint = vec3(vertex * sin(alpha) * vec2(1.0, vp_height / vp_width), -cos(alpha));
+	p = (mat_model_inv * mat_view_inv * vec4(vpoint, 1.0)).xyz;
 
 	// Calculate the horizontal angle between the camera's lookat vector
 	// and the direction to the fragment, and interpolate per fragment:
-	frag_look_angle = vp_angle * vertex.x / 2.0;
+	frag_look_angle = alpha * vertex.x;
 
 	// Calculate the angle of the arc swept by one window pixel:
 	frag_arc_angle = vp_angle / vp_width;
