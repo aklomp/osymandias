@@ -87,13 +87,13 @@ static void
 render (const struct viewport *vp, const struct camera *cam)
 {
 	// Use the tilepicker program:
-	program_tilepicker_use(&((struct program_tilepicker) {
-		.mat_viewproj_inv = cam->matrix.inverse.viewproj,
-		.mat_model_inv    = globe_get()->invert.model,
-		.mat_view_inv     = cam->matrix.inverse.view,
-		.vp_angle         = cam->view_angle,
-		.vp_width         = vp->width,
-	}));
+	program_tilepicker_use(&(struct program_tilepicker) {
+		.mat_model_inv = globe_get()->invert.model,
+		.mat_view_inv  = cam->matrix.inverse.view,
+		.vp_angle      = cam->view_angle,
+		.vp_height     = vp->height,
+		.vp_width      = vp->width,
+	});
 
 	// Use framebuffer object:
 	fbo_bind();
