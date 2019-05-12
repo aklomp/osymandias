@@ -90,7 +90,7 @@ render (const struct viewport *vp, const struct camera *cam)
 	program_tilepicker_use(&(struct program_tilepicker) {
 		.mat_model_inv = globe_get()->invert.model,
 		.mat_view_inv  = cam->matrix.inverse.view,
-		.vp_angle      = cam->view_angle,
+		.vp_angle      = cam->view_angle * (IMGSIZE + 2) / IMGSIZE,
 		.vp_height     = vp->height,
 		.vp_width      = vp->width,
 	});
