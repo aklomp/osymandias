@@ -9,6 +9,8 @@ enum {
 	MAT_VIEW_INV,
 	TILE_ZOOM,
 	VERTEX,
+	VP_ANGLE,
+	VP_WIDTH,
 };
 
 static struct input inputs[] = {
@@ -18,6 +20,8 @@ static struct input inputs[] = {
 	[MAT_VIEW_INV]  = { .name = "mat_view_inv",  .type = TYPE_UNIFORM },
 	[TILE_ZOOM]     = { .name = "tile_zoom",     .type = TYPE_UNIFORM },
 	[VERTEX]        = { .name = "vertex",        .type = TYPE_UNIFORM },
+	[VP_ANGLE]      = { .name = "vp_angle",      .type = TYPE_UNIFORM },
+	[VP_WIDTH]      = { .name = "vp_width",      .type = TYPE_UNIFORM },
 	                  { .name = NULL }
 };
 
@@ -43,4 +47,6 @@ program_spherical_use (const struct program_spherical *values)
 	glUniformMatrix4fv(inputs[MAT_MODEL].loc,     1, GL_FALSE, values->mat_model);
 	glUniformMatrix4fv(inputs[MAT_MODEL_INV].loc, 1, GL_FALSE, values->mat_model_inv);
 	glUniformMatrix4fv(inputs[MAT_VIEW_INV].loc,  1, GL_FALSE, values->mat_view_inv);
+	glUniform1f(inputs[VP_ANGLE].loc, values->vp_angle);
+	glUniform1f(inputs[VP_WIDTH].loc, values->vp_width);
 }

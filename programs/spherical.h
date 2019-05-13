@@ -7,6 +7,8 @@ struct program_spherical {
 	const float *mat_model;
 	const float *mat_model_inv;
 	const float *mat_view_inv;
+	float vp_angle;
+	float vp_width;
 };
 
 extern void program_spherical_set_tile (const struct cache_node *tile, const struct cache_data *data);

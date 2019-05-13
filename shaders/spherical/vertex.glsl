@@ -1,11 +1,13 @@
 #version 130
 
-uniform mat4 mat_viewproj;
-uniform mat4 mat_model;
-uniform mat4 mat_model_inv;
-uniform mat4 mat_view_inv;
-uniform int  tile_zoom;
-uniform vec3 vertex[4];
+uniform mat4  mat_viewproj;
+uniform mat4  mat_model;
+uniform mat4  mat_model_inv;
+uniform mat4  mat_view_inv;
+uniform int   tile_zoom;
+uniform vec3  vertex[4];
+uniform float vp_angle;
+uniform float vp_width;
 
 flat out vec3  tile_origin;
 flat out vec3  tile_xaxis;
@@ -15,8 +17,8 @@ flat out float tile_xlength0;
 flat out float tile_xlength1;
 flat out float tile_ylength;
 
-flat   out vec3 cam;
-smooth out vec3 p;
+flat   out vec3   cam;
+smooth out mat4x3 rays;
 
 void main (void)
 {
@@ -35,7 +37,30 @@ void main (void)
 	// Interpolate the position in model space. Do not use the vector point
 	// directly, but move it backwards a bit on the camera axis, because
 	// the distance to the camera can get very small:
-	p = cam + (tile_zoom * vertex[gl_VertexID] - tile_zoom * cam);
+	vec3 p = cam + (tile_zoom * vertex[gl_VertexID] - tile_zoom * cam);
+
+	// Angle in radians of the arc swept by one pixel:
+	float arc = vp_angle / vp_width;
+
+	// Cast four subpixel rays at slight offsets to p for antialiasing:
+	//
+	//   3  2
+	//   0  1
+	//
+	// Model and view matrices do not involve scaling so the lengths stay
+	// the same after transformation. Find the offcenter distance, which is
+	// the deviation of the vector over the given angle:
+	float offcenter = length(cam - p) * tan(arc / 4.0);
+
+	// Rotate and translate (but do not scale) the deviation lengths:
+	rays = mat4x3(mat_model_inv * mat_view_inv * mat4(
+		vec4(-offcenter,  offcenter, 0.0, 0.0),
+		vec4( offcenter,  offcenter, 0.0, 0.0),
+		vec4( offcenter, -offcenter, 0.0, 0.0),
+		vec4(-offcenter, -offcenter, 0.0, 0.0)));
+
+	// Add the deviation lengths to the base vector:
+	rays += mat4x3(p, p, p, p);
 
 	// Get all four vertex coordinates in model space. The tile becomes an
 	// isosceles trapezoid. Height is uniform, but width varies by height.
