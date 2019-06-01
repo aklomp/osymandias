@@ -1,9 +1,7 @@
 #version 130
 
-uniform mat4  mat_viewproj;
-uniform mat4  mat_model;
-uniform mat4  mat_model_inv;
-uniform mat4  mat_view_inv;
+uniform mat4  mat_mvp;
+uniform mat4  mat_mv_inv;
 uniform int   tile_zoom;
 uniform vec3  cam;
 uniform vec3  vertex[4];
@@ -23,7 +21,7 @@ smooth out mat4x3 rays;
 void main (void)
 {
 	// Apply projection matrix to get view coordinates:
-	gl_Position = mat_viewproj * mat_model * vec4(vertex[gl_VertexID], 1.0);
+	gl_Position = mat_mvp * vec4(vertex[gl_VertexID], 1.0);
 
 	// Zoom level determines screen Z depth,
 	// range is -1 (nearest) to 1 (farthest), though the basemap is zero:
@@ -48,7 +46,7 @@ void main (void)
 	float offcenter = length(p) * tan(arc / 4.0);
 
 	// Rotate and translate (but do not scale) the deviation lengths:
-	rays = mat4x3(mat_model_inv * mat_view_inv * mat4(
+	rays = mat4x3(mat_mv_inv * mat4(
 		vec4(-offcenter,  offcenter, 0.0, 0.0),
 		vec4( offcenter,  offcenter, 0.0, 0.0),
 		vec4( offcenter, -offcenter, 0.0, 0.0),
