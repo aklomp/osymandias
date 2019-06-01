@@ -50,7 +50,7 @@ tiledrawer_start (const struct camera *cam, const struct globe *globe)
 
 	program_spherical_use(&(struct program_spherical) {
 		.mat_viewproj  = cam->matrix.viewproj,
-		.mat_view_inv  = cam->matrix.inverse.view,
+		.mat_view_inv  = cam->invert.view,
 		.mat_model     = globe->matrix.model,
 		.mat_model_inv = globe->invert.model,
 		.vp_angle      = cam->view_angle,

@@ -14,7 +14,7 @@ static void
 matrix_viewproj_update (void)
 {
 	mat_multiply(cam.matrix.viewproj, cam.matrix.proj, cam.matrix.view);
-	mat_invert(cam.matrix.inverse.viewproj, cam.matrix.viewproj);
+	mat_invert(cam.invert.viewproj, cam.matrix.viewproj);
 }
 
 static void
@@ -31,7 +31,7 @@ matrix_view_update (void)
 	mat_multiply(cam.matrix.view, cam.matrix.tilt, cam.matrix.rotate);
 	mat_multiply(cam.matrix.view, cam.matrix.translate, cam.matrix.view);
 	mat_multiply(cam.matrix.view, cam.matrix.view, cam.matrix.radius);
-	mat_invert(cam.matrix.inverse.view, cam.matrix.view);
+	mat_invert(cam.invert.view, cam.matrix.view);
 
 	// This changes the view-projection matrix:
 	matrix_viewproj_update();
@@ -94,8 +94,8 @@ camera_unproject (union vec *p1, union vec *p2, const unsigned int x, const unsi
 	const union vec b = vec(sx, sy, 1.0f, 1.0f);
 
 	// Multiply with the inverse view-projection matrix:
-	mat_vec_multiply(p1->elem.f, cam.matrix.inverse.viewproj, a.elem.f);
-	mat_vec_multiply(p2->elem.f, cam.matrix.inverse.viewproj, b.elem.f);
+	mat_vec_multiply(p1->elem.f, cam.invert.viewproj, a.elem.f);
+	mat_vec_multiply(p2->elem.f, cam.invert.viewproj, b.elem.f);
 
 	// Divide by w:
 	*p1 = vec_div(*p1, vec_1(p1->w));

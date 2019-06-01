@@ -31,19 +31,22 @@ struct camera {
 		float far;
 	} clip;
 
+	// Various view and projection matrices:
 	struct {
 		float tilt[16];
 		float rotate[16];
 		float translate[16];
 		float radius[16];
-		float view[16];
-		float proj[16];
 		float viewproj[16];
-		struct {
-			float viewproj[16];
-			float view[16];
-		} inverse;
+		float proj[16];
+		float view[16];
 	} matrix;
+
+	// Inverse matrices:
+	struct {
+		float viewproj[16];
+		float view[16];
+	} invert;
 };
 
 extern const struct camera *camera_get (void);

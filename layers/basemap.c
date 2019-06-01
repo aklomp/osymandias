@@ -22,7 +22,7 @@ paint (const struct camera *cam, const struct globe *globe)
 
 	program_basemap_use(&(struct program_basemap) {
 		.mat_model_inv = globe->invert.model,
-		.mat_view_inv  = cam->matrix.inverse.view,
+		.mat_view_inv  = cam->invert.view,
 		.vp_angle      = cam->view_angle,
 		.vp_height     = vp->height,
 		.vp_width      = vp->width,

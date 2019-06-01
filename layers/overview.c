@@ -234,7 +234,7 @@ paint (const struct camera *cam, const struct globe *globe)
 	program_frustum_use(&((struct program_frustum) {
 		.mat_proj      = matrix.proj,
 		.mat_viewproj  = cam->matrix.viewproj,
-		.mat_view_inv  = cam->matrix.inverse.view,
+		.mat_view_inv  = cam->invert.view,
 		.mat_model     = globe->matrix.model,
 		.mat_model_inv = globe->invert.model,
 	}));
