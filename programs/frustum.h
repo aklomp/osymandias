@@ -4,9 +4,8 @@
 
 struct program_frustum {
 	const float *cam;
+	const float *mat_mvp;
 	const float *mat_proj;
-	const float *mat_viewproj;
-	const float *mat_model;
 };
 
 extern int32_t program_frustum_loc_vertex (void);
