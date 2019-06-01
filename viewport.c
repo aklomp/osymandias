@@ -97,7 +97,7 @@ viewport_paint (void)
 	globe_updated_reset();
 
 	// Paint all layers:
-	layers_paint(camera_get(), globe_get());
+	layers_paint(camera_get(), &vp);
 }
 
 void

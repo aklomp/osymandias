@@ -16,14 +16,12 @@ static const struct glutil_vertex vertex[4] = {
 };
 
 static void
-paint (const struct camera *cam, const struct globe *globe)
+paint (const struct camera *cam, const struct viewport *vp)
 {
-	const struct viewport *vp = viewport_get();
-
 	program_basemap_use(&(struct program_basemap) {
 		.cam           = vp->cam_pos,
-		.mat_model_inv = globe->invert.model,
-		.mat_view_inv  = cam->invert.view,
+		.mat_model_inv = vp->invert.model,
+		.mat_view_inv  = vp->invert.view,
 		.vp_angle      = cam->view_angle,
 		.vp_height     = vp->height,
 		.vp_width      = vp->width,
