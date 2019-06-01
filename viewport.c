@@ -1,3 +1,5 @@
+#include <string.h>
+
 #include <GL/gl.h>
 #include <GL/glu.h>
 
@@ -55,6 +57,34 @@ viewport_paint (void)
 	glClear(GL_DEPTH_BUFFER_BIT);
 	glEnable(GL_DEPTH_TEST);
 	glDepthMask(GL_TRUE);
+
+	const struct camera *cam  = camera_get();
+	const struct globe *globe = globe_get();
+
+	// Gather and combine view and model matrices:
+	if (globe->updated.model) {
+		memcpy(vp.matrix.model, globe->matrix.model, sizeof (vp.matrix.model));
+		memcpy(vp.invert.model, globe->invert.model, sizeof (vp.invert.model));
+	}
+
+	if (cam->updated.view) {
+		memcpy(vp.matrix.view, cam->matrix.view, sizeof (vp.matrix.view));
+		memcpy(vp.invert.view, cam->invert.view, sizeof (vp.invert.view));
+	}
+
+	if (cam->updated.viewproj) {
+		memcpy(vp.matrix.viewproj, cam->matrix.viewproj, sizeof (vp.matrix.viewproj));
+		memcpy(vp.invert.viewproj, cam->invert.viewproj, sizeof (vp.invert.viewproj));
+	}
+
+	if (globe->updated.model || cam->updated.viewproj) {
+		mat_multiply(vp.matrix.modelviewproj, vp.matrix.viewproj, vp.matrix.model);
+		mat_multiply(vp.invert.modelview, vp.invert.model, vp.invert.view);
+	}
+
+	// Reset matrix update flags:
+	camera_updated_reset();
+	globe_updated_reset();
 
 	// Paint all layers:
 	layers_paint(camera_get(), globe_get());
