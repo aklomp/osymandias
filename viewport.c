@@ -72,12 +72,12 @@ viewport_paint (void)
 		memcpy(vp.invert.view, cam->invert.view, sizeof (vp.invert.view));
 	}
 
-	if (cam->updated.viewproj) {
-		memcpy(vp.matrix.viewproj, cam->matrix.viewproj, sizeof (vp.matrix.viewproj));
-		memcpy(vp.invert.viewproj, cam->invert.viewproj, sizeof (vp.invert.viewproj));
+	if (cam->updated.proj || cam->updated.view) {
+		mat_multiply(vp.matrix.viewproj, cam->matrix.proj, cam->matrix.view);
+		mat_invert(vp.invert.viewproj, vp.matrix.viewproj);
 	}
 
-	if (globe->updated.model || cam->updated.viewproj) {
+	if (globe->updated.model || cam->updated.proj || cam->updated.view) {
 		mat_multiply(vp.matrix.modelviewproj, vp.matrix.viewproj, vp.matrix.model);
 		mat_multiply(vp.invert.modelview, vp.invert.model, vp.invert.view);
 	}

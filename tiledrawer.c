@@ -49,7 +49,7 @@ tiledrawer_start (const struct camera *cam, const struct globe *globe)
 	glBindVertexArray(state.vao);
 
 	program_spherical_use(&(struct program_spherical) {
-		.mat_viewproj  = cam->matrix.viewproj,
+		.mat_viewproj  = viewport_get()->matrix.viewproj,
 		.mat_view_inv  = cam->invert.view,
 		.mat_model     = globe->matrix.model,
 		.mat_model_inv = globe->invert.model,

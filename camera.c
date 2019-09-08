@@ -11,18 +11,9 @@
 static struct camera cam;
 
 static void
-matrix_viewproj_update (void)
-{
-	mat_multiply(cam.matrix.viewproj, cam.matrix.proj, cam.matrix.view);
-	mat_invert(cam.invert.viewproj, cam.matrix.viewproj);
-	cam.updated.viewproj = true;
-}
-
-static void
 matrix_proj_update (void)
 {
 	mat_frustum(cam.matrix.proj, cam.view_angle / 2.0f, cam.aspect_ratio, cam.clip.near, cam.clip.far);
-	matrix_viewproj_update();
 	cam.updated.proj = true;
 }
 
@@ -39,8 +30,6 @@ matrix_view_update (void)
 	mat_multiply(cam.invert.view, cam.invert.view,   cam.invert.translate);
 	mat_multiply(cam.invert.view, cam.invert.radius, cam.invert.view);
 
-	// This changes the view-projection matrix:
-	matrix_viewproj_update();
 	cam.updated.view = true;
 }
 
@@ -77,9 +66,8 @@ camera_get (void)
 void
 camera_updated_reset (void)
 {
-	cam.updated.proj     = false;
-	cam.updated.view     = false;
-	cam.updated.viewproj = false;
+	cam.updated.proj = false;
+	cam.updated.view = false;
 }
 
 void
@@ -112,8 +100,8 @@ camera_unproject (union vec *p1, union vec *p2, const unsigned int x, const unsi
 	const union vec b = vec(sx, sy, 1.0f, 1.0f);
 
 	// Multiply with the inverse view-projection matrix:
-	mat_vec_multiply(p1->elem.f, cam.invert.viewproj, a.elem.f);
-	mat_vec_multiply(p2->elem.f, cam.invert.viewproj, b.elem.f);
+	mat_vec_multiply(p1->elem.f, vp->invert.viewproj, a.elem.f);
+	mat_vec_multiply(p2->elem.f, vp->invert.viewproj, b.elem.f);
 
 	// Divide by w:
 	*p1 = vec_div(*p1, vec_1(p1->w));

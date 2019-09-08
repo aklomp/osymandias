@@ -37,7 +37,6 @@ struct camera {
 		float rotate[16];
 		float translate[16];
 		float radius[16];
-		float viewproj[16];
 		float proj[16];
 		float view[16];
 	} matrix;
@@ -48,7 +47,6 @@ struct camera {
 		float rotate[16];
 		float translate[16];
 		float radius[16];
-		float viewproj[16];
 		float view[16];
 	} invert;
 
@@ -56,7 +54,6 @@ struct camera {
 	struct {
 		bool proj;
 		bool view;
-		bool viewproj;
 	} updated;
 };
 

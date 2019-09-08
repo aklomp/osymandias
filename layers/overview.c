@@ -233,7 +233,7 @@ paint (const struct camera *cam, const struct globe *globe)
 	// Paint background using frustum program:
 	program_frustum_use(&((struct program_frustum) {
 		.mat_proj      = matrix.proj,
-		.mat_viewproj  = cam->matrix.viewproj,
+		.mat_viewproj  = viewport_get()->matrix.viewproj,
 		.mat_view_inv  = cam->invert.view,
 		.mat_model     = globe->matrix.model,
 		.mat_model_inv = globe->invert.model,
