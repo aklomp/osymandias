@@ -15,6 +15,7 @@ matrix_viewproj_update (void)
 {
 	mat_multiply(cam.matrix.viewproj, cam.matrix.proj, cam.matrix.view);
 	mat_invert(cam.invert.viewproj, cam.matrix.viewproj);
+	cam.updated.viewproj = true;
 }
 
 static void
@@ -22,6 +23,7 @@ matrix_proj_update (void)
 {
 	mat_frustum(cam.matrix.proj, cam.view_angle / 2.0f, cam.aspect_ratio, cam.clip.near, cam.clip.far);
 	matrix_viewproj_update();
+	cam.updated.proj = true;
 }
 
 static void
@@ -39,6 +41,7 @@ matrix_view_update (void)
 
 	// This changes the view-projection matrix:
 	matrix_viewproj_update();
+	cam.updated.view = true;
 }
 
 static void
@@ -69,6 +72,14 @@ const struct camera *
 camera_get (void)
 {
 	return &cam;
+}
+
+void
+camera_updated_reset (void)
+{
+	cam.updated.proj     = false;
+	cam.updated.view     = false;
+	cam.updated.viewproj = false;
 }
 
 void

@@ -51,9 +51,17 @@ struct camera {
 		float viewproj[16];
 		float view[16];
 	} invert;
+
+	// Matrix update flags:
+	struct {
+		bool proj;
+		bool view;
+		bool viewproj;
+	} updated;
 };
 
 extern const struct camera *camera_get (void);
+extern void camera_updated_reset (void);
 extern void camera_unproject (union vec *, union vec *, const unsigned int x, const unsigned int y, const struct viewport *vp);
 extern void camera_set_aspect_ratio (const struct viewport *vp);
 extern void camera_set_view_angle (const float radians);
