@@ -37,7 +37,6 @@ struct viewport_pos {
 extern void viewport_destroy (void);
 extern bool viewport_unproject (const struct viewport_pos *p, float *lat, float *lon);
 extern void viewport_resize (const uint32_t wd, const uint32_t ht);
-extern void viewport_gl_setup_world (void);
 extern void viewport_paint (void);
 
 extern const struct viewport *viewport_get (void);

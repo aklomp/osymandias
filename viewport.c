@@ -92,6 +92,12 @@ viewport_paint (void)
 		vp.cam_pos[2] = cam_pos[2];
 	}
 
+	if (globe->updated.model || cam->updated.proj || cam->updated.view) {
+
+		// Recalculate the list of visible tiles:
+		tilepicker_recalc(&vp, cam);
+	}
+
 	// Reset matrix update flags:
 	camera_updated_reset();
 	globe_updated_reset();
@@ -114,15 +120,6 @@ viewport_resize (const unsigned int width, const unsigned int height)
 
 	// Alert layers:
 	layers_resize(&vp);
-}
-
-void
-viewport_gl_setup_world (void)
-{
-	// FIXME: only do this when moved?
-	tilepicker_recalc(&vp, camera_get());
-
-	glDisable(GL_BLEND);
 }
 
 const struct viewport *
