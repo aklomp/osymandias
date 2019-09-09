@@ -19,12 +19,11 @@ static void
 paint (const struct camera *cam, const struct viewport *vp)
 {
 	program_basemap_use(&(struct program_basemap) {
-		.cam           = vp->cam_pos,
-		.mat_model_inv = vp->invert.model,
-		.mat_view_inv  = vp->invert.view,
-		.vp_angle      = cam->view_angle,
-		.vp_height     = vp->height,
-		.vp_width      = vp->width,
+		.cam        = vp->cam_pos,
+		.mat_mv_inv = vp->invert.modelview,
+		.vp_angle   = cam->view_angle,
+		.vp_height  = vp->height,
+		.vp_width   = vp->width,
 	});
 
 	glBindVertexArray(vao);
