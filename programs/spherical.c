@@ -43,12 +43,12 @@ program_spherical_set_tile (const struct cache_node *tile, const struct cache_da
 }
 
 void
-program_spherical_use (const struct program_spherical *values)
+program_spherical_use (const struct camera *cam, const struct viewport *vp)
 {
 	glUseProgram(program_spherical.id);
-	glUniform3fv(inputs[CAM].loc, 1, values->cam);
-	glUniformMatrix4fv(inputs[MAT_MVP].loc,    1, GL_FALSE, values->mat_mvp);
-	glUniformMatrix4fv(inputs[MAT_MV_INV].loc, 1, GL_FALSE, values->mat_mv_inv);
-	glUniform1f(inputs[VP_ANGLE].loc, values->vp_angle);
-	glUniform1f(inputs[VP_WIDTH].loc, values->vp_width);
+	glUniform3fv(inputs[CAM].loc, 1, vp->cam_pos);
+	glUniformMatrix4fv(inputs[MAT_MVP].loc,    1, GL_FALSE, vp->matrix.modelviewproj);
+	glUniformMatrix4fv(inputs[MAT_MV_INV].loc, 1, GL_FALSE, vp->invert.modelview);
+	glUniform1f(inputs[VP_ANGLE].loc, cam->view_angle);
+	glUniform1f(inputs[VP_WIDTH].loc, vp->width);
 }
