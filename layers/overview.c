@@ -236,9 +236,9 @@ paint (const struct camera *cam, const struct viewport *vp)
 
 	// Paint background using frustum program:
 	program_frustum_use(&((struct program_frustum) {
-		.cam      = vp->cam_pos,
-		.mat_mvp  = vp->matrix32.modelviewproj,
-		.mat_proj = matrix.proj32,
+		.cam            = vp->cam_pos,
+		.mat_mvp_origin = vp->matrix32.modelviewproj_origin,
+		.mat_proj       = matrix.proj32,
 	}));
 
 	paint_background(*state.frustum.vao);

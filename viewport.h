@@ -9,15 +9,18 @@ struct viewport {
 
 	// Double-precision internal matrices:
 	struct {
-		double modelviewproj[16];
 		double viewproj[16];
 		double model[16];
 		double view[16];
+
+		double modelviewproj_origin[16];
+		double viewproj_origin[16];
+		double view_origin[16];
 	} matrix64;
 
 	// Single-precision matrices for use by the GPU:
 	struct {
-		float modelviewproj[16];
+		float modelviewproj_origin[16];
 		float viewproj[16];
 		float model[16];
 		float view[16];

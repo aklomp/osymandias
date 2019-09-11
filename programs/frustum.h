@@ -4,7 +4,7 @@
 
 struct program_frustum {
 	const float *cam;
-	const float *mat_mvp;
+	const float *mat_mvp_origin;
 	const float *mat_proj;
 };
 

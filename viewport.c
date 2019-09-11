@@ -73,6 +73,7 @@ viewport_paint (void)
 	if (cam->updated.view) {
 		memcpy(vp.matrix64.view, cam->matrix.view, sizeof (vp.matrix64.view));
 		memcpy(vp.invert64.view, cam->invert.view, sizeof (vp.invert64.view));
+		memcpy(vp.matrix64.view_origin, cam->matrix.view_origin, sizeof (vp.matrix64.view_origin));
 
 		mat_to_float(vp.matrix32.view, vp.matrix64.view);
 		mat_to_float(vp.invert32.view, vp.invert64.view);
@@ -81,17 +82,18 @@ viewport_paint (void)
 	if (cam->updated.proj || cam->updated.view) {
 		mat_multiply(vp.matrix64.viewproj, cam->matrix.proj, cam->matrix.view);
 		mat_invert(vp.invert64.viewproj, vp.matrix64.viewproj);
+		mat_multiply(vp.matrix64.viewproj_origin, cam->matrix.proj, cam->matrix.view_origin);
 
 		mat_to_float(vp.matrix32.viewproj, vp.matrix64.viewproj);
 		mat_to_float(vp.invert32.viewproj, vp.invert64.viewproj);
 	}
 
 	if (globe->updated.model || cam->updated.proj || cam->updated.view) {
-		mat_multiply(vp.matrix64.modelviewproj, vp.matrix64.viewproj, vp.matrix64.model);
 		mat_multiply(vp.invert64.modelview, vp.invert64.model, vp.invert64.view);
+		mat_multiply(vp.matrix64.modelviewproj_origin, vp.matrix64.viewproj_origin, vp.matrix64.model);
 
-		mat_to_float(vp.matrix32.modelviewproj, vp.matrix64.modelviewproj);
 		mat_to_float(vp.invert32.modelview, vp.invert64.modelview);
+		mat_to_float(vp.matrix32.modelviewproj_origin, vp.matrix64.modelviewproj_origin);
 	}
 
 	if (globe->updated.model || cam->updated.view) {

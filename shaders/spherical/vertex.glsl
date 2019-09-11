@@ -1,6 +1,6 @@
 #version 130
 
-uniform mat4  mat_mvp;
+uniform mat4  mat_mvp_origin;
 uniform mat4  mat_mv_inv;
 uniform int   tile_zoom;
 uniform vec3  cam;
@@ -20,17 +20,17 @@ smooth out mat4x3 rays;
 
 void main (void)
 {
+	// Find the vertex position relative to the camera. The result is a
+	// direction vector with the camera as the origin, or rather a ray:
+	vec3 p = vertex[gl_VertexID] - cam;
+
 	// Apply projection matrix to get view coordinates:
-	gl_Position = mat_mvp * vec4(vertex[gl_VertexID], 1.0);
+	gl_Position = mat_mvp_origin * vec4(p, 1.0);
 
 	// Zoom level determines screen Z depth,
 	// range is -1 (nearest) to 1 (farthest), though the basemap is zero:
 	gl_Position.z  = float(tile_zoom) / -20.0 - 0.01;
 	gl_Position.z *= gl_Position.w;
-
-	// Find the vertex position relative to the camera. The result is a
-	// direction vector with the camera as the origin, or rather a ray:
-	vec3 p = vertex[gl_VertexID] - cam;
 
 	// Angle in radians of the arc swept by one pixel:
 	float arc = vp_angle / vp_width;

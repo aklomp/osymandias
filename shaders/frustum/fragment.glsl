@@ -1,6 +1,6 @@
 #version 130
 
-uniform mat4 mat_mvp;
+uniform mat4 mat_mvp_origin;
 uniform vec3 cam;
 
 smooth in vec4 fpos;
@@ -38,7 +38,7 @@ bool inside_frustum (void)
 		return false;
 
 	// Project position to eye space:
-	pos = mat_mvp * pos;
+	pos = mat_mvp_origin * (pos - vec4(cam, 1.0));
 
 	// Projected point is visible if within (-w, w):
 	if (any(lessThan(pos.xy, vec2(-pos.w))))

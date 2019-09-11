@@ -30,6 +30,10 @@ matrix_view_update (void)
 	mat_multiply(cam.invert.view, cam.invert.view,   cam.invert.translate);
 	mat_multiply(cam.invert.view, cam.invert.radius, cam.invert.view);
 
+	// This is the view matrix rendered as if the camera is in the origin,
+	// without any translations. By adding the translation back in in the
+	// shader, we can increase precision:
+	mat_multiply(cam.matrix.view_origin, cam.matrix.tilt, cam.matrix.rotate);
 	cam.updated.view = true;
 }
 

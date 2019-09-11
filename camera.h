@@ -39,6 +39,7 @@ struct camera {
 		double radius[16];
 		double proj[16];
 		double view[16];
+		double view_origin[16];
 	} matrix;
 
 	// Inverse matrices:
