@@ -202,3 +202,10 @@ mat_invert (float *matrix, const float *m)
 	for (int i = 0; i < 16; i++)
 		matrix[i] /= det;
 }
+
+void
+mat_to_float (float *dst, const double *src)
+{
+	for (int i = 0; i < 16; i++)
+		dst[i] = src[i];
+}

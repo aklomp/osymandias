@@ -8,3 +8,4 @@ extern void mat_frustum (float *matrix, float angle_of_view, float aspect_ratio,
 extern void mat_vec_multiply (float *vector, const float *m, const float *v);
 extern void mat_multiply (float *matrix, const float *a, const float *b);
 extern void mat_invert (float *matrix, const float *m);
+extern void mat_to_float (float *dst, const double *src);
