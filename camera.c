@@ -100,8 +100,8 @@ camera_unproject (union vec *p1, union vec *p2, const unsigned int x, const unsi
 	const union vec b = vec(sx, sy, 1.0f, 1.0f);
 
 	// Multiply with the inverse view-projection matrix:
-	mat_vec_multiply(p1->elem.f, vp->invert.viewproj, a.elem.f);
-	mat_vec_multiply(p2->elem.f, vp->invert.viewproj, b.elem.f);
+	mat_vec_multiply(p1->elem.f, vp->invert32.viewproj, a.elem.f);
+	mat_vec_multiply(p2->elem.f, vp->invert32.viewproj, b.elem.f);
 
 	// Divide by w:
 	*p1 = vec_div(*p1, vec_1(p1->w));

@@ -63,30 +63,30 @@ viewport_paint (void)
 
 	// Gather and combine view and model matrices:
 	if (globe->updated.model) {
-		memcpy(vp.matrix.model, globe->matrix.model, sizeof (vp.matrix.model));
-		memcpy(vp.invert.model, globe->invert.model, sizeof (vp.invert.model));
+		memcpy(vp.matrix32.model, globe->matrix.model, sizeof (vp.matrix32.model));
+		memcpy(vp.invert32.model, globe->invert.model, sizeof (vp.invert32.model));
 	}
 
 	if (cam->updated.view) {
-		memcpy(vp.matrix.view, cam->matrix.view, sizeof (vp.matrix.view));
-		memcpy(vp.invert.view, cam->invert.view, sizeof (vp.invert.view));
+		memcpy(vp.matrix32.view, cam->matrix.view, sizeof (vp.matrix32.view));
+		memcpy(vp.invert32.view, cam->invert.view, sizeof (vp.invert32.view));
 	}
 
 	if (cam->updated.proj || cam->updated.view) {
-		mat_multiply(vp.matrix.viewproj, cam->matrix.proj, cam->matrix.view);
-		mat_invert(vp.invert.viewproj, vp.matrix.viewproj);
+		mat_multiply(vp.matrix32.viewproj, cam->matrix.proj, cam->matrix.view);
+		mat_invert(vp.invert32.viewproj, vp.matrix32.viewproj);
 	}
 
 	if (globe->updated.model || cam->updated.proj || cam->updated.view) {
-		mat_multiply(vp.matrix.modelviewproj, vp.matrix.viewproj, vp.matrix.model);
-		mat_multiply(vp.invert.modelview, vp.invert.model, vp.invert.view);
+		mat_multiply(vp.matrix32.modelviewproj, vp.matrix32.viewproj, vp.matrix32.model);
+		mat_multiply(vp.invert32.modelview, vp.invert32.model, vp.invert32.view);
 	}
 
 	if (globe->updated.model || cam->updated.view) {
 		float cam_pos[4], origin[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
 
 		// Find camera position in model space by unprojecting origin:
-		mat_vec_multiply(cam_pos, vp.invert.modelview, origin);
+		mat_vec_multiply(cam_pos, vp.invert32.modelview, origin);
 		vp.cam_pos[0] = cam_pos[0];
 		vp.cam_pos[1] = cam_pos[1];
 		vp.cam_pos[2] = cam_pos[2];
