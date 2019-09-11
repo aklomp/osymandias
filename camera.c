@@ -5,15 +5,15 @@
 #include "matrix.h"
 #include "vec.h"
 
-#define VIEW_ANGLE_MIN	0.15f
-#define VIEW_ANGLE_MAX	2.40f
+#define VIEW_ANGLE_MIN	0.15
+#define VIEW_ANGLE_MAX	2.40
 
 static struct camera cam;
 
 static void
 matrix_proj_update (void)
 {
-	mat_frustum(cam.matrix.proj, cam.view_angle / 2.0f, cam.aspect_ratio, cam.clip.near, cam.clip.far);
+	mat_frustum(cam.matrix.proj, cam.view_angle / 2.0, cam.aspect_ratio, cam.clip.near, cam.clip.far);
 	cam.updated.proj = true;
 }
 
@@ -36,24 +36,24 @@ matrix_view_update (void)
 static void
 matrix_translate_update (void)
 {
-	mat_translate(cam.matrix.translate, 0.0f, 0.0f, -cam.distance);
-	mat_translate(cam.invert.translate, 0.0f, 0.0f,  cam.distance);
+	mat_translate(cam.matrix.translate, 0.0, 0.0, -cam.distance);
+	mat_translate(cam.invert.translate, 0.0, 0.0,  cam.distance);
 	matrix_view_update();
 }
 
 static void
 matrix_rotate_update (void)
 {
-	mat_rotate(cam.matrix.rotate, 0.0f, 0.0f, 1.0f,  cam.rotate);
-	mat_rotate(cam.invert.rotate, 0.0f, 0.0f, 1.0f, -cam.rotate);
+	mat_rotate(cam.matrix.rotate, 0.0, 0.0, 1.0,  cam.rotate);
+	mat_rotate(cam.invert.rotate, 0.0, 0.0, 1.0, -cam.rotate);
 	matrix_view_update();
 }
 
 static void
 matrix_tilt_update (void)
 {
-	mat_rotate(cam.matrix.tilt, 1.0f, 0.0f, 0.0f,  cam.tilt);
-	mat_rotate(cam.invert.tilt, 1.0f, 0.0f, 0.0f, -cam.tilt);
+	mat_rotate(cam.matrix.tilt, 1.0, 0.0, 0.0,  cam.tilt);
+	mat_rotate(cam.invert.tilt, 1.0, 0.0, 0.0, -cam.tilt);
 	matrix_view_update();
 }
 
@@ -71,7 +71,7 @@ camera_updated_reset (void)
 }
 
 void
-camera_set_view_angle (const float radians)
+camera_set_view_angle (const double radians)
 {
 	if (radians < VIEW_ANGLE_MIN || radians > VIEW_ANGLE_MAX)
 		return;
@@ -83,7 +83,7 @@ camera_set_view_angle (const float radians)
 void
 camera_set_aspect_ratio (const struct viewport *vp)
 {
-	cam.aspect_ratio = (float) vp->width / (float) vp->height;
+	cam.aspect_ratio = (double) vp->width / (double) vp->height;
 	matrix_proj_update();
 }
 
@@ -100,8 +100,8 @@ camera_unproject (union vec *p1, union vec *p2, const unsigned int x, const unsi
 	const union vec b = vec(sx, sy, 1.0f, 1.0f);
 
 	// Multiply with the inverse view-projection matrix:
-	mat_vec_multiply(p1->elem.f, vp->invert32.viewproj, a.elem.f);
-	mat_vec_multiply(p2->elem.f, vp->invert32.viewproj, b.elem.f);
+	mat_vec32_multiply(p1->elem.f, vp->invert64.viewproj, a.elem.f);
+	mat_vec32_multiply(p2->elem.f, vp->invert64.viewproj, b.elem.f);
 
 	// Divide by w:
 	*p1 = vec_div(*p1, vec_1(p1->w));
@@ -109,33 +109,33 @@ camera_unproject (union vec *p1, union vec *p2, const unsigned int x, const unsi
 }
 
 void
-camera_set_tilt (const float radians)
+camera_set_tilt (const double radians)
 {
 	cam.tilt += radians;
 
 	// Always keep a small angle to the map:
-	if (cam.tilt > 1.4f)
-		cam.tilt = 1.4f;
+	if (cam.tilt > 1.5)
+		cam.tilt = 1.5;
 
 	// If almost vertical, snap to perfectly vertical:
-	if (cam.tilt < 0.005f)
-		cam.tilt = 0.0f;
+	if (cam.tilt < 0.005)
+		cam.tilt = 0.0;
 
 	matrix_tilt_update();
 }
 
 void
-camera_set_rotate (const float radians)
+camera_set_rotate (const double radians)
 {
 	cam.rotate += radians;
 	matrix_rotate_update();
 }
 
 void
-camera_set_distance (const float distance)
+camera_set_distance (const double distance)
 {
 	cam.distance  = distance;
-	cam.clip.near = distance / 2.0f;
+	cam.clip.near = distance / 2.0;
 	matrix_translate_update();
 }
 
@@ -143,9 +143,9 @@ bool
 camera_init (const struct viewport *vp)
 {
 	// Initial attitude:
-	cam.tilt     = 0.0f;
-	cam.rotate   = 0.0f;
-	cam.distance = 1.0f;
+	cam.tilt     = 0.0;
+	cam.rotate   = 0.0;
+	cam.distance = 1.0;
 
 	// Clip planes:
 	cam.clip.near = 0.5f;
@@ -154,8 +154,8 @@ camera_init (const struct viewport *vp)
 	// Initialize the static matrix that pushes the camera back from the
 	// world origin by one unit radius. The rest of the camera position is
 	// calculated from the resulting point:
-	mat_translate(cam.matrix.radius, 0.0f, 0.0f, -1.0f);
-	mat_translate(cam.invert.radius, 0.0f, 0.0f,  1.0f);
+	mat_translate(cam.matrix.radius, 0.0, 0.0, -1.0);
+	mat_translate(cam.invert.radius, 0.0, 0.0,  1.0);
 
 	// Initialize other attitude matrices:
 	matrix_rotate_update();
@@ -164,7 +164,7 @@ camera_init (const struct viewport *vp)
 
 	// Set aspect ratio and viewing angle:
 	camera_set_aspect_ratio(vp);
-	camera_set_view_angle(1.2f);
+	camera_set_view_angle(1.2);
 
 	return true;
 }

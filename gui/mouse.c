@@ -60,10 +60,10 @@ on_button_motion (GtkWidget *widget, GdkEventButton *event)
 		const int dy = pos.y - button_pressed_pos.y;
 
 		if (dx != 0)
-			camera_set_rotate(dx * -0.005f);
+			camera_set_rotate(dx * -0.005);
 
 		if (dy != 0)
-			camera_set_tilt(dy * 0.005f);
+			camera_set_tilt(dy * 0.005);
 
 		framerate_repaint();
 	}
@@ -72,7 +72,7 @@ on_button_motion (GtkWidget *widget, GdkEventButton *event)
 		const int dy = pos.y - button_pressed_pos.y;
 
 		if (dy != 0) {
-			camera_set_view_angle(camera_get()->view_angle + dy * -0.005f);
+			camera_set_view_angle(camera_get()->view_angle + dy * -0.005);
 			framerate_repaint();
 		}
 	}

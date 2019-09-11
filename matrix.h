@@ -1,11 +1,12 @@
 #pragma once
 
-extern void mat_translate (float *matrix, float dx, float dy, float dz);
-extern void mat_rotate (float *matrix, float x, float y, float z, float angle);
-extern void mat_scale (float *matrix, float x, float y, float z);
-extern void mat_ortho (float *matrix, float left, float right, float bottom, float top, float near, float far);
-extern void mat_frustum (float *matrix, float angle_of_view, float aspect_ratio, float z_near, float z_far);
-extern void mat_vec_multiply (float *vector, const float *m, const float *v);
-extern void mat_multiply (float *matrix, const float *a, const float *b);
-extern void mat_invert (float *matrix, const float *m);
+extern void mat_translate (double *matrix, double dx, double dy, double dz);
+extern void mat_rotate (double *matrix, double x, double y, double z, double angle);
+extern void mat_scale (double *matrix, double x, double y, double z);
+extern void mat_ortho (double *matrix, double left, double right, double bottom, double top, double near, double far);
+extern void mat_frustum (double *matrix, double angle_of_view, double aspect_ratio, double z_near, double z_far);
+extern void mat_vec32_multiply (float *vector, const double *m, const float *v);
+extern void mat_vec64_multiply (double *vector, const double *m, const double *v);
+extern void mat_multiply (double *matrix, const double *a, const double *b);
+extern void mat_invert (double *matrix, const double *m);
 extern void mat_to_float (float *dst, const double *src);

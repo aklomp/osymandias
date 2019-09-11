@@ -17,7 +17,8 @@
 
 // Projection matrix:
 static struct {
-	float proj[16];
+	float  proj32[16];
+	double proj64[16];
 } matrix;
 
 // Vertex array and buffer objects:
@@ -85,10 +86,11 @@ resize (const struct viewport *vp)
 	// the projected area is one pixel larger than the actual size in
 	// pixels. This will allow the tile outlines to be drawn without being
 	// clipped.
-	const float min = -0.5f / state.size;
-	const float max = (state.size + 0.5f) / state.size;
+	const double min = -0.5 / state.size;
+	const double max = (state.size + 0.5) / state.size;
 
-	mat_ortho(matrix.proj, min, max, min, max, 0, 1);
+	mat_ortho(matrix.proj64, min, max, min, max, 0, 1);
+	mat_to_float(matrix.proj32, matrix.proj64);
 }
 
 static void
@@ -224,7 +226,7 @@ paint (const struct camera *cam, const struct viewport *vp)
 
 	// Paint background using solid program:
 	program_solid_use(&((struct program_solid) {
-		.matrix = matrix.proj,
+		.matrix = matrix.proj32,
 	}));
 
 	paint_background(*state.bkgd.vao);
@@ -236,7 +238,7 @@ paint (const struct camera *cam, const struct viewport *vp)
 	program_frustum_use(&((struct program_frustum) {
 		.cam      = vp->cam_pos,
 		.mat_mvp  = vp->matrix32.modelviewproj,
-		.mat_proj = matrix.proj,
+		.mat_proj = matrix.proj32,
 	}));
 
 	paint_background(*state.frustum.vao);
