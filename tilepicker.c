@@ -88,6 +88,7 @@ render (const struct viewport *vp, const struct camera *cam)
 {
 	// Use the tilepicker program:
 	program_tilepicker_use(&(struct program_tilepicker) {
+		.cam           = vp->cam_pos,
 		.mat_model_inv = globe_get()->invert.model,
 		.mat_view_inv  = cam->invert.view,
 		.vp_angle      = cam->view_angle * (IMGSIZE + 2) / IMGSIZE,

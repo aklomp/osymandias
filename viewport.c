@@ -82,6 +82,16 @@ viewport_paint (void)
 		mat_multiply(vp.invert.modelview, vp.invert.model, vp.invert.view);
 	}
 
+	if (globe->updated.model || cam->updated.view) {
+		float cam_pos[4], origin[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+
+		// Find camera position in model space by unprojecting origin:
+		mat_vec_multiply(cam_pos, vp.invert.modelview, origin);
+		vp.cam_pos[0] = cam_pos[0];
+		vp.cam_pos[1] = cam_pos[1];
+		vp.cam_pos[2] = cam_pos[2];
+	}
+
 	// Reset matrix update flags:
 	camera_updated_reset();
 	globe_updated_reset();

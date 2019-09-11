@@ -22,6 +22,9 @@ struct viewport {
 		float model[16];
 		float view[16];
 	} invert;
+
+	// Camera position in model space:
+	float cam_pos[3];
 };
 
 // The viewport position can be negative if an event happened outside of the

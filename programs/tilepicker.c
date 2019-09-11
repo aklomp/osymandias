@@ -5,7 +5,8 @@
 #include "../programs.h"
 #include "tilepicker.h"
 
-enum	{ MAT_MODEL_INV
+enum	{ CAM
+	, MAT_MODEL_INV
 	, MAT_VIEW_INV
 	, VP_ANGLE
 	, VP_HEIGHT
@@ -14,13 +15,14 @@ enum	{ MAT_MODEL_INV
 	} ;
 
 static struct input inputs[] =
-	{ [MAT_MODEL_INV]    = { .name = "mat_model_inv", .type = TYPE_UNIFORM   }
-	, [MAT_VIEW_INV]     = { .name = "mat_view_inv",  .type = TYPE_UNIFORM   }
-	, [VP_ANGLE]         = { .name = "vp_angle",      .type = TYPE_UNIFORM   }
-	, [VP_HEIGHT]        = { .name = "vp_height",     .type = TYPE_UNIFORM   }
-	, [VP_WIDTH]         = { .name = "vp_width",      .type = TYPE_UNIFORM   }
-	, [VERTEX]           = { .name = "vertex",        .type = TYPE_ATTRIBUTE }
-	,                      { .name = NULL }
+	{ [CAM]           = { .name = "cam",           .type = TYPE_UNIFORM   }
+	, [MAT_MODEL_INV] = { .name = "mat_model_inv", .type = TYPE_UNIFORM   }
+	, [MAT_VIEW_INV]  = { .name = "mat_view_inv",  .type = TYPE_UNIFORM   }
+	, [VP_ANGLE]      = { .name = "vp_angle",      .type = TYPE_UNIFORM   }
+	, [VP_HEIGHT]     = { .name = "vp_height",     .type = TYPE_UNIFORM   }
+	, [VP_WIDTH]      = { .name = "vp_width",      .type = TYPE_UNIFORM   }
+	, [VERTEX]        = { .name = "vertex",        .type = TYPE_ATTRIBUTE }
+	,                   { .name = NULL }
 	} ;
 
 struct program program_tilepicker __attribute__((section(".programs"))) =
@@ -40,6 +42,7 @@ void
 program_tilepicker_use (const struct program_tilepicker *values)
 {
 	glUseProgram(program_tilepicker.id);
+	glUniform3fv(inputs[CAM].loc, 1, values->cam);
 	glUniformMatrix4fv(inputs[MAT_MODEL_INV].loc, 1, GL_FALSE, values->mat_model_inv);
 	glUniformMatrix4fv(inputs[MAT_VIEW_INV].loc,  1, GL_FALSE, values->mat_view_inv);
 	glUniform1f(inputs[VP_ANGLE].loc,  values->vp_angle);

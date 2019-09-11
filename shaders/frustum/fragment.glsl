@@ -2,9 +2,9 @@
 
 uniform mat4 mat_viewproj;
 uniform mat4 mat_model;
+uniform vec3 cam;
 
 smooth in vec4 fpos;
-flat   in vec3 cam;
 
 out vec4 fragcolor;
 

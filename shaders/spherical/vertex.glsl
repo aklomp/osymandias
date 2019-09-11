@@ -5,6 +5,7 @@ uniform mat4  mat_model;
 uniform mat4  mat_model_inv;
 uniform mat4  mat_view_inv;
 uniform int   tile_zoom;
+uniform vec3  cam;
 uniform vec3  vertex[4];
 uniform float vp_angle;
 uniform float vp_width;
@@ -17,7 +18,6 @@ flat out float tile_xlength0;
 flat out float tile_xlength1;
 flat out float tile_ylength;
 
-flat   out vec3   cam;
 smooth out mat4x3 rays;
 
 void main (void)
@@ -29,10 +29,6 @@ void main (void)
 	// range is -1 (nearest) to 1 (farthest), though the basemap is zero:
 	gl_Position.z  = float(tile_zoom) / -20.0 - 0.01;
 	gl_Position.z *= gl_Position.w;
-
-	// The camera position is the world space origin, projected back
-	// through the view and model matrices:
-	cam = (mat_model_inv * mat_view_inv * vec4(vec3(0.0), 1.0)).xyz;
 
 	// Find the vertex position relative to the camera. The result is a
 	// direction vector with the camera as the origin, or rather a ray:

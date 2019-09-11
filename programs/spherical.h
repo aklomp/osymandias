@@ -3,6 +3,7 @@
 #include "../cache.h"
 
 struct program_spherical {
+	const float *cam;
 	const float *mat_viewproj;
 	const float *mat_model;
 	const float *mat_model_inv;

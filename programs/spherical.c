@@ -2,20 +2,21 @@
 #include "../programs.h"
 #include "spherical.h"
 
-enum {
-	MAT_VIEWPROJ,
-	MAT_MODEL,
-	MAT_MODEL_INV,
-	MAT_VIEW_INV,
-	TILE_X,
-	TILE_Y,
-	TILE_ZOOM,
-	VERTEX,
-	VP_ANGLE,
-	VP_WIDTH,
-};
+enum	{ CAM
+	, MAT_VIEWPROJ
+	, MAT_MODEL
+	, MAT_MODEL_INV
+	, MAT_VIEW_INV
+	, TILE_X
+	, TILE_Y
+	, TILE_ZOOM
+	, VERTEX
+	, VP_ANGLE
+	, VP_WIDTH
+	} ;
 
 static struct input inputs[] = {
+	[CAM]           = { .name = "cam",           .type = TYPE_UNIFORM },
 	[MAT_VIEWPROJ]  = { .name = "mat_viewproj",  .type = TYPE_UNIFORM },
 	[MAT_MODEL]     = { .name = "mat_model",     .type = TYPE_UNIFORM },
 	[MAT_MODEL_INV] = { .name = "mat_model_inv", .type = TYPE_UNIFORM },
@@ -49,6 +50,7 @@ void
 program_spherical_use (const struct program_spherical *values)
 {
 	glUseProgram(program_spherical.id);
+	glUniform3fv(inputs[CAM].loc, 1, values->cam);
 	glUniformMatrix4fv(inputs[MAT_VIEWPROJ].loc,  1, GL_FALSE, values->mat_viewproj);
 	glUniformMatrix4fv(inputs[MAT_MODEL].loc,     1, GL_FALSE, values->mat_model);
 	glUniformMatrix4fv(inputs[MAT_MODEL_INV].loc, 1, GL_FALSE, values->mat_model_inv);

@@ -209,6 +209,8 @@ paint_tiles (void)
 static void
 paint (const struct camera *cam, const struct globe *globe)
 {
+	(void) cam;
+
 	if (state.visible == false)
 		return;
 
@@ -232,11 +234,10 @@ paint (const struct camera *cam, const struct globe *globe)
 
 	// Paint background using frustum program:
 	program_frustum_use(&((struct program_frustum) {
-		.mat_proj      = matrix.proj,
-		.mat_viewproj  = viewport_get()->matrix.viewproj,
-		.mat_view_inv  = cam->invert.view,
-		.mat_model     = globe->matrix.model,
-		.mat_model_inv = globe->invert.model,
+		.cam          = viewport_get()->cam_pos,
+		.mat_proj     = matrix.proj,
+		.mat_viewproj = viewport_get()->matrix.viewproj,
+		.mat_model    = globe->matrix.model,
 	}));
 
 	paint_background(*state.frustum.vao);

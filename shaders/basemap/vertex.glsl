@@ -5,10 +5,10 @@ uniform mat4  mat_view_inv;
 uniform float vp_angle;		// Horizontal viewing angle in radians
 uniform float vp_height;	// Viewport height in pixels
 uniform float vp_width;		// Viewport width in pixels
+uniform vec3  cam;
 
 in vec2 vertex;
 
-flat          out vec3  cam;
 noperspective out vec3  p;
 smooth        out float frag_look_angle;
 flat          out float frag_arc_angle;
@@ -17,10 +17,6 @@ void main (void)
 {
 	// The vertex position is always fixed against the screen:
 	gl_Position = vec4(vertex, 0.0, 1.0);
-
-	// The camera position is the world space origin, projected back
-	// through the view and model matrices:
-	cam = (mat_model_inv * mat_view_inv * vec4(vec3(0.0), 1.0)).xyz;
 
 	// Half of the total horizontal view angle, the deviation from center:
 	float alpha = vp_angle / 2.0;

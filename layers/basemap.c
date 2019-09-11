@@ -21,6 +21,7 @@ paint (const struct camera *cam, const struct globe *globe)
 	const struct viewport *vp = viewport_get();
 
 	program_basemap_use(&(struct program_basemap) {
+		.cam           = vp->cam_pos,
 		.mat_model_inv = globe->invert.model,
 		.mat_view_inv  = cam->invert.view,
 		.vp_angle      = cam->view_angle,
