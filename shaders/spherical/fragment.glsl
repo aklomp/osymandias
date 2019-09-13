@@ -22,6 +22,27 @@ mat4x3 mat4x3vec (in vec3 v)
 	return mat4x3(v, v, v, v);
 }
 
+mat4x3 sphere_intersect (in mat4x3 nrays)
+{
+	// Find the intersection of a set of normalized rays starting at the
+	// camera, with a unit sphere centered on the origin. Theory:
+	//   https://en.wikipedia.org/wiki/Line%E2%80%93sphere_intersection
+
+	// Squared distance of the camera to the world origin:
+	float camdist = dot(cam, cam);
+
+	// Dot products of the camera (ray start) position with the rays:
+	vec4 raydot = cam * nrays;
+
+	// Get the time values to intersection point. The value under the
+	// square root is always positive by definition. Rays are only cast to
+	// tiles, which are known to be fully contained within the sphere:
+	vec4 t = sqrt(raydot * raydot - camdist + 1.0) + raydot;
+
+	// Get the intersection point in world coordinates:
+	return mat4x3vec(cam) - matrixCompMult(transpose(mat3x4(t, t, t)), nrays);
+}
+
 // Transform coordinates on a unit sphere to texture coordinates, using the
 // vector definitions of the tile supplied by the vertex shader. The goal is to
 // use geometric constructions to avoid trigonometry as much as possible.
@@ -94,43 +115,17 @@ uvec4 sphere_to_texture (in mat4x3 s, out vec4 tx, out vec4 ty)
 	return valid;
 }
 
-void sphere_intersect (in vec3 start, in mat4x3 dir, out mat4x3 hit)
-{
-	// Find the intersection of a set of rays with the given start point
-	// and direction with a unit sphere centered on the origin. Theory:
-	//
-	//   https://en.wikipedia.org/wiki/Line%E2%80%93sphere_intersection
-	//
-	// Distance of ray origin to world origin:
-	float startdist = length(start);
-
-	// Dot product of start positions with direction:
-	vec4 raydot = start * dir;
-
-	// Calculate the value under the square root. This value is always
-	// positive by definition. Rays are only cast to tiles, which are known
-	// to be fully contained within the sphere:
-	vec4 det = (raydot * raydot) - (startdist * startdist) + 1.0;
-
-	// Get the time values to intersection point:
-	vec4 t = sqrt(det) - raydot;
-
-	// Get the intersection point:
-	hit = mat4x3vec(start) + matrixCompMult(dir, transpose(mat3x4(t, t, t)));
-}
-
 void main (void)
 {
 	float nsamples;
 	vec4 tx, ty;
-	mat4x3 s;
 
 	// Cast rays from the camera and intersect with the unit sphere:
-	sphere_intersect(cam, mat4x3(
-		normalize(cam - rays[0]),
-		normalize(cam - rays[1]),
-		normalize(cam - rays[2]),
-		normalize(cam - rays[3])), s);
+	mat4x3 s = sphere_intersect(mat4x3(
+		normalize(rays[0]),
+		normalize(rays[1]),
+		normalize(rays[2]),
+		normalize(rays[3])));
 
 	// Get texture coordinates:
 	uvec4 valid = sphere_to_texture(s, tx, ty);

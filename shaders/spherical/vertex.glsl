@@ -34,10 +34,9 @@ void main (void)
 	// through the view and model matrices:
 	cam = (mat_model_inv * mat_view_inv * vec4(vec3(0.0), 1.0)).xyz;
 
-	// Interpolate the position in model space. Do not use the vector point
-	// directly, but move it backwards a bit on the camera axis, because
-	// the distance to the camera can get very small:
-	vec3 p = cam + (tile_zoom * vertex[gl_VertexID] - tile_zoom * cam);
+	// Find the vertex position relative to the camera. The result is a
+	// direction vector with the camera as the origin, or rather a ray:
+	vec3 p = vertex[gl_VertexID] - cam;
 
 	// Angle in radians of the arc swept by one pixel:
 	float arc = vp_angle / vp_width;
@@ -50,7 +49,7 @@ void main (void)
 	// Model and view matrices do not involve scaling so the lengths stay
 	// the same after transformation. Find the offcenter distance, which is
 	// the deviation of the vector over the given angle:
-	float offcenter = length(cam - p) * tan(arc / 4.0);
+	float offcenter = length(p) * tan(arc / 4.0);
 
 	// Rotate and translate (but do not scale) the deviation lengths:
 	rays = mat4x3(mat_model_inv * mat_view_inv * mat4(
