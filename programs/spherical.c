@@ -3,6 +3,7 @@
 #include "spherical.h"
 
 enum	{ CAM
+	, CAM_LOWBITS
 	, MAT_MVP_ORIGIN
 	, MAT_MV_INV
 	, TILE_X
@@ -15,6 +16,7 @@ enum	{ CAM
 
 static struct input inputs[] = {
 	[CAM]            = { .name = "cam",            .type = TYPE_UNIFORM },
+	[CAM_LOWBITS]    = { .name = "cam_lowbits",    .type = TYPE_UNIFORM },
 	[MAT_MVP_ORIGIN] = { .name = "mat_mvp_origin", .type = TYPE_UNIFORM },
 	[MAT_MV_INV]     = { .name = "mat_mv_inv",     .type = TYPE_UNIFORM },
 	[TILE_X]         = { .name = "tile_x",         .type = TYPE_UNIFORM },
@@ -46,7 +48,8 @@ void
 program_spherical_use (const struct camera *cam, const struct viewport *vp)
 {
 	glUseProgram(program_spherical.id);
-	glUniform3fv(inputs[CAM].loc, 1, vp->cam_pos);
+	glUniform3fv(inputs[CAM].loc,         1, vp->cam_pos);
+	glUniform3fv(inputs[CAM_LOWBITS].loc, 1, vp->cam_pos_lowbits);
 	glUniformMatrix4fv(inputs[MAT_MVP_ORIGIN].loc, 1, GL_FALSE, vp->matrix32.modelviewproj_origin);
 	glUniformMatrix4fv(inputs[MAT_MV_INV].loc,     1, GL_FALSE, vp->invert32.modelview);
 	glUniform1f(inputs[VP_ANGLE].loc, cam->view_angle);
