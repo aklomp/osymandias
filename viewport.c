@@ -97,13 +97,15 @@ viewport_paint (void)
 	}
 
 	if (globe->updated.model || cam->updated.view) {
-		float cam_pos[4], origin[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+		double cam_pos[4], origin[4] = { 0.0, 0.0, 0.0, 1.0 };
 
 		// Find camera position in model space by unprojecting origin:
-		mat_vec32_multiply(cam_pos, vp.invert64.modelview, origin);
-		vp.cam_pos[0] = cam_pos[0];
-		vp.cam_pos[1] = cam_pos[1];
-		vp.cam_pos[2] = cam_pos[2];
+		mat_vec64_multiply(cam_pos, vp.invert64.modelview, origin);
+
+		for (int i = 0; i < 3; i++) {
+			vp.cam_pos[i]         = cam_pos[i];
+			vp.cam_pos_lowbits[i] = cam_pos[i] - vp.cam_pos[i];
+		}
 	}
 
 	if (globe->updated.model || cam->updated.proj || cam->updated.view) {

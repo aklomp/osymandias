@@ -44,6 +44,7 @@ struct viewport {
 
 	// Camera position in model space:
 	float cam_pos[3];
+	float cam_pos_lowbits[3];
 };
 
 // The viewport position can be negative if an event happened outside of the
