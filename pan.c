@@ -17,11 +17,11 @@ enum state {
 };
 
 struct mark {
-	float lat;
-	float lon;
+	double lat;
+	double lon;
 	struct {
-		float lat;
-		float lon;
+		double lat;
+		double lon;
 	} speed;
 	int64_t now;
 };
@@ -31,8 +31,8 @@ static struct {
 	struct mark prev;
 	struct mark cur;
 	struct {
-		float lat;
-		float lon;
+		double lat;
+		double lon;
 	} speed;
 	struct {
 		int64_t start;
@@ -40,8 +40,8 @@ static struct {
 	} pan;
 	struct {
 		int64_t start;
-		float lat;
-		float lon;
+		double lat;
+		double lon;
 	} moveto;
 	enum state state;
 } state;
@@ -59,6 +59,7 @@ push_cursor (const struct globe *globe, const int64_t now)
 void
 pan_on_button_down (const struct viewport_pos *pos, const int64_t now)
 {
+	float latf, lonf;
 	bool stopped_pan = false;
 
 	for (;;) {
@@ -67,9 +68,11 @@ pan_on_button_down (const struct viewport_pos *pos, const int64_t now)
 
 			// Save the coordinates of the point under the mouse cursor at
 			// the moment when the button goes down:
-			if (viewport_unproject(pos, &state.down.lat, &state.down.lon) == false)
+			if (viewport_unproject(pos, &latf, &lonf) == false)
 				return;
 
+			state.down.lat = (double) latf;
+			state.down.lon = (double) lonf;
 			state.down.now = now;
 			state.state = stopped_pan ? STATE_DOWN_NOCLICK : STATE_DOWN;
 			break;
@@ -81,12 +84,12 @@ pan_on_button_down (const struct viewport_pos *pos, const int64_t now)
 			push_cursor(globe_get(), now);
 
 			// Set initial velocity:
-			state.cur.speed.lat = 0.0f;
-			state.cur.speed.lon = 0.0f;
+			state.cur.speed.lat = 0.0;
+			state.cur.speed.lon = 0.0;
 
 			// Reset integrators:
-			state.speed.lon = 0.0f;
-			state.speed.lat = 0.0f;
+			state.speed.lon = 0.0;
+			state.speed.lat = 0.0;
 			return;
 
 		case STATE_MOVETO:
@@ -111,7 +114,7 @@ static void
 sum_relative_speeds (void)
 {
 	const struct camera *cam = camera_get();
-	const float dt = state.cur.now - state.prev.now;
+	const double dt = state.cur.now - state.prev.now;
 
 	// v = dx/dt:
 	state.cur.speed.lat = (state.cur.lat - state.prev.lat) / cam->distance / dt;
@@ -125,17 +128,18 @@ sum_relative_speeds (void)
 static bool
 move_cursor (const struct globe *globe, const struct viewport_pos *pos)
 {
-	float lat, lon;
+	float latf, lonf;
+	double lat, lon;
 
 	// Get the coordinates of the point currently under the mouse cursor:
-	if (viewport_unproject(pos, &lat, &lon) == false)
+	if (viewport_unproject(pos, &latf, &lonf) == false)
 		return false;
 
 	// Move the center cursor such that the point under the mouse cursor
 	// will be the same point that was under the mouse cursor when the
 	// button first went down. This appears to the user as a drag:
-	lat = globe->lat + (state.down.lat - lat);
-	lon = globe->lon + (state.down.lon - lon);
+	lat = globe->lat + (state.down.lat - (double) latf);
+	lon = globe->lon + (state.down.lon - (double) lonf);
 
 	globe_moveto(lat, lon);
 	return true;
@@ -203,7 +207,7 @@ pan_on_button_up (const struct viewport_pos *pos, const int64_t now)
 
 		// Only turn a drag into a pan if the time since the last mouse
 		// movement is sufficiently small (it's actually dragging):
-		if ((now - state.cur.now) > 1e5f) {
+		if ((now - state.cur.now) > 1e5) {
 			state.state = STATE_IDLE;
 			break;
 		}
@@ -226,11 +230,11 @@ pan_on_tick (const int64_t now)
 		const struct globe *globe = globe_get();
 
 		// Easing factor: start fast, end slow:
-		const float ease = sqrtf((now - state.pan.start) / 1e5f);
+		const double ease = sqrt((now - state.pan.start) / 1e5);
 
-		const float dt  = now - state.pan.last;
-		const float lat = globe->lat + state.speed.lat * dt * cam->distance / ease;
-		const float lon = globe->lon + state.speed.lon * dt * cam->distance / ease;
+		const double dt  = now - state.pan.last;
+		const double lat = globe->lat + state.speed.lat * dt * cam->distance / ease;
+		const double lon = globe->lon + state.speed.lon * dt * cam->distance / ease;
 
 		globe_moveto(lat, lon);
 
@@ -241,10 +245,10 @@ pan_on_tick (const int64_t now)
 	case STATE_MOVETO: {
 
 		// Time since start in seconds:
-		const float dt = (now - state.moveto.start) / 1e6f;
+		const double dt = (now - state.moveto.start) / 1e6;
 
 		// Leave this state after a set time:
-		if (dt >= 0.5f) {
+		if (dt >= 0.5) {
 			globe_moveto(state.moveto.lat, state.moveto.lon);
 			state.state = STATE_IDLE;
 			return true;
@@ -253,8 +257,8 @@ pan_on_tick (const int64_t now)
 		const struct globe *globe = globe_get();
 
 		// Distance left to cover:
-		float dlat = state.moveto.lat - globe->lat;
-		float dlon = state.moveto.lon - globe->lon;
+		double dlat = state.moveto.lat - globe->lat;
+		double dlon = state.moveto.lon - globe->lon;
 
 		// Ensure longitude takes the short way round:
 		if (dlon > M_PI)
@@ -264,8 +268,8 @@ pan_on_tick (const int64_t now)
 			dlon += 2.0 * M_PI;
 
 		// The speed is 1:1 proportional to remaining distance:
-		const float lat = globe->lat + dlat * dt;
-		const float lon = globe->lon + dlon * dt;
+		const double lat = globe->lat + dlat * dt;
+		const double lon = globe->lon + dlon * dt;
 
 		globe_moveto(lat, lon);
 		return true;
