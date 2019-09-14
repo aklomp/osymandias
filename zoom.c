@@ -20,20 +20,20 @@ enum state {
 static struct {
 	int zoom;
 	struct {
-		float   goal;
+		double  goal;
 		int64_t start;
 	} zooming;
 	enum state state;
 } state;
 
-static inline float
+static inline double
 zoomlevel_to_distance (const int zoom)
 {
-	return exp2f(-zoom);
+	return exp2(-zoom);
 }
 
 static void
-apply_zoom (const float zoom)
+apply_zoom (const double zoom)
 {
 	camera_set_distance(zoomlevel_to_distance(zoom));
 }
@@ -45,10 +45,10 @@ zoom_on_tick (const int64_t now)
 		return false;
 
 	// Time since start in seconds:
-	const float dt = (now - state.zooming.start) / 1e6f;
+	const double dt = (now - state.zooming.start) / 1e6;
 
 	// Leave this state after a set time:
-	if (dt >= 0.5f) {
+	if (dt >= 0.5) {
 		apply_zoom(state.zoom);
 		state.state = STATE_IDLE;
 		return true;
@@ -57,7 +57,7 @@ zoom_on_tick (const int64_t now)
 	const struct camera *cam = camera_get();
 
 	// Distance left to cover:
-	const float dx = state.zooming.goal - cam->distance;
+	const double dx = state.zooming.goal - cam->distance;
 
 	// The speed is 1:1 proportional to remaining distance:
 	camera_set_distance(cam->distance + dx * dt);
