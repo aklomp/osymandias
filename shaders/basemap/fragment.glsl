@@ -85,35 +85,34 @@ int zoomlevel (float dist, float lat)
 	return clamp(zoom, zoom_min, zoom_max);
 }
 
-bool sphere_intersect (in vec3 start, in vec3 dir, out vec3 hit, out float det)
+bool sphere_intersect (in vec3 nray, out vec3 hit, out float det)
 {
-	// Find the intersection of a ray with the given start point and
-	// direction with a unit sphere centered on the origin. Theory here:
-	//
+	// Find the intersection of a normalized ray starting at the camera,
+	// with a unit sphere centered on the origin. Theory:
 	//   https://en.wikipedia.org/wiki/Line%E2%80%93sphere_intersection
-	//
-	// Distance of ray origin to world origin:
-	float startdist = length(start);
 
-	// Dot product of start position with direction:
-	float raydot = dot(start, dir);
+	// Squared distance of the camera to the world origin:
+	float camdist = dot(cam, cam);
 
-	// Calculate the value under the square root:
-	det = (raydot * raydot) - (startdist * startdist) + 1.0;
+	// Dot product of the camera (ray start) position with the ray:
+	float raydot = dot(cam, nray);
+
+	// Calculate the determinant under the square root:
+	det = raydot * raydot - camdist + 1.0;
 
 	// If this value is negative, no intersection exists:
 	if (det < 0.0)
 		return false;
 
-	// Get the time value to intersection point:
-	float t = sqrt(det) - raydot;
+	// Get the time value to the intersection point:
+	float t = sqrt(det) + raydot;
 
 	// If the intersection is behind us, discard:
 	if (t >= 0.0)
 		return false;
 
-	// Get the intersection point:
-	hit = start + t * dir;
+	// Get the intersection point in world coordinates:
+	hit = cam - t * nray;
 	return true;
 }
 
@@ -123,12 +122,12 @@ void main (void)
 	vec2 tile;
 	float det;
 
-	// Cast a ray from the camera to p and intersect with the unit sphere:
-	if (sphere_intersect(cam, normalize(cam - p), hit, det) == false)
+	// Intersect the ray p from the camera with the unit sphere:
+	if (sphere_intersect(normalize(p), hit, det) == false)
 		discard;
 
 	// Get zoomlevel based on distance to camera:
-	int zoom = zoomlevel(distance(hit, cam), atanh(hit.y));
+	int zoom = zoomlevel(distance(cam, hit), atanh(hit.y));
 
 	if (sphere_to_tile(hit, zoom, tile) == false) {
 		fragcolor = vec4(vec3(0.4), 1.0);
