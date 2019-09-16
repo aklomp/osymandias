@@ -42,16 +42,23 @@ mat4x3 sphere_intersect (in mat4x3 nrays)
 	// tiles, which are known to be fully contained within the sphere:
 	vec4 t = sqrt(raydot * raydot - camdist + 1.0) + raydot;
 
-	// Get the intersection point in world coordinates:
+	// Get the intersection points in world coordinates:
 	return mat4x3vec(cam) - matrixCompMult(transpose(mat3x4(t, t, t)), nrays);
 }
 
-// Transform the given points on the unit sphere into tile coordinates for the
-// current tile. This function uses trigonometry to account for the curvature
-// of the Earth, which represents the globe accurately at low zoom levels but
-// has precision problems at higher zoom levels.
-uvec4 sphere_to_texture_lozoom (in mat4x3 s, out vec4 tx, out vec4 ty)
+// Transform the rays from the camera into tile coordinates for the current
+// tile. This function uses trigonometry to account for the curvature of the
+// Earth, which represents the globe accurately at low zoom levels but has
+// precision problems at higher zoom levels.
+uvec4 sphere_to_texture_lozoom (out vec4 tx, out vec4 ty)
 {
+	// Cast rays from the camera and intersect with the unit sphere:
+	mat4x3 s = sphere_intersect(mat4x3(
+		normalize(rays[0]),
+		normalize(rays[1]),
+		normalize(rays[2]),
+		normalize(rays[3])));
+
 	// Create convenient shorthand vectors for all x, y and z:
 	mat3x4 st = transpose(s);
 	vec4 sx = st[0], sy = st[1], sz = st[2];
@@ -87,14 +94,20 @@ uvec4 sphere_to_texture_lozoom (in mat4x3 s, out vec4 tx, out vec4 ty)
 		* uvec4(lessThan        (tyfull, vec4(tile_y + 1))));
 }
 
-// Transform the given points on the unit sphere into tile coordinates for the
-// current tile. This function does not account for the curvature of the Earth,
-// so should be used only at high zoom levels. It uses only the tile's
-// geometric construction defined in the vertex shader.
-uvec4 sphere_to_texture_hizoom (in mat4x3 s, out vec4 tx, out vec4 ty)
+// Transform the rays from the camera into tile coordinates for the current
+// tile. This function does not account for the curvature of the Earth, so
+// should be used only at high zoom levels. It uses only the tile's geometric
+// construction defined in the vertex shader.
+uvec4 sphere_to_texture_hizoom (out vec4 tx, out vec4 ty)
 {
-	// Get the position of the sphere points relative to the tile origin:
-	mat4x3 tile = s - mat4x3vec(tile_origin);
+	// Intersect the rays from the camera (at the origin) with the tile
+	// plane. Tile origin location is relative to the camera. Math:
+	//   https://en.wikipedia.org/wiki/Line%E2%80%93plane_intersection
+	vec4 t = dot(tile_normal, tile_origin) / (tile_normal * rays);
+	mat4x3 tile = matrixCompMult(transpose(mat3x4(t, t, t)), rays);
+
+	// Make the coordinates relative to the tile origin:
+	tile -= mat4x3vec(tile_origin);
 
 	// Convert the y component to a fraction:
 	ty = (tile_yaxis * tile) / tile_ylength;
@@ -120,17 +133,10 @@ void main (void)
 	float nsamples;
 	vec4 tx, ty;
 
-	// Cast rays from the camera and intersect with the unit sphere:
-	mat4x3 s = sphere_intersect(mat4x3(
-		normalize(rays[0]),
-		normalize(rays[1]),
-		normalize(rays[2]),
-		normalize(rays[3])));
-
 	// Get texture coordinates:
 	uvec4 valid = tile_zoom >= 12
-		? sphere_to_texture_hizoom(s, tx, ty)
-		: sphere_to_texture_lozoom(s, tx, ty);
+		? sphere_to_texture_hizoom(tx, ty)
+		: sphere_to_texture_lozoom(tx, ty);
 
 	// Count number of valid samples:
 	if ((nsamples = dot(valid, valid)) == 0.0)
