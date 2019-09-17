@@ -1,6 +1,7 @@
 #version 130
 
 uniform sampler2D tex;
+uniform int       tile_x;
 uniform int       tile_y;
 uniform int       tile_zoom;
 
@@ -16,6 +17,8 @@ flat   in vec3   cam;
 smooth in mat4x3 rays;
 
 out vec4 fragcolor;
+
+const float pi = 3.141592653589793238462643383279502884;
 
 mat4x3 mat4x3vec (in vec3 v)
 {
@@ -43,51 +46,20 @@ mat4x3 sphere_intersect (in mat4x3 nrays)
 	return mat4x3vec(cam) - matrixCompMult(transpose(mat3x4(t, t, t)), nrays);
 }
 
-// Transform coordinates on a unit sphere to texture coordinates, using the
-// vector definitions of the tile supplied by the vertex shader. The goal is to
-// use geometric constructions to avoid trigonometry as much as possible.
-uvec4 sphere_to_texture (in mat4x3 s, out vec4 tx, out vec4 ty)
+// Transform the given points on the unit sphere into tile coordinates for the
+// current tile. This function uses trigonometry to account for the curvature
+// of the Earth, which represents the globe accurately at low zoom levels but
+// has precision problems at higher zoom levels.
+uvec4 sphere_to_texture_lozoom (in mat4x3 s, out vec4 tx, out vec4 ty)
 {
-	uvec4 valid;
+	// Create convenient shorthand vectors for all x, y and z:
+	mat3x4 st = transpose(s);
+	vec4 sx = st[0], sy = st[1], sz = st[2];
 
-	// Get the position of the sphere points relative to the tile origin:
-	mat4x3 tile = s - mat4x3vec(tile_origin);
+	// Transform the x coordinate straightforwardly:
+	tx = (1.0 + atan(sx, sz) / pi) * exp2(tile_zoom - 1);
 
-	// Project the sphere point onto the tile plane by subtracting the tiny
-	// distance between sphere surface and plane, using the hit point
-	// itself as the direction vector (it is by definition normalized):
-	//   https://en.wikipedia.org/wiki/Line%E2%80%93plane_intersection
-	vec4 a = (tile_normal * tile) / (tile_normal * s);
-	tile -= matrixCompMult(s, transpose(mat3x4(a, a, a)));
-
-	// Convert the y component to a fraction:
-	ty = (tile_yaxis * tile) / tile_ylength;
-
-	// Because the tile is rendered as an isosceles trapezoid, the x
-	// component is scaled according to the x width at the current height:
-	vec4 xwidth = mix(vec4(tile_xlength0), vec4(tile_xlength1), ty);
-
-	// Convert the x component to a fraction, compensate for the origin
-	// being in the center of the tile:
-	tx = 0.5 + (tile_xaxis * tile) / xwidth;
-
-	// Range checks, using multiplication as a poor man's `and':
-	valid  = uvec4(greaterThanEqual(tx, vec4(0.0)));
-	valid *= uvec4(lessThan        (tx, vec4(1.0)));
-
-	// At high zoom levels, the distortion in the y direction due to the
-	// Mercator projection becomes virtually unnoticeable within a single
-	// tile. The y gradient over the tile becomes essentially linear. Take
-	// a shortcut and treat those tiles as actually linear. This avoids a
-	// costly logarithm, and sidesteps floating-point accuracy problems:
-	if (tile_zoom > 12) {
-		valid *= uvec4(greaterThanEqual(ty, vec4(0.0)));
-		valid *= uvec4(lessThan        (ty, vec4(1.0)));
-		return valid;
-	}
-
-	// For lower zoom levels, reach for trigonometry to transform the y
-	// coordinate accurately. The naive formula is:
+	// The naive conversion formula for y is:
 	//
 	//   2^zoom * (0.5 - atanh(y) / (2 * pi))
 	//
@@ -101,7 +73,6 @@ uvec4 sphere_to_texture (in mat4x3 s, out vec4 tx, out vec4 ty)
 	// interested in the fractional part of the equation, the naive formula
 	// can ultimately be rewritten as something less daunting.
 	const float yconst = 0.882542400610606373585825728472;	// 4 / pi / log2(e)
-	vec4 sy = transpose(s)[1];
 
 	ty = yconst * log2((1.0 - sy) / (1.0 + sy)) * exp2(tile_zoom - 4);
 
@@ -109,10 +80,39 @@ uvec4 sphere_to_texture (in mat4x3 s, out vec4 tx, out vec4 ty)
 	vec4 tyfull = ty + exp2(tile_zoom - 1);
 
 	// Test the full y coordinate against tile extents:
-	valid *= uvec4(greaterThanEqual(tyfull, vec4(tile_y + 0)));
-	valid *= uvec4(lessThan        (tyfull, vec4(tile_y + 1)));
+	return uvec4(
+		  uvec4(greaterThanEqual(tx,     vec4(tile_x + 0)))
+		* uvec4(lessThan        (tx,     vec4(tile_x + 1)))
+		* uvec4(greaterThanEqual(tyfull, vec4(tile_y + 0)))
+		* uvec4(lessThan        (tyfull, vec4(tile_y + 1))));
+}
 
-	return valid;
+// Transform the given points on the unit sphere into tile coordinates for the
+// current tile. This function does not account for the curvature of the Earth,
+// so should be used only at high zoom levels. It uses only the tile's
+// geometric construction defined in the vertex shader.
+uvec4 sphere_to_texture_hizoom (in mat4x3 s, out vec4 tx, out vec4 ty)
+{
+	// Get the position of the sphere points relative to the tile origin:
+	mat4x3 tile = s - mat4x3vec(tile_origin);
+
+	// Convert the y component to a fraction:
+	ty = (tile_yaxis * tile) / tile_ylength;
+
+	// Because the tile is rendered as an isosceles trapezoid, the x
+	// component is scaled according to the x width at the current height:
+	vec4 xwidth = mix(vec4(tile_xlength0), vec4(tile_xlength1), ty);
+
+	// Convert the x component to a fraction, compensate for the origin
+	// being in the center of the tile:
+	tx = 0.5 + (tile_xaxis * tile) / xwidth;
+
+	// Range checks, using multiplication as a poor man's `and':
+	return uvec4(
+		  uvec4(greaterThanEqual(tx, vec4(0.0)))
+		* uvec4(lessThan        (tx, vec4(1.0)))
+		* uvec4(greaterThanEqual(ty, vec4(0.0)))
+		* uvec4(lessThan        (ty, vec4(1.0))));
 }
 
 void main (void)
@@ -128,7 +128,9 @@ void main (void)
 		normalize(rays[3])));
 
 	// Get texture coordinates:
-	uvec4 valid = sphere_to_texture(s, tx, ty);
+	uvec4 valid = tile_zoom >= 12
+		? sphere_to_texture_hizoom(s, tx, ty)
+		: sphere_to_texture_lozoom(s, tx, ty);
 
 	// Count number of valid samples:
 	if ((nsamples = dot(valid, valid)) == 0.0)

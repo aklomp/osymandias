@@ -7,6 +7,7 @@ enum {
 	MAT_MODEL,
 	MAT_MODEL_INV,
 	MAT_VIEW_INV,
+	TILE_X,
 	TILE_Y,
 	TILE_ZOOM,
 	VERTEX,
@@ -19,6 +20,7 @@ static struct input inputs[] = {
 	[MAT_MODEL]     = { .name = "mat_model",     .type = TYPE_UNIFORM },
 	[MAT_MODEL_INV] = { .name = "mat_model_inv", .type = TYPE_UNIFORM },
 	[MAT_VIEW_INV]  = { .name = "mat_view_inv",  .type = TYPE_UNIFORM },
+	[TILE_X]        = { .name = "tile_x",        .type = TYPE_UNIFORM },
 	[TILE_Y]        = { .name = "tile_y",        .type = TYPE_UNIFORM },
 	[TILE_ZOOM]     = { .name = "tile_zoom",     .type = TYPE_UNIFORM },
 	[VERTEX]        = { .name = "vertex",        .type = TYPE_UNIFORM },
@@ -37,6 +39,7 @@ struct program program_spherical __attribute__((section(".programs"))) =
 void
 program_spherical_set_tile (const struct cache_node *tile, const struct cache_data *data)
 {
+	glUniform1i(inputs[TILE_X].loc,    tile->x);
 	glUniform1i(inputs[TILE_Y].loc,    tile->y);
 	glUniform1i(inputs[TILE_ZOOM].loc, tile->zoom);
 	glUniform3fv(inputs[VERTEX].loc, 4, (const float *) &data->coords);
