@@ -31,7 +31,11 @@ matrix_view_update (void)
 	mat_multiply(cam.matrix.view, cam.matrix.tilt, cam.matrix.rotate);
 	mat_multiply(cam.matrix.view, cam.matrix.translate, cam.matrix.view);
 	mat_multiply(cam.matrix.view, cam.matrix.view, cam.matrix.radius);
-	mat_invert(cam.invert.view, cam.matrix.view);
+
+	// Obtain the inverse view matrix:
+	mat_multiply(cam.invert.view, cam.invert.rotate, cam.invert.tilt);
+	mat_multiply(cam.invert.view, cam.invert.view,   cam.invert.translate);
+	mat_multiply(cam.invert.view, cam.invert.radius, cam.invert.view);
 
 	// This changes the view-projection matrix:
 	matrix_viewproj_update();
@@ -41,20 +45,23 @@ static void
 matrix_translate_update (void)
 {
 	mat_translate(cam.matrix.translate, 0.0f, 0.0f, -cam.distance);
+	mat_translate(cam.invert.translate, 0.0f, 0.0f,  cam.distance);
 	matrix_view_update();
 }
 
 static void
 matrix_rotate_update (void)
 {
-	mat_rotate(cam.matrix.rotate, 0.0f, 0.0f, 1.0f, cam.rotate);
+	mat_rotate(cam.matrix.rotate, 0.0f, 0.0f, 1.0f,  cam.rotate);
+	mat_rotate(cam.invert.rotate, 0.0f, 0.0f, 1.0f, -cam.rotate);
 	matrix_view_update();
 }
 
 static void
 matrix_tilt_update (void)
 {
-	mat_rotate(cam.matrix.tilt, 1.0f, 0.0f, 0.0f, cam.tilt);
+	mat_rotate(cam.matrix.tilt, 1.0f, 0.0f, 0.0f,  cam.tilt);
+	mat_rotate(cam.invert.tilt, 1.0f, 0.0f, 0.0f, -cam.tilt);
 	matrix_view_update();
 }
 
@@ -149,6 +156,7 @@ camera_init (const struct viewport *vp)
 	// world origin by one unit radius. The rest of the camera position is
 	// calculated from the resulting point:
 	mat_translate(cam.matrix.radius, 0.0f, 0.0f, -1.0f);
+	mat_translate(cam.invert.radius, 0.0f, 0.0f,  1.0f);
 
 	// Initialize other attitude matrices:
 	matrix_rotate_update();

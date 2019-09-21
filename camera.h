@@ -44,6 +44,10 @@ struct camera {
 
 	// Inverse matrices:
 	struct {
+		float tilt[16];
+		float rotate[16];
+		float translate[16];
+		float radius[16];
 		float viewproj[16];
 		float view[16];
 	} invert;
