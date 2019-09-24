@@ -129,6 +129,7 @@ void main (void)
 	// Get zoomlevel based on distance to camera:
 	int zoom = zoomlevel(distance(cam, hit), atanh(hit.y));
 
+	// Convert the point on the sphere to tile coordinates:
 	if (sphere_to_tile(hit, zoom, tile) == false) {
 		fragcolor = vec4(vec3(0.4), 1.0);
 		return;
