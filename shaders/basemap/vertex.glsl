@@ -26,12 +26,12 @@ void main (void)
 	float alpha = vp_angle / 2.0;
 
 	// Use trigonometry to place the vertex point in world space. The
-	// camera and p are two points at the start and end of the frustum,
-	// translated into model space. After per-fragment interpolation, they
-	// can be thought of as the start and end of the ray through the
-	// fragment into model space.
+	// camera is a point at the start of the frustum, while p is a ray
+	// (relative to the camera) that points to the end of the frustum.
+	// After per-fragment interpolation, they can be thought of as the
+	// origin and direction of a ray through the fragment into model space.
 	vec3 vpoint = vec3(vertex * sin(alpha) * vec2(1.0, vp_height / vp_width), -cos(alpha));
-	p = (mat_model_inv * mat_view_inv * vec4(vpoint, 1.0)).xyz;
+	p = (mat_model_inv * mat_view_inv * vec4(vpoint, 1.0)).xyz - cam;
 
 	// Calculate the horizontal angle between the camera's lookat vector
 	// and the direction to the fragment, and interpolate per fragment:
