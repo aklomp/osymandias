@@ -69,8 +69,8 @@ void main (void)
 	//  0-------1
 	//
 	// Choose the reference origin to be in the center top of the
-	// parallellogram:
-	tile_origin = mix(vertex[3], vertex[2], 0.5);
+	// parallellogram, make it relative to the camera for more precision:
+	tile_origin = mix(vertex[3], vertex[2], 0.5) - cam;
 	tile_xaxis  = normalize(vertex[2] - vertex[3]);
 
 	// The Y axis is the axis that goes through sw and is perpendicular to
