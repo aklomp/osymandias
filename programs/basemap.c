@@ -37,12 +37,12 @@ program_basemap_loc_vertex (void)
 }
 
 void
-program_basemap_use (const struct program_basemap *values)
+program_basemap_use (const struct camera *cam, const struct viewport *vp)
 {
 	glUseProgram(program_basemap.id);
-	glUniform3fv(inputs[CAM].loc, 1, values->cam);
-	glUniformMatrix4fv(inputs[MAT_MV_INV].loc, 1, GL_FALSE, values->mat_mv_inv);
-	glUniform1f(inputs[VP_ANGLE].loc,  values->vp_angle);
-	glUniform1f(inputs[VP_HEIGHT].loc, values->vp_height);
-	glUniform1f(inputs[VP_WIDTH].loc,  values->vp_width);
+	glUniform3fv(inputs[CAM].loc, 1, vp->cam_pos);
+	glUniformMatrix4fv(inputs[MAT_MV_INV].loc, 1, GL_FALSE, vp->invert.modelview);
+	glUniform1f(inputs[VP_ANGLE].loc,  cam->view_angle);
+	glUniform1f(inputs[VP_HEIGHT].loc, vp->height);
+	glUniform1f(inputs[VP_WIDTH].loc,  vp->width);
 }

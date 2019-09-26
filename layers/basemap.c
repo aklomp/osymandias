@@ -18,14 +18,7 @@ static const struct glutil_vertex vertex[4] = {
 static void
 paint (const struct camera *cam, const struct viewport *vp)
 {
-	program_basemap_use(&(struct program_basemap) {
-		.cam        = vp->cam_pos,
-		.mat_mv_inv = vp->invert.modelview,
-		.vp_angle   = cam->view_angle,
-		.vp_height  = vp->height,
-		.vp_width   = vp->width,
-	});
-
+	program_basemap_use(cam, vp);
 	glBindVertexArray(vao);
 	glutil_draw_quad();
 	program_none();

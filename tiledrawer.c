@@ -46,14 +46,7 @@ tiledrawer_start (const struct camera *cam, const struct viewport *vp)
 	}
 
 	glBindVertexArray(state.vao);
-
-	program_spherical_use(&(struct program_spherical) {
-		.cam        = vp->cam_pos,
-		.mat_mvp    = vp->matrix.modelviewproj,
-		.mat_mv_inv = vp->invert.modelview,
-		.vp_angle   = cam->view_angle,
-		.vp_width   = vp->width,
-	});
+	program_spherical_use(cam, vp);
 
 	glActiveTexture(GL_TEXTURE0);
 	glEnable(GL_TEXTURE_2D);
