@@ -1,8 +1,8 @@
 #pragma once
 
 struct program_tilepicker {
-	const float *mat_model_inv;
-	const float *mat_view_inv;
+	const float *cam;
+	const float *mat_mv_inv;
 	float vp_angle;
 	float vp_height;
 	float vp_width;

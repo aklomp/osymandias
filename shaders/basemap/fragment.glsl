@@ -1,6 +1,7 @@
 #version 130
 
-flat          in vec3 cam;
+uniform vec3 cam;
+
 noperspective in vec3 p;
 smooth        in float frag_look_angle;
 flat          in float frag_arc_angle;

@@ -29,9 +29,15 @@ struct globe {
 			float lon[16];
 		} rotate;
 	} invert;
+
+	// Matrix update flags:
+	struct {
+		bool model;
+	} updated;
 };
 
 extern const struct globe *globe_get (void);
+extern void globe_updated_reset (void);
 extern void globe_tile_to_sphere (const struct cache_node *n, struct cache_data *d);
 extern bool globe_intersect (const union vec *start, const union vec *dir, float *lat, float *lon);
 extern void globe_moveto (const float lat, const float lon);

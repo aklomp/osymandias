@@ -1,7 +1,6 @@
 #include "tiledrawer.h"
 #include "programs.h"
 #include "programs/spherical.h"
-#include "viewport.h"
 
 // Array of indices. If we have a quad defined by these corners:
 //
@@ -36,7 +35,7 @@ tiledrawer (const struct tiledrawer *td)
 }
 
 void
-tiledrawer_start (const struct camera *cam, const struct globe *globe)
+tiledrawer_start (const struct camera *cam, const struct viewport *vp)
 {
 	static bool init = false;
 
@@ -49,12 +48,11 @@ tiledrawer_start (const struct camera *cam, const struct globe *globe)
 	glBindVertexArray(state.vao);
 
 	program_spherical_use(&(struct program_spherical) {
-		.mat_viewproj  = cam->matrix.viewproj,
-		.mat_view_inv  = cam->matrix.inverse.view,
-		.mat_model     = globe->matrix.model,
-		.mat_model_inv = globe->invert.model,
-		.vp_angle      = cam->view_angle,
-		.vp_width      = viewport_get()->width,
+		.cam        = vp->cam_pos,
+		.mat_mvp    = vp->matrix.modelviewproj,
+		.mat_mv_inv = vp->invert.modelview,
+		.vp_angle   = cam->view_angle,
+		.vp_width   = vp->width,
 	});
 
 	glActiveTexture(GL_TEXTURE0);

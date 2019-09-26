@@ -1,10 +1,9 @@
 #version 130
 
-uniform mat4 mat_viewproj;
-uniform mat4 mat_model;
+uniform mat4 mat_mvp;
+uniform vec3 cam;
 
 smooth in vec4 fpos;
-flat   in vec3 cam;
 
 out vec4 fragcolor;
 
@@ -39,13 +38,13 @@ bool inside_frustum (void)
 		return false;
 
 	// Project position to eye space:
-	pos = mat_viewproj * mat_model * pos;
+	pos = mat_mvp * pos;
 
 	// Projected point is visible if within (-w, w):
-	if (any(lessThan(pos.xyz, vec3(-pos.w))))
+	if (any(lessThan(pos.xy, vec2(-pos.w))))
 		return false;
 
-	return all(lessThanEqual(pos.xyz, vec3(pos.w)));
+	return all(lessThanEqual(pos.xy, vec2(pos.w)));
 }
 
 void main (void)

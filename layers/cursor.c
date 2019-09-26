@@ -8,7 +8,6 @@
 #include "../layers.h"
 #include "../programs.h"
 #include "../programs/tile2d.h"
-#include "../viewport.h"
 #include "../png.h"
 
 // Array of counterclockwise vertices:
@@ -39,10 +38,10 @@ static struct glutil_texture tex = {
 static GLuint vao, vbo;
 
 static void
-paint (const struct camera *cam, const struct globe *globe)
+paint (const struct camera *cam, const struct viewport *vp)
 {
 	(void) cam;
-	(void) globe;
+	(void) vp;
 
 	// Viewport is screen:
 	glViewport(0, 0, screen.width, screen.height);

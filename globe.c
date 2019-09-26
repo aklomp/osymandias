@@ -95,6 +95,11 @@ globe_get (void)
 	return &globe;
 }
 
+void globe_updated_reset (void)
+{
+	globe.updated.model = false;
+}
+
 void
 globe_moveto (const float lat, const float lon)
 {
@@ -124,6 +129,8 @@ globe_moveto (const float lat, const float lon)
 	// Combined model matrix and its inverse:
 	mat_multiply(globe.matrix.model, globe.matrix.rotate.lat, globe.matrix.rotate.lon);
 	mat_multiply(globe.invert.model, globe.invert.rotate.lon, globe.invert.rotate.lat);
+
+	globe.updated.model = true;
 }
 
 void

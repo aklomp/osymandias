@@ -1,3 +1,5 @@
+#include <string.h>
+
 #include <GL/gl.h>
 #include <GL/glu.h>
 
@@ -56,8 +58,52 @@ viewport_paint (void)
 	glEnable(GL_DEPTH_TEST);
 	glDepthMask(GL_TRUE);
 
+	const struct camera *cam  = camera_get();
+	const struct globe *globe = globe_get();
+
+	// Gather and combine view and model matrices:
+	if (globe->updated.model) {
+		memcpy(vp.matrix.model, globe->matrix.model, sizeof (vp.matrix.model));
+		memcpy(vp.invert.model, globe->invert.model, sizeof (vp.invert.model));
+	}
+
+	if (cam->updated.view) {
+		memcpy(vp.matrix.view, cam->matrix.view, sizeof (vp.matrix.view));
+		memcpy(vp.invert.view, cam->invert.view, sizeof (vp.invert.view));
+	}
+
+	if (cam->updated.proj || cam->updated.view) {
+		mat_multiply(vp.matrix.viewproj, cam->matrix.proj, cam->matrix.view);
+		mat_invert(vp.invert.viewproj, vp.matrix.viewproj);
+	}
+
+	if (globe->updated.model || cam->updated.proj || cam->updated.view) {
+		mat_multiply(vp.matrix.modelviewproj, vp.matrix.viewproj, vp.matrix.model);
+		mat_multiply(vp.invert.modelview, vp.invert.model, vp.invert.view);
+	}
+
+	if (globe->updated.model || cam->updated.view) {
+		float cam_pos[4], origin[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+
+		// Find camera position in model space by unprojecting origin:
+		mat_vec_multiply(cam_pos, vp.invert.modelview, origin);
+		vp.cam_pos[0] = cam_pos[0];
+		vp.cam_pos[1] = cam_pos[1];
+		vp.cam_pos[2] = cam_pos[2];
+	}
+
+	if (globe->updated.model || cam->updated.proj || cam->updated.view) {
+
+		// Recalculate the list of visible tiles:
+		tilepicker_recalc(&vp, cam);
+	}
+
+	// Reset matrix update flags:
+	camera_updated_reset();
+	globe_updated_reset();
+
 	// Paint all layers:
-	layers_paint(camera_get(), globe_get());
+	layers_paint(camera_get(), &vp);
 }
 
 void
@@ -74,15 +120,6 @@ viewport_resize (const unsigned int width, const unsigned int height)
 
 	// Alert layers:
 	layers_resize(&vp);
-}
-
-void
-viewport_gl_setup_world (void)
-{
-	// FIXME: only do this when moved?
-	tilepicker_recalc(&vp, camera_get());
-
-	glDisable(GL_BLEND);
 }
 
 const struct viewport *

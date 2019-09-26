@@ -4,6 +4,7 @@ uniform sampler2D tex;
 uniform int       tile_x;
 uniform int       tile_y;
 uniform int       tile_zoom;
+uniform vec3      cam;
 
 flat in vec3  tile_origin;
 flat in vec3  tile_xaxis;
@@ -13,7 +14,6 @@ flat in float tile_xlength0;
 flat in float tile_xlength1;
 flat in float tile_ylength;
 
-flat   in vec3   cam;
 smooth in mat4x3 rays;
 
 out vec4 fragcolor;

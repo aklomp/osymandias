@@ -1,4 +1,3 @@
-#include "camera.h"
 #include "layers.h"
 
 // Start and end of linker array:
@@ -13,11 +12,11 @@ static const struct layer *list_end   = (const void *) &layers_list_end;
 	for (const struct layer *layer = list_start; layer < list_end; layer++)
 
 void
-layers_paint (const struct camera *cam, const struct globe *globe)
+layers_paint (const struct camera *cam, const struct viewport *vp)
 {
 	FOREACH_LAYER
 		if (layer->paint)
-			layer->paint(cam, globe);
+			layer->paint(cam, vp);
 }
 
 void
