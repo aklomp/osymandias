@@ -20,9 +20,10 @@ static struct glutil_vertex_uv vertex[4] = GLUTIL_VERTEX_UV_DEFAULT;
 
 // Projection matrix:
 static struct {
-	float ortho[16];
-	float translate[16];
-	float proj[16];
+	double ortho[16];
+	double translate[16];
+	double proj64[16];
+	float  proj32[16];
 } matrix;
 
 // Screen size:
@@ -53,7 +54,7 @@ paint (const struct camera *cam, const struct viewport *vp)
 
 	// Use the cursor program:
 	program_tile2d_use(&((struct program_tile2d) {
-		.mat_proj = matrix.proj,
+		.mat_proj = matrix.proj32,
 	}));
 
 	// Activate copyright texture:
@@ -77,12 +78,13 @@ resize (const struct viewport *vp)
 	mat_ortho(matrix.ortho, 0.0f, screen.width, screen.height, 0.0f, 0.0f, 1.0f);
 
 	// Create a translation matrix:
-	float tex_orig_x = screen.width  - tex.width  - 10.0f;
-	float tex_orig_y = screen.height - tex.height - 10.0f;
-	mat_translate(matrix.translate, tex_orig_x, tex_orig_y, 0.0f);
+	double tex_orig_x = screen.width  - tex.width  - 10.0;
+	double tex_orig_y = screen.height - tex.height - 10.0;
+	mat_translate(matrix.translate, tex_orig_x, tex_orig_y, 0.0);
 
 	// Multiply:
-	mat_multiply(matrix.proj, matrix.ortho, matrix.translate);
+	mat_multiply(matrix.proj64, matrix.ortho, matrix.translate);
+	mat_to_float(matrix.proj32, matrix.proj64);
 }
 
 static bool

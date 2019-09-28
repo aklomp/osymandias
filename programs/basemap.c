@@ -41,7 +41,7 @@ program_basemap_use (const struct camera *cam, const struct viewport *vp)
 {
 	glUseProgram(program_basemap.id);
 	glUniform3fv(inputs[CAM].loc, 1, vp->cam_pos);
-	glUniformMatrix4fv(inputs[MAT_MV_INV].loc, 1, GL_FALSE, vp->invert.modelview);
+	glUniformMatrix4fv(inputs[MAT_MV_INV].loc, 1, GL_FALSE, vp->invert32.modelview);
 	glUniform1f(inputs[VP_ANGLE].loc,  cam->view_angle);
 	glUniform1f(inputs[VP_HEIGHT].loc, vp->height);
 	glUniform1f(inputs[VP_WIDTH].loc,  vp->width);

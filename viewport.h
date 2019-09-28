@@ -7,21 +7,37 @@ struct viewport {
 	uint32_t height;
 	uint32_t width;
 
-	// Various display matrices:
+	// Double-precision internal matrices:
+	struct {
+		double modelviewproj[16];
+		double viewproj[16];
+		double model[16];
+		double view[16];
+	} matrix64;
+
+	// Single-precision matrices for use by the GPU:
 	struct {
 		float modelviewproj[16];
 		float viewproj[16];
 		float model[16];
 		float view[16];
-	} matrix;
+	} matrix32;
 
-	// Inverse matrices:
+	// Double-precision inverse matrices:
+	struct {
+		double modelview[16];
+		double viewproj[16];
+		double model[16];
+		double view[16];
+	} invert64;
+
+	// Single-precision inverse matrices for use by the GPU:
 	struct {
 		float modelview[16];
 		float viewproj[16];
 		float model[16];
 		float view[16];
-	} invert;
+	} invert32;
 
 	// Camera position in model space:
 	float cam_pos[3];

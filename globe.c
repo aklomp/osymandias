@@ -57,14 +57,14 @@ globe_tile_to_sphere (const struct cache_node *n, struct cache_data *d)
 static inline bool
 intersect (const union vec start, const union vec dir, float *lat, float *lon)
 {
-	// Distance of ray start to origin:
-	const float startdist = vec_length(start);
+	// Squared distance of ray start to origin:
+	const float startdist = vec_dot(start, start);
 
 	// Dot product of ray start with ray direction:
 	const float raydot = vec_dot(start, dir);
 
 	// The determinant under the square root:
-	const float det = (raydot * raydot) - (startdist * startdist) + 1.0f;
+	const float det = (raydot * raydot) - startdist + 1.0f;
 
 	// If the determinant is negative, no intersection exists:
 	if (det < 0.0f)
@@ -101,7 +101,7 @@ void globe_updated_reset (void)
 }
 
 void
-globe_moveto (const float lat, const float lon)
+globe_moveto (const double lat, const double lon)
 {
 	globe.lat = lat;
 	globe.lon = lon;
@@ -119,12 +119,12 @@ globe_moveto (const float lat, const float lon)
 		globe.lon -= 2.0 * M_PI;
 
 	// Longitudinal rotation matrix:
-	mat_rotate(globe.matrix.rotate.lon, 0.0f, 1.0f, 0.0f,  globe.lon);
-	mat_rotate(globe.invert.rotate.lon, 0.0f, 1.0f, 0.0f, -globe.lon);
+	mat_rotate(globe.matrix.rotate.lon, 0.0, 1.0, 0.0,  globe.lon);
+	mat_rotate(globe.invert.rotate.lon, 0.0, 1.0, 0.0, -globe.lon);
 
 	// Latitudinal rotation matrix:
-	mat_rotate(globe.matrix.rotate.lat, -1.0f, 0.0f, 0.0f,  globe.lat);
-	mat_rotate(globe.invert.rotate.lat, -1.0f, 0.0f, 0.0f, -globe.lat);
+	mat_rotate(globe.matrix.rotate.lat, -1.0, 0.0, 0.0,  globe.lat);
+	mat_rotate(globe.invert.rotate.lat, -1.0, 0.0, 0.0, -globe.lat);
 
 	// Combined model matrix and its inverse:
 	mat_multiply(globe.matrix.model, globe.matrix.rotate.lat, globe.matrix.rotate.lon);
@@ -136,5 +136,5 @@ globe_moveto (const float lat, const float lon)
 void
 globe_init (void)
 {
-	globe_moveto(0.0f, 0.0f);
+	globe_moveto(0.0, 0.0);
 }

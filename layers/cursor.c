@@ -20,7 +20,8 @@ static struct glutil_vertex_uv vertex[4] = GLUTIL_VERTEX_UV_DEFAULT;
 
 // Projection matrix:
 static struct {
-	float proj[16];
+	float  proj32[16];
+	double proj64[16];
 } matrix;
 
 // Screen size:
@@ -52,7 +53,7 @@ paint (const struct camera *cam, const struct viewport *vp)
 
 	// Use the cursor program:
 	program_tile2d_use(&((struct program_tile2d) {
-		.mat_proj = matrix.proj,
+		.mat_proj = matrix.proj32,
 	}));
 
 	// Activate cursor texture:
@@ -73,7 +74,8 @@ resize (const struct viewport *vp)
 	screen.height = vp->height;
 
 	// Projection matrix maps 1:1 to screen:
-	mat_scale(matrix.proj, 2.0f / screen.width, 2.0f / screen.height, 0.0f);
+	mat_scale(matrix.proj64, 2.0 / screen.width, 2.0 / screen.height, 0.0);
+	mat_to_float(matrix.proj32, matrix.proj64);
 }
 
 static bool
