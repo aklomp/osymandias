@@ -4,6 +4,7 @@ uniform mat4  mat_mvp_origin;
 uniform mat4  mat_mv_inv;
 uniform int   tile_zoom;
 uniform vec3  cam;
+uniform vec3  cam_lowbits;
 uniform vec3  vertex[4];
 uniform float vp_angle;
 uniform float vp_width;
@@ -22,7 +23,7 @@ void main (void)
 {
 	// Find the vertex position relative to the camera. The result is a
 	// direction vector with the camera as the origin, or rather a ray:
-	vec3 p = vertex[gl_VertexID] - cam;
+	vec3 p = vertex[gl_VertexID] - cam - cam_lowbits;
 
 	// Apply projection matrix to get view coordinates:
 	gl_Position = mat_mvp_origin * vec4(p, 1.0);
@@ -64,8 +65,10 @@ void main (void)
 	//
 	// Choose the reference origin to be in the center top of the
 	// parallellogram, make it relative to the camera for more precision:
-	tile_origin = mix(vertex[3], vertex[2], 0.5) - cam;
 	tile_xaxis  = normalize(vertex[2] - vertex[3]);
+	tile_origin = mix(
+		vertex[3] - cam - cam_lowbits,
+		vertex[2] - cam - cam_lowbits, 0.5);
 
 	// The Y axis is the axis that goes through sw and is perpendicular to
 	// the X axis, so a projection of 3 on 0..1:

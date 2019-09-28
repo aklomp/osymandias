@@ -37,7 +37,7 @@ mat4x3 sphere_intersect (in mat4x3 nrays)
 	// Dot products of the camera (ray start) position with the rays:
 	vec4 raydot = cam * nrays;
 
-	// Get the time values to intersection point. The value under the
+	// Get the time values to the intersection points. The value under the
 	// square root is always positive by definition. Rays are only cast to
 	// tiles, which are known to be fully contained within the sphere:
 	vec4 t = sqrt(raydot * raydot - camdist + 1.0) + raydot;
