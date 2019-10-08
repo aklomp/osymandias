@@ -36,12 +36,12 @@ struct program program_spherical __attribute__((section(".programs"))) =
 	} ;
 
 void
-program_spherical_set_tile (const struct cache_node *tile, const struct cache_data *data)
+program_spherical_set_tile (const struct cache_node *tile, const struct globe_tile *coords)
 {
 	glUniform1i(inputs[TILE_X].loc,    tile->x);
 	glUniform1i(inputs[TILE_Y].loc,    tile->y);
 	glUniform1i(inputs[TILE_ZOOM].loc, tile->zoom);
-	glUniform3fv(inputs[VERTEX].loc, 4, (const float *) &data->coords);
+	glUniform3fv(inputs[VERTEX].loc, 4, (const float *) coords);
 }
 
 void

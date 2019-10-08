@@ -21,14 +21,14 @@ static struct {
 void
 tiledrawer (const struct tiledrawer *td)
 {
-	if (td->data == NULL)
+	if (td->tex == NULL)
 		return;
 
 	// Set tile zoom level:
-	program_spherical_set_tile(td->tile, td->data);
+	program_spherical_set_tile(td->tile, &td->tex->coords);
 
 	// Bind texture:
-	glBindTexture(GL_TEXTURE_2D, td->data->u32);
+	glBindTexture(GL_TEXTURE_2D, td->tex->id);
 
 	// Draw two triangles which together form one quad:
 	glDrawElements(GL_TRIANGLES, sizeof (vertex_index), GL_UNSIGNED_BYTE, vertex_index);

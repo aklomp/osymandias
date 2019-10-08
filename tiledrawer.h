@@ -4,11 +4,12 @@
 
 #include "cache.h"
 #include "camera.h"
+#include "texture_cache.h"
 #include "viewport.h"
 
 struct tiledrawer {
-	const struct cache_node *tile;
-	const struct cache_data *data;
+	const struct cache_node    *tile;
+	const struct texture_cache *tex;
 };
 
 extern void tiledrawer       (const struct tiledrawer *);

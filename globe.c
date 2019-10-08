@@ -43,10 +43,10 @@ map_point (const struct cache_node *n, struct globe_point *p)
 void
 globe_map_tile (const struct cache_node *n, struct globe_tile *t)
 {
-	map_point(&(struct cache_node) { n->x + 0, n->y + 1, n->zoom }, &t->sw);
-	map_point(&(struct cache_node) { n->x + 1, n->y + 1, n->zoom }, &t->se);
-	map_point(&(struct cache_node) { n->x + 1, n->y + 0, n->zoom }, &t->ne);
-	map_point(&(struct cache_node) { n->x + 0, n->y + 0, n->zoom }, &t->nw);
+	map_point(&(struct cache_node) { .x = n->x + 0, .y = n->y + 1, .zoom = n->zoom }, &t->sw);
+	map_point(&(struct cache_node) { .x = n->x + 1, .y = n->y + 1, .zoom = n->zoom }, &t->se);
+	map_point(&(struct cache_node) { .x = n->x + 1, .y = n->y + 0, .zoom = n->zoom }, &t->ne);
+	map_point(&(struct cache_node) { .x = n->x + 0, .y = n->y + 0, .zoom = n->zoom }, &t->nw);
 }
 
 // Perform a line-sphere intersection between a unit sphere on the origin, and
