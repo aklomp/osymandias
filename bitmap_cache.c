@@ -20,27 +20,29 @@ static void
 process (void *data)
 {
 	struct cache_node *req = data;
-	struct cache_data cdata;
+	struct bitmap_cache bitmap;
 
 	// Store rawbits data pointer into cache data structure:
-	if ((cdata.ptr = pngloader_main(req)) == NULL)
+	if ((bitmap.rgb = pngloader_main(req)) == NULL)
 		return;
 
 	// Calculate 3D sphere xyz coordinates for this tile:
-	globe_tile_to_sphere(req, &cdata);
+	globe_map_tile(req, &bitmap.coords);
 
 	// Insert the cache data structure into the bitmap cache:
 	pthread_mutex_lock(&mutex);
-	cache_insert(cache, req, &cdata);
+	cache_insert(cache, req, &bitmap);
 	pthread_mutex_unlock(&mutex);
 
 	framerate_repaint();
 }
 
 static void
-destroy (struct cache_data *data)
+on_destroy (void *data)
 {
-	free(data->ptr);
+	struct bitmap_cache *bitmap = data;
+
+	free(bitmap->rgb);
 }
 
 static void
@@ -54,16 +56,16 @@ procure (const struct cache_node *loc)
 	// there is already a lookup in progress for this node. The node will
 	// be overwritten by the thread when it is done. Until then, it acts as
 	// a "tombstone", preventing multiple requeues of the same job:
-	cache_insert(cache, loc, &(struct cache_data) { .ptr = NULL });
+	cache_insert(cache, loc, &(struct bitmap_cache) { .rgb = NULL });
 }
 
-const struct cache_data *
+const struct bitmap_cache *
 bitmap_cache_search (const struct cache_node *in, struct cache_node *out)
 {
-	const struct cache_data *data = cache_search(cache, in, out);
+	const struct bitmap_cache *data = cache_search(cache, in, out);
 
 	// Return successfully if valid data was found at the requested level:
-	if (data != NULL && data->ptr != NULL && in->zoom == out->zoom)
+	if (data != NULL && data->rgb != NULL && in->zoom == out->zoom)
 		return data;
 
 	// If no node was found or it is at a different zoom level than
@@ -77,7 +79,7 @@ bitmap_cache_search (const struct cache_node *in, struct cache_node *out)
 
 	// If we got back some non-NULL data, it is a valid bitmap at some
 	// lower zoom level. Better than nothing:
-	if (data->ptr != NULL)
+	if (data->rgb != NULL)
 		return data;
 
 	// We got back a valid data pointer but with a NULL member. This
@@ -111,8 +113,9 @@ bool
 bitmap_cache_create (void)
 {
 	const struct cache_config cache_config = {
-		.capacity = CACHE_SIZE,
-		.destroy  = destroy,
+		.capacity  = CACHE_SIZE,
+		.destroy   = on_destroy,
+		.entrysize = sizeof (struct bitmap_cache),
 	};
 
 	const struct threadpool_config threadpool_config = {
