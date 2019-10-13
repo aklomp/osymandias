@@ -62,32 +62,40 @@ procure (const struct cache_node *loc)
 const struct bitmap_cache *
 bitmap_cache_search (const struct cache_node *in, struct cache_node *out)
 {
-	const struct bitmap_cache *data = cache_search(cache, in, out);
+	bool procuring = false;
+	struct cache_node level = *in;
+	const struct bitmap_cache *data;
 
-	// Return successfully if valid data was found at the requested level:
-	if (data != NULL && data->rgb != NULL && in->zoom == out->zoom)
-		return data;
+	while (true) {
+
+		// Search for valid data at the current level. If there is no
+		// data at all, the cache is empty from here on down:
+		if ((data = cache_search(cache, &level, out)) == NULL)
+			break;
+
+		// If we got back non-NULL pixels, it is a valid bitmap:
+		if (data->rgb != NULL)
+			break;
+
+		// We got back a valid data pointer but with NULL pixels. This
+		// indicates that the tile we landed on is currently being
+		// procured. Check if the procurement is for the tile we want:
+		if (in->zoom == out->zoom)
+			procuring = true;
+
+		// Move up one zoom layer and retry:
+		if (cache_node_up(&level) == false) {
+			data = NULL;
+			break;
+		}
+	}
 
 	// If no node was found or it is at a different zoom level than
 	// requested, then start a threadpool job to procure the target:
-	if (data == NULL || in->zoom != out->zoom)
+	if (procuring == false && (data == NULL || in->zoom != out->zoom))
 		procure(in);
 
-	// If we got no data back at all, the cache is empty:
-	if (data == NULL)
-		return NULL;
-
-	// If we got back some non-NULL data, it is a valid bitmap at some
-	// lower zoom level. Better than nothing:
-	if (data->rgb != NULL)
-		return data;
-
-	// We got back a valid data pointer but with a NULL member. This
-	// indicates that we landed on a tile that is currently being procured.
-	// Move up one zoom layer and retry:
-	struct cache_node up = *out;
-
-	return cache_node_up(&up) ? bitmap_cache_search(&up, out) : NULL;
+	return data;
 }
 
 void
