@@ -7,30 +7,34 @@
 static struct cache *cache = NULL;
 
 static void
-destroy (struct cache_data *data)
+on_destroy (void *data)
 {
-	glDeleteTextures(1, &data->u32);
+	struct texture_cache *tex = data;
+
+	glDeleteTextures(1, &tex->id);
 }
 
-const struct cache_data *
+const struct texture_cache *
 texture_cache_search (const struct cache_node *in, struct cache_node *out)
 {
 	return cache_search(cache, in, out);
 }
 
-const struct cache_data *
-texture_cache_insert (const struct cache_node *loc, const struct cache_data *cdata)
+const struct texture_cache *
+texture_cache_insert (const struct cache_node *loc, const struct bitmap_cache *bitmap)
 {
-	uint32_t id;
+	struct texture_cache tex = {
+		.coords = bitmap->coords,
+	};
 
-	glGenTextures(1, &id);
-	glBindTexture(GL_TEXTURE_2D, id);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, 256, 256, 0, GL_RGB, GL_UNSIGNED_BYTE, cdata->ptr);
+	glGenTextures(1, &tex.id);
+	glBindTexture(GL_TEXTURE_2D, tex.id);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, 256, 256, 0, GL_RGB, GL_UNSIGNED_BYTE, bitmap->rgb);
 
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-	return cache_insert(cache, loc, &(struct cache_data) { .u32 = id, .coords = cdata->coords });
+	return cache_insert(cache, loc, &tex);
 }
 
 void
@@ -43,8 +47,9 @@ bool
 texture_cache_create (void)
 {
 	const struct cache_config config = {
-		.capacity = CACHE_CAPACITY,
-		.destroy  = destroy,
+		.capacity  = CACHE_CAPACITY,
+		.destroy   = on_destroy,
+		.entrysize = sizeof (struct texture_cache),
 	};
 
 	return (cache = cache_create(&config)) != NULL;

@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <string.h>
 #include <stdio.h>
 #include <inttypes.h>
 
@@ -9,11 +10,16 @@
 
 // One node in a given zoom level.
 struct node {
-	struct cache_data data;
-	uint32_t x;
-	uint32_t y;
+	union {
+		struct {
+			uint32_t x;
+			uint32_t y;
+		} __attribute__((packed));
+		uint64_t key;
+	};
 	uint32_t atime;
-};
+	uint32_t index;
+} __attribute__((packed,aligned(16)));
 
 // One zoom level, containing nodes.
 struct level {
@@ -23,10 +29,26 @@ struct level {
 
 // Cache descriptor.
 struct cache {
-	void (* destroy) (struct cache_data *);
+
+	// Destruction function for an entry, provided by the user.
+	void (* destroy) (void *);
+
+	// Array of cache entries, allocated at runtime.
+	uint8_t *entry;
+
+	// Number of entries in use.
 	uint32_t used;
+
+	// Total number of entries available.
 	uint32_t capacity;
+
+	// An incrementing counter which is used as a lifetime clock.
 	uint32_t counter;
+
+	// Size of an entry in bytes.
+	uint32_t entrysize;
+
+	// Array of zoom level structures for each zoom level, including zero.
 	struct level level[ZOOM_MAX + 1];
 };
 
@@ -58,6 +80,13 @@ valid (const struct cache_node *n)
 	return true;
 }
 
+// Get a pointer to a cache entry.
+static inline void *
+entry_ptr (struct cache *c, const uint32_t index)
+{
+	return c->entry + index * c->entrysize;
+}
+
 // Search in current zoom level.
 static struct node *
 search_level (struct cache *c, const struct cache_node *req)
@@ -65,7 +94,7 @@ search_level (struct cache *c, const struct cache_node *req)
 	struct level *level = &c->level[req->zoom];
 
 	FOREACH_NELEM (level->node, level->used, node)
-		if (node->x == req->x && node->y == req->y)
+		if (node->key == req->key)
 			return node;
 
 	return NULL;
@@ -92,12 +121,15 @@ search (struct cache *c, const struct cache_node *in, struct cache_node *out)
 	return NULL;
 }
 
-// Remove given node.
-static void
+// Remove given node, return the index in the entry array that has become
+// vacant. Call only when purging the stalest node.
+static uint32_t
 destroy (struct cache *c, struct level *l, struct node *n)
 {
-	c->destroy(&n->data);
-	c->used--;
+	uint32_t index = n->index;
+
+	// Vacate the entry:
+	c->destroy(entry_ptr(c, index));
 
 	// Get last node, decrement usage count:
 	const struct node *last = &l->node[--l->used];
@@ -105,10 +137,13 @@ destroy (struct cache *c, struct level *l, struct node *n)
 	// Copy last node over this one:
 	if (n != last)
 		*n = *last;
+
+	return index;
 }
 
-// Remove the node accessed longest ago across all zoom layers.
-static void
+// Remove the node accessed longest ago across all zoom layers, return the
+// index in the entry array which has been made available.
+static uint32_t
 purge_stalest (struct cache *c)
 {
 	struct {
@@ -123,12 +158,11 @@ purge_stalest (struct cache *c)
 				victim.l = level;
 			}
 
-	if (victim.n != NULL)
-		destroy(c, victim.l, victim.n);
+	return victim.n == NULL ? 0 : destroy(c, victim.l, victim.n);
 }
 
 // Search for a matching node at given zoom level or lower.
-const struct cache_data *
+void *
 cache_search (struct cache *c, const struct cache_node *in, struct cache_node *out)
 {
 	struct node *node;
@@ -137,27 +171,30 @@ cache_search (struct cache *c, const struct cache_node *in, struct cache_node *o
 		return NULL;
 
 	node->atime = ++c->counter;
-	return &node->data;
+	return entry_ptr(c, node->index);
 }
 
 // Replace the data in an existing node.
 static const struct node *
-replace (struct cache *c, const struct cache_node *loc, struct cache_data *data)
+replace (struct cache *c, const struct cache_node *loc, void *data)
 {
 	struct node *n;
 
 	if ((n = search_level(c, loc)) == NULL)
 		return NULL;
 
-	c->destroy(&n->data);
-	n->data  = *data;
+	c->destroy(entry_ptr(c, n->index));
+	memcpy(entry_ptr(c, n->index), data, c->entrysize);
+
 	n->atime = ++c->counter;
 	return n;
 }
 
-const struct cache_data *
-cache_insert (struct cache *c, const struct cache_node *loc, struct cache_data *data)
+void *
+cache_insert (struct cache *c, const struct cache_node *loc, void *data)
 {
+	uint32_t index;
+
 	// Run basic sanity checks on the given location:
 	if (valid(loc) == false) {
 		c->destroy(data);
@@ -167,22 +204,22 @@ cache_insert (struct cache *c, const struct cache_node *loc, struct cache_data *
 	// If a node already exists at the location, reuse it:
 	const struct node *reused;
 	if ((reused = replace(c, loc, data)) != NULL)
-		return &reused->data;
+		return entry_ptr(c, reused->index);
 
 	// If the list is at capacity, evict the oldest accessed node:
-	if (c->used == c->capacity)
-		purge_stalest(c);
+	index = c->used == c->capacity ? purge_stalest(c) : c->used++;
 
 	// Insert this node last:
 	struct level *l = &c->level[loc->zoom];
 	struct node  *n = &l->node[l->used++];
 
-	c->used++;
-	n->x = loc->x;
-	n->y = loc->y;
-	n->data = *data;
+	// Insert the data into the entry array:
+	memcpy(entry_ptr(c, index), data, c->entrysize);
+
+	n->key   = loc->key;
 	n->atime = ++c->counter;
-	return &n->data;
+	n->index = index;
+	return entry_ptr(c, n->index);
 }
 
 void
@@ -191,12 +228,13 @@ cache_destroy (struct cache *c)
 	if (c == NULL)
 		return;
 
-	FOREACH (c->level, level) {
-		FOREACH_NELEM (level->node, level->used, node) {
-			c->destroy(&node->data);
-		}
+	FOREACH (c->level, level)
 		free(level->node);
-	}
+
+	for (size_t i = 0; i < c->used; i++)
+		c->destroy(entry_ptr(c, i));
+
+	free(c->entry);
 	free(c);
 }
 
@@ -209,8 +247,15 @@ cache_create (const struct cache_config *config)
 	if ((c = calloc(1, sizeof (*c))) == NULL)
 		return NULL;
 
-	c->capacity = config->capacity;
-	c->destroy  = config->destroy;
+	c->capacity  = config->capacity;
+	c->destroy   = config->destroy;
+	c->entrysize = config->entrysize;
+
+	// Allocate memory for the entries:
+	if ((c->entry = malloc(config->capacity * config->entrysize)) == NULL) {
+		cache_destroy(c);
+		return NULL;
+	}
 
 	// Allocate memory for all node arrays:
 	for (size_t z = 0; z < NELEM(c->level); z++) {

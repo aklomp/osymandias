@@ -7,7 +7,7 @@
 static struct globe globe;
 
 static void
-map (const struct cache_node *n, struct cache_data_coords *c)
+map_point (const struct cache_node *n, struct globe_point *p)
 {
 	// Convert tile coordinates at a given zoom level to 3D xyz coordinates
 	// on a unit sphere. For lat/lon conversions, see:
@@ -34,19 +34,19 @@ map (const struct cache_node *n, struct cache_data_coords *c)
 	sincos(lon, &sin_lon, &cos_lon);
 
 	// Calculate 3D coordinates on a unit sphere:
-	c->x = sin_lon / cosh_gy;
-	c->y = tanh(gy);
-	c->z = cos_lon / cosh_gy;
+	p->x = sin_lon / cosh_gy;
+	p->y = tanh(gy);
+	p->z = cos_lon / cosh_gy;
 }
 
 // Convert tile coordinates to xyz coordinates on a unit sphere.
 void
-globe_tile_to_sphere (const struct cache_node *n, struct cache_data *d)
+globe_map_tile (const struct cache_node *n, struct globe_tile *t)
 {
-	map(&(struct cache_node) { n->x + 0, n->y + 1, n->zoom }, &d->coords.sw);
-	map(&(struct cache_node) { n->x + 1, n->y + 1, n->zoom }, &d->coords.se);
-	map(&(struct cache_node) { n->x + 1, n->y + 0, n->zoom }, &d->coords.ne);
-	map(&(struct cache_node) { n->x + 0, n->y + 0, n->zoom }, &d->coords.nw);
+	map_point(&(struct cache_node) { .x = n->x + 0, .y = n->y + 1, .zoom = n->zoom }, &t->sw);
+	map_point(&(struct cache_node) { .x = n->x + 1, .y = n->y + 1, .zoom = n->zoom }, &t->se);
+	map_point(&(struct cache_node) { .x = n->x + 1, .y = n->y + 0, .zoom = n->zoom }, &t->ne);
+	map_point(&(struct cache_node) { .x = n->x + 0, .y = n->y + 0, .zoom = n->zoom }, &t->nw);
 }
 
 // Perform a line-sphere intersection between a unit sphere on the origin, and
