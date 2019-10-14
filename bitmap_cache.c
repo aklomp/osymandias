@@ -16,25 +16,32 @@ static struct cache      *cache = NULL;
 static struct threadpool *tpool = NULL;
 static pthread_mutex_t    mutex = PTHREAD_MUTEX_INITIALIZER;
 
-static void
-process (void *data)
+void
+bitmap_cache_insert (const struct cache_node *loc, void *rgb)
 {
-	struct cache_node *req = data;
-	struct bitmap_cache bitmap;
-
-	// Store rawbits data pointer into cache data structure:
-	if ((bitmap.rgb = pngloader_main(req)) == NULL)
-		return;
+	struct bitmap_cache bitmap = { .rgb = rgb };
 
 	// Calculate 3D sphere xyz coordinates for this tile:
-	globe_map_tile(req, &bitmap.coords);
+	globe_map_tile(loc, &bitmap.coords);
 
 	// Insert the cache data structure into the bitmap cache:
 	pthread_mutex_lock(&mutex);
-	cache_insert(cache, req, &bitmap);
+	cache_insert(cache, loc, &bitmap);
 	pthread_mutex_unlock(&mutex);
 
+	// Ask for a redraw of the viewport:
 	framerate_repaint();
+}
+
+static void
+process (void *data)
+{
+	void *rgb;
+	struct cache_node *req = data;
+
+	// Store rawbits data pointer into cache data structure if found:
+	if ((rgb = pngloader_main(req)) != NULL)
+		bitmap_cache_insert(req, rgb);
 }
 
 static void

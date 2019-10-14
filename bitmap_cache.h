@@ -11,6 +11,9 @@ struct bitmap_cache {
 	void             *rgb;
 };
 
+// Insert an entry into to the bitmap cache.
+extern void bitmap_cache_insert (const struct cache_node *loc, void *rgb);
+
 // Request data from the bitmap cache. Before calling this function, the user
 // must lock the cache. The cache must be unlocked only after the returned data
 // has been used, or there is a risk of race conditions with the threadpool.
