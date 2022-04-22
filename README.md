@@ -1,5 +1,7 @@
 # Osymandias
 
+[![Build](https://github.com/aklomp/osymandias/actions/workflows/build.yml/badge.svg)](https://github.com/aklomp/osymandias/actions/workflows/build.yml)
+
 Osymandias displays the Earth as a 3D sphere, using OpenStreetMap tiles. It's
 an OpenGL program for GTK+ 2 on Linux. There are no releases yet, and it
 probably won't work out of the box in your environment.
