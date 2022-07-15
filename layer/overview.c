@@ -8,7 +8,7 @@
 #include "../layer.h"
 #include "../tilepicker.h"
 #include "../glutil.h"
-#include "../programs.h"
+#include "../program.h"
 #include "../programs/frustum.h"
 #include "../programs/solid.h"
 #include "../util.h"

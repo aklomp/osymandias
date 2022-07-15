@@ -1,3 +1,5 @@
+#include <GL/gl.h>
+
 #include "tiledrawer.h"
 #include "programs.h"
 #include "programs/spherical.h"

@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#include "program.h"
 #include "programs.h"
 
 // Start and end of linker array:
@@ -224,10 +225,4 @@ programs_init (void)
 		}
 
 	return true;
-}
-
-void
-program_none (void)
-{
-	glUseProgram(0);
 }

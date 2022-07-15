@@ -10,7 +10,7 @@
 #include "../tilepicker.h"
 #include "../layer.h"
 #include "../inlinebin.h"
-#include "../programs.h"
+#include "../program.h"
 
 static bool
 on_init (const struct viewport *vp)

@@ -7,7 +7,7 @@
 #include "../layer.h"
 #include "../inlinebin.h"
 #include "../glutil.h"
-#include "../programs.h"
+#include "../program.h"
 #include "../programs/bkgd.h"
 
 // Array of counterclockwise vertices:

@@ -1,5 +1,5 @@
 #include "../inlinebin.h"
-#include "../programs.h"
+#include "../program.h"
 #include "spherical.h"
 
 enum	{ CAM

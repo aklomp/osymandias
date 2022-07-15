@@ -6,7 +6,7 @@
 #include "../inlinebin.h"
 #include "../glutil.h"
 #include "../layer.h"
-#include "../programs.h"
+#include "../program.h"
 #include "../programs/tile2d.h"
 #include "../png.h"
 

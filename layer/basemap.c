@@ -4,7 +4,7 @@
 
 #include "../glutil.h"
 #include "../layer.h"
-#include "../programs.h"
+#include "../program.h"
 #include "../programs/basemap.h"
 
 static uint32_t vao, vbo;
