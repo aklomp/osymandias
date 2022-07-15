@@ -5,8 +5,8 @@
 
 #include "camera.h"
 #include "glutil.h"
-#include "programs.h"
-#include "programs/tilepicker.h"
+#include "program.h"
+#include "program/tilepicker.h"
 #include "tilepicker.h"
 #include "util.h"
 

@@ -1,5 +1,5 @@
 #include "../inlinebin.h"
-#include "../programs.h"
+#include "../program.h"
 #include "spherical.h"
 
 enum	{ CAM
@@ -28,12 +28,12 @@ static struct input inputs[] = {
 	                   { .name = NULL }
 };
 
-struct program program_spherical __attribute__((section(".programs"))) =
-	{ .name     = "spherical"
-	, .vertex   = { .src = SHADER_SPHERICAL_VERTEX   }
-	, .fragment = { .src = SHADER_SPHERICAL_FRAGMENT }
-	, .inputs   = inputs
-	} ;
+static struct program program = {
+	.name     = "spherical",
+	.vertex   = { SHADER_SPHERICAL_VERTEX   },
+	.fragment = { SHADER_SPHERICAL_FRAGMENT },
+	.inputs   = inputs,
+};
 
 void
 program_spherical_set_tile (const struct cache_node *tile, const struct globe_tile *coords)
@@ -47,7 +47,7 @@ program_spherical_set_tile (const struct cache_node *tile, const struct globe_ti
 void
 program_spherical_use (const struct camera *cam, const struct viewport *vp)
 {
-	glUseProgram(program_spherical.id);
+	glUseProgram(program.id);
 	glUniform3fv(inputs[CAM].loc,         1, vp->cam_pos);
 	glUniform3fv(inputs[CAM_LOWBITS].loc, 1, vp->cam_pos_lowbits);
 	glUniformMatrix4fv(inputs[MAT_MVP_ORIGIN].loc, 1, GL_FALSE, vp->matrix32.modelviewproj_origin);
@@ -55,3 +55,5 @@ program_spherical_use (const struct camera *cam, const struct viewport *vp)
 	glUniform1f(inputs[VP_ANGLE].loc, cam->view_angle);
 	glUniform1f(inputs[VP_WIDTH].loc, vp->width);
 }
+
+PROGRAM_REGISTER(&program)

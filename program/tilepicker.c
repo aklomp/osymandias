@@ -2,7 +2,7 @@
 #include <GL/gl.h>
 
 #include "../inlinebin.h"
-#include "../programs.h"
+#include "../program.h"
 #include "tilepicker.h"
 
 enum	{ CAM
@@ -23,12 +23,12 @@ static struct input inputs[] =
 	,                { .name = NULL }
 	} ;
 
-struct program program_tilepicker __attribute__((section(".programs"))) =
-	{ .name     = "tilepicker"
-	, .vertex   = { .src = SHADER_TILEPICKER_VERTEX   }
-	, .fragment = { .src = SHADER_TILEPICKER_FRAGMENT }
-	, .inputs   = inputs
-	} ;
+static struct program program = {
+	.name     = "tilepicker",
+	.vertex   = { SHADER_TILEPICKER_VERTEX   },
+	.fragment = { SHADER_TILEPICKER_FRAGMENT },
+	.inputs   = inputs,
+};
 
 int
 program_tilepicker_loc_vertex (void)
@@ -39,10 +39,12 @@ program_tilepicker_loc_vertex (void)
 void
 program_tilepicker_use (const struct program_tilepicker *values)
 {
-	glUseProgram(program_tilepicker.id);
+	glUseProgram(program.id);
 	glUniform3fv(inputs[CAM].loc, 1, values->cam);
 	glUniformMatrix4fv(inputs[MAT_MV_INV].loc, 1, GL_FALSE, values->mat_mv_inv);
 	glUniform1f(inputs[VP_ANGLE].loc,  values->vp_angle);
 	glUniform1f(inputs[VP_HEIGHT].loc, values->vp_height);
 	glUniform1f(inputs[VP_WIDTH].loc,  values->vp_width);
 }
+
+PROGRAM_REGISTER(&program)

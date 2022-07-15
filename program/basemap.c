@@ -2,7 +2,7 @@
 #include <GL/gl.h>
 
 #include "../inlinebin.h"
-#include "../programs.h"
+#include "../program.h"
 #include "basemap.h"
 
 enum	{ CAM
@@ -23,12 +23,12 @@ static struct input inputs[] =
 	,                { .name = NULL }
 	} ;
 
-struct program program_basemap __attribute__((section(".programs"))) =
-	{ .name     = "basemap"
-	, .vertex   = { .src = SHADER_BASEMAP_VERTEX }
-	, .fragment = { .src = SHADER_BASEMAP_FRAGMENT }
-	, .inputs   = inputs
-	} ;
+static struct program program = {
+	.name     = "basemap",
+	.vertex   = { SHADER_BASEMAP_VERTEX },
+	.fragment = { SHADER_BASEMAP_FRAGMENT },
+	.inputs   = inputs,
+};
 
 int32_t
 program_basemap_loc_vertex (void)
@@ -39,10 +39,12 @@ program_basemap_loc_vertex (void)
 void
 program_basemap_use (const struct camera *cam, const struct viewport *vp)
 {
-	glUseProgram(program_basemap.id);
+	glUseProgram(program.id);
 	glUniform3fv(inputs[CAM].loc, 1, vp->cam_pos);
 	glUniformMatrix4fv(inputs[MAT_MV_INV].loc, 1, GL_FALSE, vp->invert32.modelview);
 	glUniform1f(inputs[VP_ANGLE].loc,  cam->view_angle);
 	glUniform1f(inputs[VP_HEIGHT].loc, vp->height);
 	glUniform1f(inputs[VP_WIDTH].loc,  vp->width);
 }
+
+PROGRAM_REGISTER(&program)

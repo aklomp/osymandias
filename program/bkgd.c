@@ -2,7 +2,7 @@
 #include <GL/gl.h>
 
 #include "../inlinebin.h"
-#include "../programs.h"
+#include "../program.h"
 #include "bkgd.h"
 
 static struct input inputs[] =
@@ -11,12 +11,12 @@ static struct input inputs[] =
 	,			  { .name = NULL }
 	} ;
 
-struct program program_bkgd __attribute__((section(".programs"))) =
-	{ .name     = "bkgd"
-	, .vertex   = { .src = SHADER_BKGD_VERTEX }
-	, .fragment = { .src = SHADER_BKGD_FRAGMENT }
-	, .inputs   = inputs
-	} ;
+static struct program program = {
+	.name     = "bkgd",
+	.vertex   = { SHADER_BKGD_VERTEX },
+	.fragment = { SHADER_BKGD_FRAGMENT },
+	.inputs   = inputs,
+};
 
 GLint
 program_bkgd_loc (const enum LocBkgd index)
@@ -27,5 +27,7 @@ program_bkgd_loc (const enum LocBkgd index)
 void
 program_bkgd_use (void)
 {
-	glUseProgram(program_bkgd.id);
+	glUseProgram(program.id);
 }
+
+PROGRAM_REGISTER(&program)

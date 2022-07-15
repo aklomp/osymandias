@@ -2,7 +2,7 @@
 #include <GL/gl.h>
 
 #include "../inlinebin.h"
-#include "../programs.h"
+#include "../program.h"
 #include "solid.h"
 
 enum	{ MATRIX
@@ -17,12 +17,12 @@ static struct input inputs[] =
 	,		  { .name = NULL }
 	} ;
 
-struct program program_solid __attribute((section(".programs"))) =
-	{ .name     = "solid"
-	, .fragment = { .src = SHADER_SOLID_FRAGMENT }
-	, .vertex   = { .src = SHADER_SOLID_VERTEX }
-	, .inputs   = inputs
-	} ;
+static struct program program = {
+	.name     = "solid",
+	.vertex   = { SHADER_SOLID_VERTEX },
+	.fragment = { SHADER_SOLID_FRAGMENT },
+	.inputs   = inputs,
+};
 
 GLint
 program_solid_loc_color (void)
@@ -39,6 +39,8 @@ program_solid_loc_vertex (void)
 void
 program_solid_use (struct program_solid *values)
 {
-	glUseProgram(program_solid.id);
+	glUseProgram(program.id);
 	glUniformMatrix4fv(inputs[MATRIX].loc, 1, GL_FALSE, values->matrix);
 }
+
+PROGRAM_REGISTER(&program)

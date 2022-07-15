@@ -2,7 +2,7 @@
 #include <GL/gl.h>
 
 #include "../inlinebin.h"
-#include "../programs.h"
+#include "../program.h"
 #include "frustum.h"
 
 enum	{ CAM
@@ -19,12 +19,12 @@ static struct input inputs[] =
 	,                    { .name = NULL }
 	} ;
 
-struct program program_frustum __attribute__((section(".programs"))) =
-	{ .name     = "frustum"
-	, .fragment = { .src = SHADER_FRUSTUM_FRAGMENT }
-	, .vertex   = { .src = SHADER_FRUSTUM_VERTEX }
-	, .inputs   = inputs
-	} ;
+static struct program program = {
+	.name     = "frustum",
+	.vertex   = { SHADER_FRUSTUM_VERTEX },
+	.fragment = { SHADER_FRUSTUM_FRAGMENT },
+	.inputs   = inputs,
+};
 
 GLint
 program_frustum_loc_vertex (void)
@@ -35,8 +35,10 @@ program_frustum_loc_vertex (void)
 void
 program_frustum_use (struct program_frustum *values)
 {
-	glUseProgram(program_frustum.id);
+	glUseProgram(program.id);
 	glUniform3fv(inputs[CAM].loc, 1, values->cam);
 	glUniformMatrix4fv(inputs[MAT_MVP_ORIGIN].loc, 1, GL_FALSE, values->mat_mvp_origin);
 	glUniformMatrix4fv(inputs[MAT_PROJ].loc,       1, GL_FALSE, values->mat_proj);
 }
+
+PROGRAM_REGISTER(&program)

@@ -1,6 +1,8 @@
+#include <GL/gl.h>
+
 #include "tiledrawer.h"
 #include "programs.h"
-#include "programs/spherical.h"
+#include "program/spherical.h"
 
 // Array of indices. If we have a quad defined by these corners:
 //

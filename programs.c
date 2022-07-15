@@ -1,15 +1,11 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#include "program.h"
 #include "programs.h"
 
-// Start and end of linker array:
-extern const void programs_list_start;
-extern const void programs_list_end;
-
-// Pointers to start and end of linker array:
-static struct program *list_start = (void *) &programs_list_start;
-static struct program *list_end   = (void *) &programs_list_end;
+// Pointer to the first program in the linked list.
+static struct program *program_list;
 
 // Local helper struct for compiling shaders:
 struct shadermeta {
@@ -209,7 +205,7 @@ program_create (struct program *program)
 void
 programs_destroy (void)
 {
-	for (struct program *p = list_start; p != list_end; p++)
+	for (struct program *p = program_list; p; p = p->next)
 		if (p->created)
 			glDeleteProgram(p->id);
 }
@@ -217,7 +213,7 @@ programs_destroy (void)
 bool
 programs_init (void)
 {
-	for (struct program *p = list_start; p != list_end; p++)
+	for (struct program *p = program_list; p; p = p->next)
 		if (!program_create(p)) {
 			programs_destroy();
 			return false;
@@ -227,7 +223,9 @@ programs_init (void)
 }
 
 void
-program_none (void)
+programs_link (struct program *program)
 {
-	glUseProgram(0);
+	// Insert this program at the start of the list.
+	program->next = program_list;
+	program_list  = program;
 }

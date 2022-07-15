@@ -6,8 +6,8 @@
 #include "../inlinebin.h"
 #include "../glutil.h"
 #include "../layer.h"
-#include "../programs.h"
-#include "../programs/tile2d.h"
+#include "../program.h"
+#include "../program/tile2d.h"
 #include "../png.h"
 
 // Array of counterclockwise vertices:
