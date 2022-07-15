@@ -16,31 +16,31 @@ void
 layers_paint (const struct camera *cam, const struct viewport *vp)
 {
 	FOREACH_LAYER
-		if (layer->paint)
-			layer->paint(cam, vp);
+		if (layer->on_paint)
+			layer->on_paint(cam, vp);
 }
 
 void
 layers_resize (const struct viewport *vp)
 {
 	FOREACH_LAYER
-		if (layer->resize)
-			layer->resize(vp);
+		if (layer->on_resize)
+			layer->on_resize(vp);
 }
 
 void
 layers_destroy (void)
 {
 	FOREACH_LAYER
-		if (layer->destroy)
-			layer->destroy();
+		if (layer->on_destroy)
+			layer->on_destroy();
 }
 
 bool
 layers_init (const struct viewport *vp)
 {
 	FOREACH_LAYER
-		if (layer->init && layer->init(vp) == false) {
+		if (layer->on_init && layer->on_init(vp) == false) {
 			layers_destroy();
 			return false;
 		}

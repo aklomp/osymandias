@@ -75,7 +75,7 @@ struct vertex {
 } __attribute__((packed));
 
 static void
-resize (const struct viewport *vp)
+on_resize (const struct viewport *vp)
 {
 	// Fit square to smallest screen dimension:
 	state.size = (vp->width < vp->height ? vp->width : vp->height) - 2 * MARGIN;
@@ -209,7 +209,7 @@ paint_tiles (void)
 }
 
 static void
-paint (const struct camera *cam, const struct viewport *vp)
+on_paint (const struct camera *cam, const struct viewport *vp)
 {
 	(void) cam;
 
@@ -312,7 +312,7 @@ init_tiles (void)
 }
 
 static bool
-init (const struct viewport *vp)
+on_init (const struct viewport *vp)
 {
 	(void) vp;
 
@@ -330,7 +330,7 @@ init (const struct viewport *vp)
 }
 
 static void
-destroy (void)
+on_destroy (void)
 {
 	// Delete vertex array and buffer objects:
 	glDeleteVertexArrays(NELEM(state.vao), state.vao);
@@ -344,8 +344,8 @@ void layer_overview_toggle_visible (void)
 
 // Export public methods:
 LAYER(50) = {
-	.init    = &init,
-	.paint   = &paint,
-	.resize  = &resize,
-	.destroy = &destroy,
+	.on_init    = &on_init,
+	.on_paint   = &on_paint,
+	.on_resize  = &on_resize,
+	.on_destroy = &on_destroy,
 };

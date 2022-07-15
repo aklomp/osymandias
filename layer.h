@@ -9,8 +9,8 @@
 	const struct layer layer_ ## Z __attribute__((section(".layer." # Z)))
 
 struct layer {
-	bool (*init)    (const struct viewport *vp);
-	void (*paint)   (const struct camera *cam, const struct viewport *vp);
-	void (*resize)  (const struct viewport *vp);
-	void (*destroy) (void);
+	bool (*on_init)    (const struct viewport *vp);
+	void (*on_paint)   (const struct camera *cam, const struct viewport *vp);
+	void (*on_resize)  (const struct viewport *vp);
+	void (*on_destroy) (void);
 };
