@@ -142,6 +142,7 @@ on_destroy (void)
 static struct layer layer = {
 	.name       = "Cursor",
 	.zdepth     = 60,
+	.visible    = true,
 	.on_init    = &on_init,
 	.on_paint   = &on_paint,
 	.on_resize  = &on_resize,

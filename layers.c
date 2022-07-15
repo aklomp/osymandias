@@ -11,7 +11,7 @@ void
 layers_paint (const struct camera *cam, const struct viewport *vp)
 {
 	FOREACH_LAYER
-		if (layer->on_paint)
+		if (layer->on_paint && layer->visible)
 			layer->on_paint(cam, vp);
 }
 

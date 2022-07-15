@@ -57,6 +57,7 @@ on_init (const struct viewport *vp)
 static struct layer layer = {
 	.name       = "Basemap",
 	.zdepth     = 30,
+	.visible    = true,
 	.on_init    = &on_init,
 	.on_paint   = &on_paint,
 	.on_destroy = &on_destroy,

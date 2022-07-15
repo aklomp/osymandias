@@ -131,6 +131,7 @@ on_destroy (void)
 static struct layer layer = {
 	.name       = "Background",
 	.zdepth     = 10,
+	.visible    = true,
 	.on_init    = &on_init,
 	.on_paint   = &on_paint,
 	.on_resize  = &on_resize,

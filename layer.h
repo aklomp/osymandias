@@ -25,6 +25,9 @@ struct layer {
 	// Layer's Z depth. Lower numbers are drawn before higher numbers.
 	int zdepth;
 
+	// Layer's current visibility (whether `on_paint' is called).
+	bool visible;
+
 	bool (*on_init)    (const struct viewport *vp);
 	void (*on_paint)   (const struct camera *cam, const struct viewport *vp);
 	void (*on_resize)  (const struct viewport *vp);

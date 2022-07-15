@@ -15,6 +15,9 @@
 
 #define MARGIN 40.0f
 
+// Forward declaration.
+static struct layer layer;
+
 // Projection matrix:
 static struct {
 	float  proj32[16];
@@ -50,7 +53,6 @@ static struct {
 	} pos;
 
 	uint32_t size;
-	bool visible;
 }
 state = {
 	.bkgd.vao    = &state.vao[0],
@@ -213,9 +215,6 @@ on_paint (const struct camera *cam, const struct viewport *vp)
 {
 	(void) cam;
 
-	if (state.visible == false)
-		return;
-
 	// Draw 1:1 to screen coordinates, origin bottom left:
 	glLineWidth(1.0);
 	glViewport(state.pos.x, state.pos.y, state.size, state.size);
@@ -316,8 +315,6 @@ on_init (const struct viewport *vp)
 {
 	(void) vp;
 
-	state.visible = false;
-
 	// Generate vertex buffer and array objects:
 	glGenBuffers(NELEM(state.vbo), state.vbo);
 	glGenVertexArrays(NELEM(state.vao), state.vao);
@@ -339,12 +336,13 @@ on_destroy (void)
 
 void layer_overview_toggle_visible (void)
 {
-	state.visible ^= 1;
+	layer.visible ^= 1;
 }
 
 static struct layer layer = {
 	.name       = "Overview",
 	.zdepth     = 50,
+	.visible    = false,
 	.on_init    = &on_init,
 	.on_paint   = &on_paint,
 	.on_resize  = &on_resize,
