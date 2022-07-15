@@ -130,6 +130,7 @@ on_destroy (void)
 
 // Export public methods:
 LAYER(10) = {
+	.name       = "Background",
 	.on_init    = &on_init,
 	.on_paint   = &on_paint,
 	.on_resize  = &on_resize,

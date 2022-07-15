@@ -141,6 +141,7 @@ on_destroy (void)
 
 // Export public methods:
 LAYER(60) = {
+	.name       = "Cursor",
 	.on_init    = &on_init,
 	.on_paint   = &on_paint,
 	.on_resize  = &on_resize,

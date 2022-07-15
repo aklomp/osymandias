@@ -92,6 +92,7 @@ on_paint (const struct camera *cam, const struct viewport *vp)
 
 // Export public methods:
 LAYER(20) = {
+	.name       = "Openstreetmap",
 	.on_init    = &on_init,
 	.on_paint   = &on_paint,
 	.on_destroy = &on_destroy,

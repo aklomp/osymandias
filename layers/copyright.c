@@ -147,6 +147,7 @@ on_destroy (void)
 
 // Export public methods:
 LAYER(40) = {
+	.name       = "Copyright",
 	.on_init    = &on_init,
 	.on_paint   = &on_paint,
 	.on_resize  = &on_resize,

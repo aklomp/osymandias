@@ -344,6 +344,7 @@ void layer_overview_toggle_visible (void)
 
 // Export public methods:
 LAYER(50) = {
+	.name       = "Overview",
 	.on_init    = &on_init,
 	.on_paint   = &on_paint,
 	.on_resize  = &on_resize,

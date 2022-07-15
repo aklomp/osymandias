@@ -56,6 +56,7 @@ on_init (const struct viewport *vp)
 
 // Export public methods:
 LAYER(30) = {
+	.name       = "Basemap",
 	.on_init    = &on_init,
 	.on_paint   = &on_paint,
 	.on_destroy = &on_destroy,
