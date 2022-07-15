@@ -145,11 +145,13 @@ on_destroy (void)
 	glDeleteBuffers(1, &vbo);
 }
 
-// Export public methods:
-LAYER(40) = {
+static struct layer layer = {
 	.name       = "Copyright",
+	.zdepth     = 40,
 	.on_init    = &on_init,
 	.on_paint   = &on_paint,
 	.on_resize  = &on_resize,
 	.on_destroy = &on_destroy,
 };
+
+LAYER_REGISTER(&layer)

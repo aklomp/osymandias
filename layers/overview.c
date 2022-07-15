@@ -342,11 +342,13 @@ void layer_overview_toggle_visible (void)
 	state.visible ^= 1;
 }
 
-// Export public methods:
-LAYER(50) = {
+static struct layer layer = {
 	.name       = "Overview",
+	.zdepth     = 50,
 	.on_init    = &on_init,
 	.on_paint   = &on_paint,
 	.on_resize  = &on_resize,
 	.on_destroy = &on_destroy,
 };
+
+LAYER_REGISTER(&layer)

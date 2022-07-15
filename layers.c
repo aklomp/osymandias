@@ -1,16 +1,11 @@
 #include "layer.h"
 #include "layers.h"
 
-// Start and end of linker array:
-extern const void layers_list_start;
-extern const void layers_list_end;
-
-// Pointers to start and end of linker array:
-static const struct layer *list_start = (const void *) &layers_list_start;
-static const struct layer *list_end   = (const void *) &layers_list_end;
+// Pointer to the first layer in the linked list.
+static struct layer *layer_list;
 
 #define FOREACH_LAYER \
-	for (const struct layer *layer = list_start; layer < list_end; layer++)
+	for (const struct layer *layer = layer_list; layer; layer = layer->next)
 
 void
 layers_paint (const struct camera *cam, const struct viewport *vp)
@@ -46,4 +41,29 @@ layers_init (const struct viewport *vp)
 		}
 
 	return true;
+}
+
+void
+layers_link (struct layer *layer)
+{
+	struct layer *l;
+
+	// If this is the first layer to register itself, or if it sorts below
+	// the current list head, then insert it at the front.
+	if (layer_list == NULL || layer->zdepth < layer_list->zdepth) {
+		layer->next = layer_list;
+		layer_list  = layer;
+		return;
+	}
+
+	// Walk the linked list to find either the last element, or the element
+	// whose next element sorts above this layer. This yields the element
+	// after which the layer should be inserted.
+	for (l = layer_list; l->next != NULL; l = l->next)
+		if (l->next->zdepth > layer->zdepth)
+			break;
+
+	// Insert the given layer at this location.
+	layer->next = l->next;
+	l->next     = layer;
 }

@@ -90,10 +90,12 @@ on_paint (const struct camera *cam, const struct viewport *vp)
 	program_none();
 }
 
-// Export public methods:
-LAYER(20) = {
+static struct layer layer = {
 	.name       = "Openstreetmap",
+	.zdepth     = 20,
 	.on_init    = &on_init,
 	.on_paint   = &on_paint,
 	.on_destroy = &on_destroy,
 };
+
+LAYER_REGISTER(&layer)

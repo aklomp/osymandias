@@ -128,11 +128,13 @@ on_destroy (void)
 	glDeleteBuffers(1, &vbo);
 }
 
-// Export public methods:
-LAYER(10) = {
+static struct layer layer = {
 	.name       = "Background",
+	.zdepth     = 10,
 	.on_init    = &on_init,
 	.on_paint   = &on_paint,
 	.on_resize  = &on_resize,
 	.on_destroy = &on_destroy,
 };
+
+LAYER_REGISTER(&layer)

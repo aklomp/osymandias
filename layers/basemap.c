@@ -54,10 +54,12 @@ on_init (const struct viewport *vp)
 	return true;
 }
 
-// Export public methods:
-LAYER(30) = {
+static struct layer layer = {
 	.name       = "Basemap",
+	.zdepth     = 30,
 	.on_init    = &on_init,
 	.on_paint   = &on_paint,
 	.on_destroy = &on_destroy,
 };
+
+LAYER_REGISTER(&layer)
