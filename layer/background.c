@@ -8,7 +8,7 @@
 #include "../inlinebin.h"
 #include "../glutil.h"
 #include "../program.h"
-#include "../programs/bkgd.h"
+#include "../program/bkgd.h"
 
 // Array of counterclockwise vertices:
 //

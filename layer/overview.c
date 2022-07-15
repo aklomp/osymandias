@@ -9,8 +9,8 @@
 #include "../tilepicker.h"
 #include "../glutil.h"
 #include "../program.h"
-#include "../programs/frustum.h"
-#include "../programs/solid.h"
+#include "../program/frustum.h"
+#include "../program/solid.h"
 #include "../util.h"
 
 #define MARGIN 40.0f

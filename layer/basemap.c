@@ -5,7 +5,7 @@
 #include "../glutil.h"
 #include "../layer.h"
 #include "../program.h"
-#include "../programs/basemap.h"
+#include "../program/basemap.h"
 
 static uint32_t vao, vbo;
 static const struct glutil_vertex vertex[4] = {
