@@ -8,7 +8,7 @@
 #include "../texture_cache.h"
 #include "../tiledrawer.h"
 #include "../tilepicker.h"
-#include "../layers.h"
+#include "../layer.h"
 #include "../inlinebin.h"
 #include "../programs.h"
 

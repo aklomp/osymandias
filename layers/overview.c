@@ -5,7 +5,7 @@
 
 #include "../matrix.h"
 #include "../viewport.h"
-#include "../layers.h"
+#include "../layer.h"
 #include "../tilepicker.h"
 #include "../glutil.h"
 #include "../programs.h"

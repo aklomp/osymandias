@@ -1,3 +1,4 @@
+#include "layer.h"
 #include "layers.h"
 
 // Start and end of linker array:

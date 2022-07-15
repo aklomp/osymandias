@@ -4,7 +4,7 @@
 #include <GL/gl.h>
 
 #include "../png.h"
-#include "../layers.h"
+#include "../layer.h"
 #include "../inlinebin.h"
 #include "../glutil.h"
 #include "../programs.h"

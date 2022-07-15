@@ -3,7 +3,7 @@
 #include <GL/gl.h>
 
 #include "../glutil.h"
-#include "../layers.h"
+#include "../layer.h"
 #include "../programs.h"
 #include "../programs/basemap.h"
 

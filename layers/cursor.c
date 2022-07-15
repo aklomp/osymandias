@@ -5,7 +5,7 @@
 #include "../matrix.h"
 #include "../inlinebin.h"
 #include "../glutil.h"
-#include "../layers.h"
+#include "../layer.h"
 #include "../programs.h"
 #include "../programs/tile2d.h"
 #include "../png.h"
