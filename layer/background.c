@@ -4,7 +4,7 @@
 #include <GL/gl.h>
 
 #include "../png.h"
-#include "../layers.h"
+#include "../layer.h"
 #include "../inlinebin.h"
 #include "../glutil.h"
 #include "../programs.h"
@@ -56,7 +56,7 @@ texcoords (const struct viewport *vp)
 }
 
 static void
-paint (const struct camera *cam, const struct viewport *vp)
+on_paint (const struct camera *cam, const struct viewport *vp)
 {
 	(void) cam;
 	(void) vp;
@@ -79,14 +79,14 @@ paint (const struct camera *cam, const struct viewport *vp)
 }
 
 static void
-resize (const struct viewport *vp)
+on_resize (const struct viewport *vp)
 {
 	// Update texture coordinates:
 	texcoords(vp);
 }
 
 static bool
-init (const struct viewport *vp)
+on_init (const struct viewport *vp)
 {
 	// Load texture:
 	if (glutil_texture_load(&tex) == false)
@@ -111,12 +111,12 @@ init (const struct viewport *vp)
 		program_bkgd_loc(LOC_BKGD_VERTEX),
 		program_bkgd_loc(LOC_BKGD_TEXTURE));
 
-	resize(vp);
+	on_resize(vp);
 	return true;
 }
 
 static void
-destroy (void)
+on_destroy (void)
 {
 	// Delete texture:
 	glDeleteTextures(1, &tex.id);
@@ -128,10 +128,14 @@ destroy (void)
 	glDeleteBuffers(1, &vbo);
 }
 
-// Export public methods:
-LAYER(10) = {
-	.init    = &init,
-	.paint   = &paint,
-	.resize  = &resize,
-	.destroy = &destroy,
+static struct layer layer = {
+	.name       = "Background",
+	.zdepth     = 10,
+	.visible    = true,
+	.on_init    = &on_init,
+	.on_paint   = &on_paint,
+	.on_resize  = &on_resize,
+	.on_destroy = &on_destroy,
 };
+
+LAYER_REGISTER(&layer)

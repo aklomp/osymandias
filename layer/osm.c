@@ -8,12 +8,12 @@
 #include "../texture_cache.h"
 #include "../tiledrawer.h"
 #include "../tilepicker.h"
-#include "../layers.h"
+#include "../layer.h"
 #include "../inlinebin.h"
 #include "../programs.h"
 
 static bool
-init (const struct viewport *vp)
+on_init (const struct viewport *vp)
 {
 	(void) vp;
 
@@ -25,7 +25,7 @@ init (const struct viewport *vp)
 }
 
 static void
-destroy (void)
+on_destroy (void)
 {
 	texture_cache_destroy();
 	bitmap_cache_destroy();
@@ -63,7 +63,7 @@ find_texture (const struct cache_node *in, struct cache_node *out)
 }
 
 static void
-paint (const struct camera *cam, const struct viewport *vp)
+on_paint (const struct camera *cam, const struct viewport *vp)
 {
 	glDisable(GL_BLEND);
 
@@ -90,9 +90,13 @@ paint (const struct camera *cam, const struct viewport *vp)
 	program_none();
 }
 
-// Export public methods:
-LAYER(20) = {
-	.init    = &init,
-	.paint   = &paint,
-	.destroy = &destroy,
+static struct layer layer = {
+	.name       = "Openstreetmap",
+	.zdepth     = 20,
+	.visible    = true,
+	.on_init    = &on_init,
+	.on_paint   = &on_paint,
+	.on_destroy = &on_destroy,
 };
+
+LAYER_REGISTER(&layer)

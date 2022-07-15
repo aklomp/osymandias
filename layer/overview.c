@@ -5,7 +5,7 @@
 
 #include "../matrix.h"
 #include "../viewport.h"
-#include "../layers.h"
+#include "../layer.h"
 #include "../tilepicker.h"
 #include "../glutil.h"
 #include "../programs.h"
@@ -14,6 +14,9 @@
 #include "../util.h"
 
 #define MARGIN 40.0f
+
+// Forward declaration.
+static struct layer layer;
 
 // Projection matrix:
 static struct {
@@ -50,7 +53,6 @@ static struct {
 	} pos;
 
 	uint32_t size;
-	bool visible;
 }
 state = {
 	.bkgd.vao    = &state.vao[0],
@@ -75,7 +77,7 @@ struct vertex {
 } __attribute__((packed));
 
 static void
-resize (const struct viewport *vp)
+on_resize (const struct viewport *vp)
 {
 	// Fit square to smallest screen dimension:
 	state.size = (vp->width < vp->height ? vp->width : vp->height) - 2 * MARGIN;
@@ -209,12 +211,9 @@ paint_tiles (void)
 }
 
 static void
-paint (const struct camera *cam, const struct viewport *vp)
+on_paint (const struct camera *cam, const struct viewport *vp)
 {
 	(void) cam;
-
-	if (state.visible == false)
-		return;
 
 	// Draw 1:1 to screen coordinates, origin bottom left:
 	glLineWidth(1.0);
@@ -312,11 +311,9 @@ init_tiles (void)
 }
 
 static bool
-init (const struct viewport *vp)
+on_init (const struct viewport *vp)
 {
 	(void) vp;
-
-	state.visible = false;
 
 	// Generate vertex buffer and array objects:
 	glGenBuffers(NELEM(state.vbo), state.vbo);
@@ -330,7 +327,7 @@ init (const struct viewport *vp)
 }
 
 static void
-destroy (void)
+on_destroy (void)
 {
 	// Delete vertex array and buffer objects:
 	glDeleteVertexArrays(NELEM(state.vao), state.vao);
@@ -339,13 +336,17 @@ destroy (void)
 
 void layer_overview_toggle_visible (void)
 {
-	state.visible ^= 1;
+	layer.visible ^= 1;
 }
 
-// Export public methods:
-LAYER(50) = {
-	.init    = &init,
-	.paint   = &paint,
-	.resize  = &resize,
-	.destroy = &destroy,
+static struct layer layer = {
+	.name       = "Overview",
+	.zdepth     = 50,
+	.visible    = false,
+	.on_init    = &on_init,
+	.on_paint   = &on_paint,
+	.on_resize  = &on_resize,
+	.on_destroy = &on_destroy,
 };
+
+LAYER_REGISTER(&layer)

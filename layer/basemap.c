@@ -3,7 +3,7 @@
 #include <GL/gl.h>
 
 #include "../glutil.h"
-#include "../layers.h"
+#include "../layer.h"
 #include "../programs.h"
 #include "../programs/basemap.h"
 
@@ -16,7 +16,7 @@ static const struct glutil_vertex vertex[4] = {
 };
 
 static void
-paint (const struct camera *cam, const struct viewport *vp)
+on_paint (const struct camera *cam, const struct viewport *vp)
 {
 	program_basemap_use(cam, vp);
 	glBindVertexArray(vao);
@@ -25,14 +25,14 @@ paint (const struct camera *cam, const struct viewport *vp)
 }
 
 static void
-destroy (void)
+on_destroy (void)
 {
 	glDeleteVertexArrays(1, &vao);
 	glDeleteBuffers(1, &vbo);
 }
 
 static bool
-init (const struct viewport *vp)
+on_init (const struct viewport *vp)
 {
 	(void) vp;
 
@@ -54,9 +54,13 @@ init (const struct viewport *vp)
 	return true;
 }
 
-// Export public methods:
-LAYER(30) = {
-	.init    = &init,
-	.paint   = &paint,
-	.destroy = &destroy,
+static struct layer layer = {
+	.name       = "Basemap",
+	.zdepth     = 30,
+	.visible    = true,
+	.on_init    = &on_init,
+	.on_paint   = &on_paint,
+	.on_destroy = &on_destroy,
 };
+
+LAYER_REGISTER(&layer)

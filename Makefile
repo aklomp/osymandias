@@ -3,7 +3,6 @@ CFLAGS	+= -march=native -O3 -ffast-math
 CFLAGS	+= -Wall -Wextra -pedantic -g
 CFLAGS	+= -I lib/vec/include
 
-LDFLAGS += -T layers.ld
 LDFLAGS += -T programs.ld
 LDLIBS  += -lpng -pthread -lm
 

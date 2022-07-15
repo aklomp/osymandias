@@ -5,7 +5,7 @@
 #include "../matrix.h"
 #include "../inlinebin.h"
 #include "../glutil.h"
-#include "../layers.h"
+#include "../layer.h"
 #include "../programs.h"
 #include "../programs/tile2d.h"
 #include "../png.h"
@@ -20,10 +20,8 @@ static struct glutil_vertex_uv vertex[4] = GLUTIL_VERTEX_UV_DEFAULT;
 
 // Projection matrix:
 static struct {
-	double ortho[16];
-	double translate[16];
-	double proj64[16];
 	float  proj32[16];
+	double proj64[16];
 } matrix;
 
 // Screen size:
@@ -34,14 +32,14 @@ static struct {
 
 // Cursor texture:
 static struct glutil_texture tex = {
-	.src  = TEXTURE_COPYRIGHT,
+	.src  = TEXTURE_CURSOR,
 	.type = GL_RGBA,
 };
 
 static GLuint vao, vbo;
 
 static void
-paint (const struct camera *cam, const struct viewport *vp)
+on_paint (const struct camera *cam, const struct viewport *vp)
 {
 	(void) cam;
 	(void) vp;
@@ -49,6 +47,7 @@ paint (const struct camera *cam, const struct viewport *vp)
 	// Viewport is screen:
 	glViewport(0, 0, screen.width, screen.height);
 
+	glDisable(GL_DEPTH_TEST);
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
@@ -57,7 +56,7 @@ paint (const struct camera *cam, const struct viewport *vp)
 		.mat_proj = matrix.proj32,
 	}));
 
-	// Activate copyright texture:
+	// Activate cursor texture:
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, tex.id);
 
@@ -69,21 +68,13 @@ paint (const struct camera *cam, const struct viewport *vp)
 }
 
 static void
-resize (const struct viewport *vp)
+on_resize (const struct viewport *vp)
 {
 	screen.width  = vp->width;
 	screen.height = vp->height;
 
-	// Create an orthographic projection:
-	mat_ortho(matrix.ortho, 0.0f, screen.width, screen.height, 0.0f, 0.0f, 1.0f);
-
-	// Create a translation matrix:
-	double tex_orig_x = screen.width  - tex.width  - 10.0;
-	double tex_orig_y = screen.height - tex.height - 10.0;
-	mat_translate(matrix.translate, tex_orig_x, tex_orig_y, 0.0);
-
-	// Multiply:
-	mat_multiply(matrix.proj64, matrix.ortho, matrix.translate);
+	// Projection matrix maps 1:1 to screen:
+	mat_scale(matrix.proj64, 2.0 / screen.width, 2.0 / screen.height, 0.0);
 	mat_to_float(matrix.proj32, matrix.proj64);
 }
 
@@ -94,17 +85,20 @@ init_texture (void)
 	if (glutil_texture_load(&tex) == false)
 		return false;
 
+	int halfwd = tex.width  / 2;
+	int halfht = tex.height / 2;
+
 	// Size vertex array to texture:
-	vertex[0].x = 0;         vertex[0].y = tex.height;
-	vertex[1].x = tex.width; vertex[1].y = tex.height;
-	vertex[2].x = tex.width; vertex[2].y = 0;
-	vertex[3].x = 0;         vertex[3].y = 0;
+	vertex[0].x = -halfwd; vertex[0].y = -halfht;
+	vertex[1].x =  halfwd; vertex[1].y = -halfht;
+	vertex[2].x =  halfwd; vertex[2].y =  halfht;
+	vertex[3].x = -halfwd; vertex[3].y =  halfht;
 
 	return true;
 }
 
 static bool
-init (const struct viewport *vp)
+on_init (const struct viewport *vp)
 {
 	// Init texture:
 	if (init_texture() == false)
@@ -128,12 +122,12 @@ init (const struct viewport *vp)
 	// Copy vertices to buffer:
 	glBufferData(GL_ARRAY_BUFFER, sizeof(vertex), vertex, GL_STATIC_DRAW);
 
-	resize(vp);
+	on_resize(vp);
 	return true;
 }
 
 static void
-destroy (void)
+on_destroy (void)
 {
 	// Delete texture:
 	glDeleteTextures(1, &tex.id);
@@ -145,10 +139,14 @@ destroy (void)
 	glDeleteBuffers(1, &vbo);
 }
 
-// Export public methods:
-LAYER(40) = {
-	.init    = &init,
-	.paint   = &paint,
-	.resize  = &resize,
-	.destroy = &destroy,
+static struct layer layer = {
+	.name       = "Cursor",
+	.zdepth     = 60,
+	.visible    = true,
+	.on_init    = &on_init,
+	.on_paint   = &on_paint,
+	.on_resize  = &on_resize,
+	.on_destroy = &on_destroy,
 };
+
+LAYER_REGISTER(&layer)
