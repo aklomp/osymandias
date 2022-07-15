@@ -6,7 +6,7 @@
 #include "gui/framerate.h"
 #include "gui/local.h"
 #include "gui/signal.h"
-#include "layers/overview.h"
+#include "layer/overview.h"
 
 static void
 on_key_press (GtkWidget *widget, GdkEventKey *event)
