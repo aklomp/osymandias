@@ -5,7 +5,7 @@
 static struct layer *layer_list;
 
 #define FOREACH_LAYER \
-	for (const struct layer *layer = layer_list; layer; layer = layer->next)
+	for (struct layer *layer = layer_list; layer; layer = layer->next)
 
 void
 layers_paint (const struct camera *cam, const struct viewport *vp)
@@ -27,18 +27,22 @@ void
 layers_destroy (void)
 {
 	FOREACH_LAYER
-		if (layer->on_destroy)
+		if (layer->on_destroy && layer->created)
 			layer->on_destroy();
 }
 
 bool
 layers_init (const struct viewport *vp)
 {
-	FOREACH_LAYER
-		if (layer->on_init && layer->on_init(vp) == false) {
-			layers_destroy();
-			return false;
+	FOREACH_LAYER {
+		if (layer->on_init && layer->on_init(vp)) {
+			layer->created = true;
+			continue;
 		}
+
+		layers_destroy();
+		return false;
+	}
 
 	return true;
 }

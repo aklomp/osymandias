@@ -25,6 +25,9 @@ struct layer {
 	// Layer's Z depth. Lower numbers are drawn before higher numbers.
 	int zdepth;
 
+	// Whether `on_init' has been successfully called on this layer.
+	bool created;
+
 	// Layer's current visibility (whether `on_paint' is called).
 	bool visible;
 
