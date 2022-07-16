@@ -32,7 +32,9 @@ read_fn (png_structp png_ptr, png_bytep data, png_size_t length)
 static void
 error_fn (png_structp png_ptr, png_const_charp msg)
 {
-	(void)msg;
+	const struct png_in *in = png_get_error_ptr(png_ptr);
+
+	fprintf(stderr, "png: error: %s: %s\n", in->name, msg);
 
 	// According to the libpng docs, this function should not return
 	// control, but longjmp back to the caller:
@@ -42,8 +44,9 @@ error_fn (png_structp png_ptr, png_const_charp msg)
 static void
 warning_fn (png_structp png_ptr, png_const_charp msg)
 {
-	(void)png_ptr;
-	(void)msg;
+	const struct png_in *in = png_get_error_ptr(png_ptr);
+
+	fprintf(stderr, "png: warning: %s: %s\n", in->name, msg);
 
 	// According to the docs, a warning should simply return, not longjmp.
 }
@@ -69,12 +72,12 @@ png_load (const struct png_in *in, struct png_out *out)
 		return false;
 
 	// Create the read structure.
-	png_ptr = png_create_read_struct
-		( PNG_LIBPNG_VER_STRING
-		, NULL
-		, error_fn
-		, warning_fn
-		) ;
+	png_ptr = png_create_read_struct(
+		PNG_LIBPNG_VER_STRING,
+		(void *) in,
+		error_fn,
+		warning_fn
+	);
 
 	if (png_ptr == NULL)
 		return false;
