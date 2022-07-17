@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdint.h>
 #include <stddef.h>
 
 enum Inlinebin {
@@ -23,4 +24,4 @@ enum Inlinebin {
 	TEXTURE_CURSOR,
 };
 
-extern void inlinebin_get (enum Inlinebin member, const char **buf, size_t *len);
+extern void inlinebin_get (enum Inlinebin member, const uint8_t **buf, size_t *len);

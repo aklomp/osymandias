@@ -51,15 +51,15 @@ glutil_draw_quad (void)
 bool
 glutil_texture_load (struct glutil_texture *tex)
 {
-	char		*raw;
-	const char	*png;
-	size_t		 len;
+	char          *raw;
+	const uint8_t *png;
+	size_t         len;
 
 	// Get inline texture as PNG blob:
 	inlinebin_get(tex->src, &png, &len);
 
 	// Decode PNG to raw format:
-	if (png_load(png, len, &tex->height, &tex->width, &raw) == false)
+	if (png_load((const char *) png, len, &tex->height, &tex->width, &raw) == false)
 		return false;
 
 	// Generate texture:
