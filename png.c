@@ -5,11 +5,11 @@
 
 #include "png.h"
 
-// Structure for memory read I/O:
+// Structure for memory read I/O.
 struct io {
-	const char	*buf;
-	const char	*cur;
-	size_t		 len;
+	const uint8_t *buf;
+	const uint8_t *cur;
+	size_t         len;
 };
 
 // Our own I/O functions:
@@ -49,27 +49,26 @@ warning_fn (png_structp png_ptr, png_const_charp msg)
 }
 
 static bool
-is_png (const char *buf, size_t len)
+is_png (const struct png_in *in)
 {
-	return !png_sig_cmp((png_bytep)buf, 0, (len > 8) ? 8 : len);
+	return png_sig_cmp(in->buf, 0, (in->len > 8) ? 8 : in->len) == 0;
 }
 
 bool
-png_load (const char *data, size_t len, unsigned int *height, unsigned int *width, char **rawbits)
+png_load (const struct png_in *in, struct png_out *out)
 {
 	png_structp png_ptr;
 	png_infop info_ptr;
 	bool err = false;
-	char channels;
 
-	// Initialize caller-supplied pointer:
-	*rawbits = NULL;
+	// Reset the caller-supplied output pointer.
+	out->buf = NULL;
 
-	// Data must look like a PNG file:
-	if (!is_png(data, len))
+	// The user's data must look like a PNG file.
+	if (!is_png(in))
 		return false;
 
-	// Create read struct:
+	// Create the read structure.
 	png_ptr = png_create_read_struct
 		( PNG_LIBPNG_VER_STRING
 		, NULL
@@ -80,64 +79,64 @@ png_load (const char *data, size_t len, unsigned int *height, unsigned int *widt
 	if (png_ptr == NULL)
 		return false;
 
-	// Create info struct:
+	// Create the info structure.
 	if ((info_ptr = png_create_info_struct(png_ptr)) == NULL) {
 		png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
 		return false;
 	}
 
-	// Set up read I/O structure:
+	// Set up the read I/O structure.
 	struct io io = {
-		.len = len,
-		.buf = data,
-		.cur = data,
+		.len = in->len,
+		.buf = in->buf,
+		.cur = in->buf,
 	};
 
-	// Instantiate our own read function:
+	// Register a custom read function.
 	png_set_read_fn(png_ptr, &io, read_fn);
 
-	// Return here on errors:
+	// Return here on errors.
 	if (setjmp(png_jmpbuf(png_ptr))) {
 		err = true;
 		goto exit;
 	}
 
-	// Read PNG up to image data:
+	// Read the PNG up to the image data.
 	png_read_info(png_ptr, info_ptr);
 
-	// Transform input into 8-bit RGB:
+	// Transform the input to 8-bit RGB.
 	png_byte color_type = png_get_color_type (png_ptr, info_ptr);
 	png_byte bit_depth  = png_get_bit_depth  (png_ptr, info_ptr);
 
-	// Convert paletted images to RGB:
+	// Convert paletted images to RGB.
 	if (color_type == PNG_COLOR_TYPE_PALETTE)
 		png_set_palette_to_rgb(png_ptr);
 
-	// Upsample low-bit grayscale images to 8-bit:
+	// Upsample low-bit grayscale images to 8-bit.
 	if (color_type == PNG_COLOR_TYPE_GRAY && bit_depth < 8)
 		png_set_expand_gray_1_2_4_to_8(png_ptr);
 
-	// Upsample low-bit images to 8-bit:
+	// Upsample low-bit images to 8-bit.
 	if (bit_depth < 8)
 		png_set_packing(png_ptr);
 
-	// Discard alpha channel:
+	// Discard the alpha channel.
 	if (color_type & PNG_COLOR_MASK_ALPHA)
 		png_set_strip_alpha(png_ptr);
 
-	// Upsample grayscale to RGB:
+	// Upsample grayscale to RGB.
 	if (color_type == PNG_COLOR_TYPE_GRAY
 	 || color_type == PNG_COLOR_TYPE_GRAY_ALPHA)
 		png_set_gray_to_rgb(png_ptr);
 
+	// Update the image info and populate the output structure.
 	png_read_update_info(png_ptr, info_ptr);
+	out->width    = png_get_image_width  (png_ptr, info_ptr);
+	out->height   = png_get_image_height (png_ptr, info_ptr);
+	out->channels = png_get_channels     (png_ptr, info_ptr);
 
-	*width  = png_get_image_width  (png_ptr, info_ptr);
-	*height = png_get_image_height (png_ptr, info_ptr);
-	channels = png_get_channels(png_ptr, info_ptr);
-
-	// Allocate the rawbits image data:
-	if ((*rawbits = malloc(*width * *height * channels)) == NULL) {
+	// Allocate the image data.
+	if ((out->buf = malloc(out->width * out->height * out->channels)) == NULL) {
 		err = true;
 		goto exit;
 	}
@@ -145,11 +144,11 @@ png_load (const char *data, size_t len, unsigned int *height, unsigned int *widt
 	// Allocate array of row pointers, read actual image data:
 	// TODO: check if it's wise to allocate this on the stack:
 	{
-		png_byte *b = *rawbits;
-		size_t row_stride = *width * channels;
-		png_bytep row_pointers[*height];
+		png_byte *b = out->buf;
+		size_t row_stride = out->width * out->channels;
+		png_bytep row_pointers[out->height];
 
-		for (unsigned int i = 0; i < *height; i++) {
+		for (uint16_t i = 0; i < out->height; i++) {
 			row_pointers[i] = b;
 			b += row_stride;
 		}
@@ -163,7 +162,7 @@ exit:	png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
 	if (!err)
 		return true;
 
-	free(*rawbits);
-	*rawbits = NULL;
+	free(out->buf);
+	out->buf = NULL;
 	return false;
 }
