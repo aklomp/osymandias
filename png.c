@@ -146,23 +146,26 @@ load (struct state *state, struct png_out *out)
 	out->height   = png_get_image_height (state->pngp, state->infop);
 	out->channels = png_get_channels     (state->pngp, state->infop);
 
+	// Define a pointer to an image array with the dimensions and depth of
+	// the target image. This lets us offload all offset calculations to
+	// the compiler by (ab)using sizeof() and array indexing syntax.
+	uint8_t (*img)[out->height][out->width][out->channels];
+
 	// Allocate the image data.
-	if ((out->buf = malloc(out->width * out->height * out->channels)) == NULL)
+	if ((img = malloc(sizeof(*img))) == NULL)
 		return false;
 
-	// Allocate array of row pointers, read actual image data:
-	// TODO: check if it's wise to allocate this on the stack:
-	{
-		png_byte *b = out->buf;
-		size_t row_stride = out->width * out->channels;
-		png_bytep row_pointers[out->height];
+	// Set the output data pointer to the first byte of the decoded image.
+	out->buf = &(*img)[0][0][0];
 
-		for (uint16_t i = 0; i < out->height; i++) {
-			row_pointers[i] = b;
-			b += row_stride;
-		}
-		png_read_image(state->pngp, row_pointers);
-	}
+	// Create an array of pointers to each row of the image.
+	uint8_t *row_pointers[out->height];
+
+	for (uint16_t i = 0; i < out->height; i++)
+		row_pointers[i] = &(*img)[i][0][0];
+
+	// Read the image data.
+	png_read_image(state->pngp, row_pointers);
 	png_read_end(state->pngp, NULL);
 
 	return true;
