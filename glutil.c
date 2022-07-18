@@ -51,16 +51,19 @@ glutil_draw_quad (void)
 bool
 glutil_texture_load (struct glutil_texture *tex)
 {
-	char		*raw;
-	const char	*png;
-	size_t		 len;
+	struct png_in  in = { .name = "inline texture" };
+	struct png_out out;
 
 	// Get inline texture as PNG blob:
-	inlinebin_get(tex->src, &png, &len);
+	inlinebin_get(tex->src, &in.buf, &in.len);
 
 	// Decode PNG to raw format:
-	if (png_load(png, len, &tex->height, &tex->width, &raw) == false)
+	if (png_load(&in, &out) == false)
 		return false;
+
+	// Store the texture's geometry.
+	tex->width  = out.width;
+	tex->height = out.height;
 
 	// Generate texture:
 	glGenTextures(1, &tex->id);
@@ -75,15 +78,15 @@ glutil_texture_load (struct glutil_texture *tex)
 			, 0			// Mipmap level
 			, tex->type		// Internal format
 			, tex->width		// Width
-			, tex->height		// height
+			, tex->height		// Height
 			, 0			// Border, must be 0
 			, tex->type		// Format
 			, GL_UNSIGNED_BYTE	// Data type
-			, raw			// Raw data
+			, out.buf		// Raw data
 			) ;
 
 	// Free memory:
-	free(raw);
+	free(out.buf);
 
 	return true;
 }

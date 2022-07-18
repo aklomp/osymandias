@@ -1,8 +1,8 @@
 #include "inlinebin.h"
 
 #define DATA_DEF(name)							\
-	extern const char _binary_## name ##_start[];			\
-	extern const char _binary_## name ##_end[];
+	extern const uint8_t _binary_## name ##_start[];		\
+	extern const uint8_t _binary_## name ##_end[];
 
 #define DATA_ELEM(id, name)						\
 	[id] = {							\
@@ -36,12 +36,12 @@ X_MAP
 #undef X
 
 void
-inlinebin_get (enum Inlinebin member, const char **buf, size_t *len)
+inlinebin_get (enum Inlinebin member, const uint8_t **buf, size_t *len)
 {
 	// Define an array of inline data descriptors:
 	struct {
-		const char	*buf;
-		size_t		 len;
+		const uint8_t *buf;
+		size_t         len;
 	}
 	elems[] = {
 

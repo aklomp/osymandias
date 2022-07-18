@@ -60,22 +60,21 @@ read_pngdata (const struct cache_node *req, size_t *len)
 void *
 pngloader_main (const struct cache_node *req)
 {
-	unsigned int height, width;
-	char *pngdata, *rawbits;
-	size_t len;
+	struct png_in  in = { .name = "cache request" };
+	struct png_out out;
 
-	if ((pngdata = read_pngdata(req, &len)) == NULL)
+	if ((in.buf = read_pngdata(req, &in.len)) == NULL)
 		return NULL;
 
-	if (png_load(pngdata, len, &height, &width, &rawbits) == false) {
-		free(pngdata);
+	if (png_load(&in, &out) == false) {
+		free((void *) in.buf);
 		return NULL;
 	}
 
-	free(pngdata);
-	if (height == TILESIZE && width == TILESIZE)
-		return rawbits;
+	free((void *) in.buf);
+	if (out.height == TILESIZE && out.width == TILESIZE)
+		return out.buf;
 
-	free(rawbits);
+	free(out.buf);
 	return NULL;
 }

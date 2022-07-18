@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdbool.h>
+#include <stdint.h>
 #include <GL/gl.h>
 
 #include "inlinebin.h"
@@ -42,8 +43,8 @@ struct glutil_texture {
 	GLuint		id;
 	enum Inlinebin	src;
 	GLenum		type;
-	unsigned int	width;
-	unsigned int	height;
+	uint16_t	width;
+	uint16_t	height;
 };
 
 // Operations on textures:
