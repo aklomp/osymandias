@@ -1,8 +1,8 @@
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
 #include <pthread.h>
 
+#include "thread.h"
 #include "threadpool.h"
 #include "util.h"
 
@@ -21,22 +21,6 @@ struct threadpool {
 
 	bool shutdown;
 };
-
-// Check a pthread function for errors, print error message.
-static void
-check (const int ret)
-{
-	if (ret != 0)
-		fprintf(stderr, "pthread: %s\n", strerror(ret));
-}
-
-// Check a pthread function for errors, return error status.
-static bool
-failed (const int ret)
-{
-	check(ret);
-	return ret != 0;
-}
 
 // Get pointer to job slot #n.
 static inline void *
@@ -88,15 +72,15 @@ thread_main (void *data)
 
 		// The pthread_cond_wait() must run under a locked mutex
 		// (it does its own internal unlocking/relocking):
-		if (failed(pthread_mutex_lock(&p->cond_mutex)))
+		if (thread_mutex_lock(&p->cond_mutex) == false)
 			break;
 
 		// Wait for predicate to change, allow spurious wakeups:
 		while (!(job_take(p, job) || p->shutdown))
-			check(pthread_cond_wait(&p->cond, &p->cond_mutex));
+			thread_cond_wait(&p->cond, &p->cond_mutex);
 
 		// Unlock the condition mutex to release the job structure:
-		check(pthread_mutex_unlock(&p->cond_mutex));
+		thread_mutex_unlock(&p->cond_mutex);
 
 		// Run user-provided routine on data:
 		if (p->shutdown == false)
@@ -111,16 +95,16 @@ static void
 threads_destroy (struct threadpool *p)
 {
 	p->shutdown = true;
-	check(pthread_cond_broadcast(&p->cond));
+	thread_cond_broadcast(&p->cond);
 	FOREACH_NELEM (p->threads, p->num.threads, t)
-		check(pthread_join(*t, NULL));
+		thread_join(*t);
 }
 
 static bool
 threads_create (struct threadpool *p)
 {
 	FOREACH_NELEM (p->threads, p->config.num.threads, t) {
-		if (failed(pthread_create(t, NULL, thread_main, p))) {
+		if (thread_create(t, thread_main, p) == false) {
 			threads_destroy(p);
 			return false;
 		}
@@ -138,13 +122,13 @@ threadpool_job_enqueue (struct threadpool *p, void *job)
 	if (p == NULL)
 		return false;
 
-	if (failed(pthread_mutex_lock(&p->cond_mutex)))
-		return false;
+	if ((ret = thread_mutex_lock(&p->cond_mutex))) {
+		if ((ret = job_insert(p, job)))
+			thread_cond_signal(&p->cond);
 
-	if ((ret = job_insert(p, job)))
-		check(pthread_cond_signal(&p->cond));
+		thread_mutex_unlock(&p->cond_mutex);
+	}
 
-	check(pthread_mutex_unlock(&p->cond_mutex));
 	return ret;
 }
 
@@ -169,10 +153,10 @@ threadpool_create (const struct threadpool_config *config)
 	if ((p->threads = calloc(config->num.threads, sizeof (pthread_t))) == NULL)
 		goto err2;
 
-	if (failed(pthread_mutex_init(&p->cond_mutex, NULL)))
+	if (thread_mutex_init(&p->cond_mutex) == false)
 		goto err3;
 
-	if (failed(pthread_cond_init(&p->cond, NULL)))
+	if (thread_cond_init(&p->cond) == false)
 		goto err4;
 
 	if (threads_create(p) == false)
@@ -180,8 +164,8 @@ threadpool_create (const struct threadpool_config *config)
 
 	return p;
 
-err5:	check(pthread_cond_destroy(&p->cond));
-err4:	check(pthread_mutex_destroy(&p->cond_mutex));
+err5:	thread_cond_destroy(&p->cond);
+err4:	thread_mutex_destroy(&p->cond_mutex);
 err3:	free(p->threads);
 err2:	free(p->jobs);
 err1:	free(p);
@@ -196,8 +180,8 @@ threadpool_destroy (struct threadpool *p)
 
 	threads_destroy(p);
 
-	check(pthread_mutex_destroy(&p->cond_mutex));
-	check(pthread_cond_destroy(&p->cond));
+	thread_mutex_destroy(&p->cond_mutex);
+	thread_cond_destroy(&p->cond);
 
 	free(p->threads);
 	free(p->jobs);
