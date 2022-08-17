@@ -5,6 +5,7 @@
 #include "gui/framerate.h"
 #include "bitmap_cache.h"
 #include "globe.h"
+#include "thread.h"
 #include "threadpool.h"
 #include "pngloader.h"
 
@@ -25,9 +26,10 @@ bitmap_cache_insert (const struct cache_node *loc, void *rgb)
 	globe_map_tile(loc, &bitmap.coords);
 
 	// Insert the cache data structure into the bitmap cache:
-	pthread_mutex_lock(&mutex);
-	cache_insert(cache, loc, &bitmap);
-	pthread_mutex_unlock(&mutex);
+	if (thread_mutex_lock(&mutex)) {
+		cache_insert(cache, loc, &bitmap);
+		thread_mutex_unlock(&mutex);
+	}
 
 	// Ask for a redraw of the viewport:
 	framerate_repaint();
@@ -108,13 +110,13 @@ bitmap_cache_search (const struct cache_node *in, struct cache_node *out)
 void
 bitmap_cache_lock (void)
 {
-	pthread_mutex_lock(&mutex);
+	thread_mutex_lock(&mutex);
 }
 
 void
 bitmap_cache_unlock (void)
 {
-	pthread_mutex_unlock(&mutex);
+	thread_mutex_unlock(&mutex);
 }
 
 void
