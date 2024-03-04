@@ -3,11 +3,11 @@
 #include <gtk/gtk.h>
 #include <GL/gl.h>
 
-#include "../../util.h"
-#include "../../viewport.h"
-#include "../framerate.h"
-#include "../signal.h"
-#include "../mouse.h"
+#include "../util.h"
+#include "../viewport.h"
+#include "framerate.h"
+#include "signal.h"
+#include "mouse.h"
 
 // Mark one or two parameters as being unused:
 #define UNUSED(...) ((void) ((void) __VA_ARGS__))
